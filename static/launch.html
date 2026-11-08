@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetPulse // OmniSight — Google Play & Multi-Platform Launch Center</title>
+  <style>
+    :root {
+      --bg: #050811;
+      --panel: #0b1222;
+      --card: #101a30;
+      --cyan: #00f0ff;
+      --emerald: #10b981;
+      --purple: #a855f7;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --border: rgba(0, 240, 255, 0.22);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      padding: 24px 16px 80px;
+    }
+    .container { max-width: 1240px; margin: 0 auto; }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 28px;
+      margin-bottom: 24px;
+    }
+    .brand {
+      font-family: monospace;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--cyan);
+      letter-spacing: 1px;
+    }
+    .nav a {
+      color: var(--text);
+      text-decoration: none;
+      font-family: monospace;
+      font-size: 0.85rem;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      margin-left: 8px;
+      display: inline-block;
+    }
+    .nav a:hover { border-color: var(--cyan); color: var(--cyan); }
+    .hero {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.12), rgba(168, 85, 247, 0.12));
+      border: 1px solid var(--cyan);
+      border-radius: 18px;
+      padding: 28px;
+      margin-bottom: 28px;
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 24px;
+      align-items: center;
+    }
+    @media (max-width: 900px) { .hero { grid-template-columns: 1fr; } }
+    .hero h1 { font-size: 2rem; color: #fff; margin-bottom: 10px; }
+    .hero p { color: var(--muted); font-size: 1rem; margin-bottom: 18px; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 12px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 18px;
+      border-radius: 10px;
+      font-family: monospace;
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+      text-decoration: none;
+      border: 1px solid var(--cyan);
+      background: rgba(0, 240, 255, 0.14);
+      color: var(--cyan);
+      transition: all 0.15s ease;
+    }
+    .btn:hover { background: var(--cyan); color: #050811; }
+    .btn.emerald { border-color: var(--emerald); background: rgba(16, 185, 129, 0.16); color: var(--emerald); }
+    .btn.emerald:hover { background: var(--emerald); color: #050811; }
+    .btn.purple { border-color: var(--purple); background: rgba(168, 85, 247, 0.16); color: var(--purple); }
+    .btn.purple:hover { background: var(--purple); color: #fff; }
+    .section-title {
+      font-family: monospace;
+      font-size: 1.2rem;
+      color: var(--cyan);
+      margin: 28px 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 18px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .card h3 {
+      font-family: monospace;
+      color: #fff;
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .tag {
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(16, 185, 129, 0.18);
+      color: var(--emerald);
+      border: 1px solid var(--emerald);
+    }
+    .copy-box {
+      width: 100%;
+      background: #060a15;
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 0.8rem;
+      margin: 10px 0 14px;
+      resize: vertical;
+      min-height: 120px;
+    }
+    .asset-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px;
+    }
+    .asset-item {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+    .asset-item img {
+      width: 100%;
+      height: 170px;
+      object-fit: contain;
+      background: #050811;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .asset-item .meta {
+      font-family: monospace;
+      font-size: 0.76rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--emerald);
+      color: #04100c;
+      font-family: monospace;
+      font-weight: 800;
+      padding: 12px 20px;
+      border-radius: 10px;
+      display: none;
+      z-index: 9999;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="brand">NETPULSE // OMNISIGHT v4.5.0 — GLOBAL LAUNCH COMMAND</div>
+      <div class="nav">
+        <a href="/">Desktop Workbench</a>
+        <a href="/mobile">Mobile App</a>
+        <a href="/pricing">Storefront &amp; Billing</a>
+        <a href="/privacy">Privacy Policy</a>
+      </div>
+    </div>
+
+    <div class="hero">
+      <div>
+        <h1>Google Play Store &amp; Multi-Platform Distribution Hub</h1>
+        <p>Your signed Google Play Android App Bundle (<code>.aab</code>), standalone APK, 7 high-contrast Play Store graphics, Privacy Policy compliance page, and viral launch kits for Product Hunt, Hacker News, Reddit, X, LinkedIn, Docker Hub, and PyPI are built and ready.</p>
+        <div class="btn-row">
+          <a class="btn emerald" href="/download/NetPulse-Mobile-PlayStore.aab" download>⬇ Download Google Play .AAB Bundle</a>
+          <a class="btn" href="/download/NetPulse-Mobile.apk" download>⬇ Download Direct Android .APK</a>
+          <a class="btn purple" href="https://play.google.com/console" target="_blank" rel="noopener">🚀 Open Google Play Console</a>
+          <a class="btn" href="/privacy" target="_blank">🛡 View Live Privacy Policy URL</a>
+        </div>
+      </div>
+      <div style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; font-family: monospace; font-size: 0.82rem;">
+        <div style="color: var(--emerald); font-weight: 700; margin-bottom: 8px;">✔ GOOGLE PLAY READINESS CHECKLIST</div>
+        <div>• Package: <code>com.netpulse.mobile</code> (v4.5.0 / code 45)</div>
+        <div>• Target SDK: <code>API 35 (Android 15)</code></div>
+        <div>• Format: Protobuf <code>.aab</code> + <code>BundleConfig.pb</code></div>
+        <div>• Signature: <code>SHA256withRSA</code> Verified</div>
+        <div>• Store Graphics: 7/7 Opaque RGB PNGs Generated</div>
+        <div>• Privacy Policy: Live at <code>/privacy</code></div>
+        <div style="margin-top: 10px; color: var(--cyan);">CLI Automated Upload:</div>
+        <code style="display:block; background:#050811; padding:8px; border-radius:6px; margin-top:4px; color:#e2e8f0;">python3 scripts/upload_to_google_play.py --track internal</code>
+      </div>
+    </div>
+
+    <div class="section-title">🖼 1. GOOGLE PLAY CONSOLE GRAPHICAL ASSETS (CLICK TO DOWNLOAD)</div>
+    <div class="asset-strip">
+      <div class="asset-item">
+        <img src="/play-store-assets/icon_512x512.png" alt="App Icon 512x512" />
+        <div class="meta">App Icon (512×512 PNG)</div>
+        <a class="btn" href="/play-store-assets/icon_512x512.png" download>Download PNG</a>
+      </div>
+      <div class="asset-item">
+        <img src="/play-store-assets/feature_graphic_1024x500.png" alt="Feature Graphic 1024x500" />
+        <div class="meta">Feature Graphic (1024×500)</div>
+        <a class="btn" href="/play-store-assets/feature_graphic_1024x500.png" download>Download PNG</a>
+      </div>
+      <div class="asset-item">
+        <img src="/play-store-assets/phone_screenshot_1_decloaker_1080x1920.png" alt="Phone 1 De-Cloaker" />
+        <div class="meta">Phone #1: 8-Stage De-Cloaker</div>
+        <a class="btn" href="/play-store-assets/phone_screenshot_1_decloaker_1080x1920.png" download>Download PNG</a>
+      </div>
+      <div class="asset-item">
+        <img src="/play-store-assets/phone_screenshot_2_geiger_1080x1920.png" alt="Phone 2 RF Geiger" />
+        <div class="meta">Phone #2: RF Geiger + Gauss</div>
+        <a class="btn" href="/play-store-assets/phone_screenshot_2_geiger_1080x1920.png" download>Download PNG</a>
+      </div>
+      <div class="asset-item">
+        <img src="/play-store-assets/phone_screenshot_3_lan_control_1080x1920.png" alt="Phone 3 LAN Control" />
+        <div class="meta">Phone #3: Smart LAN Control</div>
+        <a class="btn" href="/play-store-assets/phone_screenshot_3_lan_control_1080x1920.png" download>Download PNG</a>
+      </div>
+      <div class="asset-item">
+        <img src="/play-store-assets/phone_screenshot_4_topology_1080x1920.png" alt="Phone 4 Topology" />
+        <div class="meta">Phone #4: 3-Ring Radar</div>
+        <a class="btn" href="/play-store-assets/phone_screenshot_4_topology_1080x1920.png" download>Download PNG</a>
+      </div>
+      <div class="asset-item">
+        <img src="/play-store-assets/tablet_screenshot_1_workbench_1920x1080.png" alt="Tablet Workbench" />
+        <div class="meta">10" Tablet / Workbench</div>
+        <a class="btn" href="/play-store-assets/tablet_screenshot_1_workbench_1920x1080.png" download>Download PNG</a>
+      </div>
+    </div>
+
+    <div class="section-title">📋 2. GOOGLE PLAY STORE LISTING &amp; POLICY COPY (1-CLICK COPY)</div>
+    <div class="grid-3">
+      <div class="card">
+        <div>
+          <h3>App Title &amp; Short Description <span class="tag">PLAY STORE</span></h3>
+          <textarea id="gp-short" class="copy-box" readonly>TITLE (30 chars max):
+NetPulse: WiFi & LAN Guardian
+
+SHORT DESCRIPTION (80 chars max):
+8-stage hidden WiFi de-cloaker, RF Geiger counter, DPI radar & smart IoT control</textarea>
+        </div>
+        <button class="btn" onclick="copyText('gp-short')">📋 Copy Title &amp; Short Desc</button>
+      </div>
+
+      <div class="card">
+        <div>
+          <h3>Full Store Description <span class="tag">4000 CHAR LIMIT</span></h3>
+          <textarea id="gp-full" class="copy-box" readonly>NetPulse // OmniSight v4.5 is a sovereign, tactical Wi-Fi spectrum analyzer, 8-stage hidden SSID de-cloaker, physical RF Geiger counter, and active LAN security guardian.
+
+KEY CAPABILITIES:
+• 8-Stage Hidden Wi-Fi De-Cloaker: Uncover masked SSIDs by correlating OUI sibling radios, U/L bit virtual BSSIDs, high-risk IoT camera vendor signatures, 802.11n/ac/ax IE fingerprints, and microsecond TSF clock drift.
+• Walk-Around RF Geiger Counter & 3-Axis Magnetometer: Lock onto any hidden BSSID or rogue device with real-time dBm proximity sonar and ferromagnetic coil detection.
+• Deep Packet Telemetry & 24h Heatmaps: Inspect per-host KB/s bandwidth, TLS JA3 client fingerprints, DNS SNI queries, eBPF p0f OS signatures, and 24-hour availability timelines.
+• Direct Smart Home & Console Control: Wake PS4/PS5 consoles via UDP 987 DDP, toggle TP-Link Kasa & Shelly smart relays, inspect Google Cast Eureka & Apple HomeKit HAP bridges, and quarantine rogue hosts.
+• 100% On-Device Privacy: Zero cloud spyware or external telemetry.</textarea>
+        </div>
+        <button class="btn" onclick="copyText('gp-full')">📋 Copy Full Description</button>
+      </div>
+
+      <div class="card">
+        <div>
+          <h3>Location Permission Justification <span class="tag">POLICY REVIEW</span></h3>
+          <textarea id="gp-perm" class="copy-box" readonly>NetPulse is a Wi-Fi spectrum analyzer and LAN security scanner. Android OS mandates ACCESS_FINE_LOCATION and NEARBY_WIFI_DEVICES permissions to call WifiManager.getScanResults() for inspecting nearby 802.11 BSSIDs, RSSI dBm signal levels, channels, and beacon Information Elements. Location coordinates are never stored or transmitted off-device.</textarea>
+        </div>
+        <button class="btn" onclick="copyText('gp-perm')">📋 Copy Permission Declaration</button>
+      </div>
+    </div>
+
+    <div class="section-title">🌍 3. MULTI-PLATFORM LAUNCH &amp; SOCIAL DISTRIBUTION KIT</div>
+    <div class="grid-3">
+      <div class="card">
+        <div>
+          <h3>Hacker News (Show HN) <span class="tag">TECH VIRAL</span></h3>
+          <textarea id="post-hn" class="copy-box" readonly>Title: Show HN: NetPulse – 10-Stage Hidden Wi-Fi De-Cloaker, RF Geiger Counter & Cryptographic LAN Auditor
+
+We built NetPulse // OmniSight v4.5 (https://github.com/kaleidoscopeAI/netpulse-omnisight) to solve a real problem: spotting hidden IoT/camera APs, BSSID clones, and rogue LAN devices without cloud bloatware.
+
+Under the hood:
+- 10-Stage Hidden Wi-Fi De-Cloaker correlating ±16 BSSID OUI siblings, U/L bit virtual BSSIDs, 64-bit TSF microsecond clock drift, 802.11k RNR/MLO, and temporal multipath RSSI Pearson correlation
+- Walk-around RF Geiger Counter + 3-axis magnetometer lens/coil detector on Android 15 + dual-node laptop/phone RF triangulation
+- Binary SSHv2 KEXINIT HASSH fingerprinter, SMB2/3 NTLM-relay signing auditor, RFC 4035 DNSSEC/DoT (:853), and NTPv4 Stratum/Mode-6 probers
+- Real-time KB/s bandwidth, TLS JA3, and p0f SYN OS fingerprinting + active ARP/TCP-RST quarantine
+
+Live Storefront & Docs: https://kaleidoscopeai.github.io/netpulse-omnisight/
+GitHub & Android 15 APK: https://github.com/kaleidoscopeAI/netpulse-omnisight/releases/tag/v4.5.0</textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="copyText('post-hn')">📋 Copy Show HN</button>
+          <a class="btn emerald" href="https://news.ycombinator.com/submitlink?u=https%3A%2F%2Fgithub.com%2FkaleidoscopeAI%2Fnetpulse-omnisight&t=Show%20HN%3A%20NetPulse%20%E2%80%93%2010-Stage%20Hidden%20Wi-Fi%20De-Cloaker%2C%20RF%20Geiger%20Counter%20%26%20LAN%20Guardian" target="_blank" rel="noopener">↗ Submit on HN</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div>
+          <h3>Product Hunt Launch <span class="tag">MONETIZATION</span></h3>
+          <textarea id="post-ph" class="copy-box" readonly>Tagline: Uncover hidden Wi-Fi radios, rogue cameras & LAN threats in real time.
+
+Maker Comment:
+Hey Product Hunt! 👋 We built NetPulse // OmniSight v4.5 for security engineers, homelabbers, and privacy-conscious travelers who want complete sovereignty over their airspace and local network.
+
+Whether you're sweeping an Airbnb with the Android RF Geiger Counter + 3-axis Magnetometer, de-cloaking hidden 802.11 BSSIDs via 64-bit TSF clock drift, auditing SSH HASSH & DNSSEC, or running the 24/7 Guardian Shield daemon with instant ARP quarantine, NetPulse runs 100% locally with zero cloud telemetry.
+
+Grab the Free Community Edition, start a 7-day Pro Guardian trial, or claim a Founder's Lifetime License ($149):
+Storefront: https://kaleidoscopeai.github.io/netpulse-omnisight/
+GitHub: https://github.com/kaleidoscopeAI/netpulse-omnisight</textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="copyText('post-ph')">📋 Copy Product Hunt Kit</button>
+          <a class="btn purple" href="https://www.producthunt.com/posts/new" target="_blank" rel="noopener">↗ Launch on PH</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div>
+          <h3>Reddit (r/homelab, r/netsec, r/selfhosted) <span class="tag">COMMUNITY</span></h3>
+          <textarea id="post-reddit" class="copy-box" readonly>Title: Built a 10-Stage Hidden Wi-Fi De-Cloaker, Cryptographic LAN Auditor & Android RF Geiger Counter (NetPulse v4.5)
+
+I got tired of network scanners hiding basic features behind cloud logins or missing hidden SSIDs entirely, so I built NetPulse // OmniSight v4.5 (open-core on GitHub: https://github.com/kaleidoscopeAI/netpulse-omnisight).
+
+Highlights:
+• 10-Stage Hidden BSSID De-Cloaker matching co-located OUI siblings, U/L bit virtual APs, 64-bit TSF clock offsets, 802.11k RNR, and temporal RSSI correlation
+• Binary SSHv2 HASSH, SMB2/3 NTLM-relay signing, DNSSEC/DoT (:853), NTPv4 Stratum, and UPnP IGD NAT hole auditors
+• Direct local control for Sonos UPnP, Roku ECP, Google Cast, Apple HomeKit HAP, Matter/Thread, TP-Link Kasa, Shelly & PS4/PS5 DDP wake
+• Active ARP sinkhole + TCP RST quarantine for kicking rogue devices off the subnet
+• Companion signed Android 15 APK with walk-around dBm Geiger sonar + 3-axis magnetic sensor: https://github.com/kaleidoscopeAI/netpulse-omnisight/releases/tag/v4.5.0</textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="copyText('post-reddit')">📋 Copy Reddit Post</button>
+          <a class="btn emerald" href="https://www.reddit.com/submit?url=https%3A%2F%2Fgithub.com%2FkaleidoscopeAI%2Fnetpulse-omnisight&title=Built%20a%2010-Stage%20Hidden%20Wi-Fi%20De-Cloaker%2C%20Cryptographic%20LAN%20Auditor%20%26%20Android%20RF%20Geiger%20Counter%20(NetPulse%20v4.5)" target="_blank" rel="noopener">↗ Post on Reddit</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div>
+          <h3>X / Twitter Viral Launch Thread <span class="tag">SOCIAL</span></h3>
+          <textarea id="post-x" class="copy-box" readonly>Introducing NetPulse // OmniSight v4.5 ⚡️📡
+
+The sovereign 10-stage Wi-Fi de-cloaker, physical RF Geiger counter & cryptographic LAN guardian for Desktop + Android 15:
+
+• 10-stage hidden SSID de-cloaker (64-bit TSF + 802.11k + RSSI Pearson)
+• Walk-around dBm sonar + 3-axis uT magnetometer
+• SSH HASSH, SMB2 NTLM-relay, DNSSEC/DoT & TLS JA3 DPI
+• Direct Sonos, Roku, PS5, Kasa & Shelly control
+
+GitHub & APK: https://github.com/kaleidoscopeAI/netpulse-omnisight</textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="copyText('post-x')">📋 Copy Post</button>
+          <a class="btn" href="https://twitter.com/intent/tweet?text=Introducing%20NetPulse%20%2F%2F%20OmniSight%20v4.5%20%E2%9A%A1%EF%B8%8F%F0%9F%93%A1%2010-stage%20hidden%20Wi-Fi%20de-cloaker%2C%20walk-around%20RF%20Geiger%20counter%2C%20SSH%20HASSH%2FDNSSEC%20auditing%20%26%20active%20LAN%20quarantine.%20https%3A%2F%2Fgithub.com%2FkaleidoscopeAI%2Fnetpulse-omnisight" target="_blank" rel="noopener">↗ Share on X</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div>
+          <h3>LinkedIn Executive / SecOps Post <span class="tag">ENTERPRISE B2B</span></h3>
+          <textarea id="post-li" class="copy-box" readonly>Excited to announce the commercial release of NetPulse // OmniSight v4.5 — our sovereign wireless airspace, cryptographic protocol & LAN threat defense platform.
+
+Security teams, MSPs, and network engineers can now deploy continuous 24/7 rogue host detection, 10-stage hidden BSSID de-cloaking, SSHv2 HASSH / SMB2 NTLM-relay / DNSSEC auditing, TLS JA3 deep packet fingerprinting, and sub-second ARP quarantine across Linux desktop and Android 15 field scanners—100% on-premise with zero external cloud dependencies.
+
+Available in Community Free, Pro Guardian ($9.99/mo), Sovereign Enterprise ($29.99/mo), and Founder's Lifetime ($149) editions:
+https://kaleidoscopeai.github.io/netpulse-omnisight/
+https://github.com/kaleidoscopeAI/netpulse-omnisight</textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="copyText('post-li')">📋 Copy LinkedIn Post</button>
+          <a class="btn purple" href="https://www.linkedin.com/feed/" target="_blank" rel="noopener">↗ Share on LinkedIn</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div>
+          <h3>Automated CLI Release Publisher <span class="tag">DEVOPS</span></h3>
+          <textarea id="post-cli" class="copy-box" readonly># 1. Upload .aab directly to Google Play Console API:
+python3 scripts/upload_to_google_play.py \
+  --service-account service-account.json \
+  --track production
+
+# 2. Publish across GitHub Releases, PyPI & Docker Hub:
+python3 scripts/publish_everywhere.py --all</textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn" onclick="copyText('post-cli')">📋 Copy Commands</button>
+          <button class="btn emerald" onclick="triggerNativeShare()">📲 Native OS Share</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">COPIED TO CLIPBOARD</div>
+
+  <script>
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 2400);
+    }
+    function copyText(id) {
+      const el = document.getElementById(id);
+      navigator.clipboard.writeText(el.value).then(() => {
+        showToast('✔ COPIED TO CLIPBOARD');
+      });
+    }
+    function triggerNativeShare() {
+      const shareData = {
+        title: 'NetPulse // OmniSight v4.5',
+        text: '8-Stage Hidden Wi-Fi De-Cloaker, RF Geiger Counter & Active LAN Guardian for Android & Desktop.',
+        url: window.location.origin + '/pricing'
+      };
+      if (navigator.share) {
+        navigator.share(shareData).catch(() => {});
+      } else {
+        navigator.clipboard.writeText(shareData.url).then(() => {
+          showToast('✔ STOREFRONT LINK COPIED');
+        });
+      }
+    }
+  </script>
+</body>
+</html>

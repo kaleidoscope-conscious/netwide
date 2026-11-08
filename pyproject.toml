@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netpulse-omnisight"
+version = "4.5.0"
+description = "NetPulse // OmniSight — Sovereign Network Intelligence, 802.11 TSF De-Cloaking, Wire DPI & Active Countermeasures Suite"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Proprietary / Commercial License"}
+authors = [
+    {name = "NetPulse Sovereign Engineering"}
+]
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    "pydantic>=2.6.0",
+    "rich>=13.7.0",
+    "qrcode>=7.4.2",
+]
+
+[project.optional-dependencies]
+desktop = [
+    "PyQt6>=6.6.0",
+    "PyQt6-WebEngine>=6.6.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pyflakes>=3.2.0",
+    "httpx>=0.27.0",
+]
+
+[project.scripts]
+netpulse = "netpulse.cli:main"
+
+[tool.setuptools]
+package-dir = {"netpulse" = "."}
+packages = ["netpulse"]
+
+[tool.setuptools.package-data]
+netpulse = [
+    "static/*.html",
+    "static/*.svg",
+    "static/*.json",
+    "static/*.js",
+    "static/*.apk",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [".."]
+testpaths = ["tests"]

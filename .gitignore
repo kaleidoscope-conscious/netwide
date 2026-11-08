@@ -1,0 +1,24 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local SQLite WAL runtime telemetry databases & secrets
+netpulse_intel.db
+netpulse_intel.db-shm
+netpulse_intel.db-wal
+*.db
+*.db-shm
+*.db-wal
+.env
+admin.token
+
+# Android signing keystore & intermediate build outputs (published via GitHub Releases)
+android/keystore.jks
+android/build/
+dist/
+*.egg-info/
+build/

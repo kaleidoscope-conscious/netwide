@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="bgGrad" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#0d2142"/>
+      <stop offset="100%" stop-color="#050811"/>
+    </radialGradient>
+    <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00e5ff"/>
+      <stop offset="50%" stop-color="#00e676"/>
+      <stop offset="100%" stop-color="#2979ff"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="url(#bgGrad)" stroke="url(#neonGrad)" stroke-width="6"/>
+  <circle cx="128" cy="128" r="88" fill="none" stroke="#00e5ff" stroke-opacity="0.22" stroke-width="3"/>
+  <circle cx="128" cy="128" r="58" fill="none" stroke="#00e5ff" stroke-opacity="0.4" stroke-width="3" stroke-dasharray="10 6"/>
+  <circle cx="128" cy="128" r="28" fill="none" stroke="#00e676" stroke-opacity="0.7" stroke-width="3"/>
+  <!-- Radar Sweep Line -->
+  <line x1="128" y1="128" x2="196" y2="66" stroke="url(#neonGrad)" stroke-width="5" stroke-linecap="round"/>
+  <!-- Pulse Wave -->
+  <polyline points="36,132 76,132 94,92 116,172 138,76 158,152 174,132 220,132"
+            fill="none" stroke="#00e5ff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Target Nodes -->
+  <circle cx="196" cy="66" r="9" fill="#00e676"/>
+  <circle cx="74" cy="78" r="7" fill="#00e5ff"/>
+  <circle cx="182" cy="178" r="7" fill="#ffab00"/>
+  <circle cx="128" cy="128" r="10" fill="#00e5ff"/>
+</svg>

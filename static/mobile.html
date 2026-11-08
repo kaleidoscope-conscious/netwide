@@ -1,0 +1,2139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#090d14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NetPulse">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/svg+xml" href="/static/icon.svg">
+<link rel="apple-touch-icon" href="/static/icon.svg">
+<title>NetPulse Mobile — Sovereign RF & Network Field Suite</title>
+<style>
+  :root {
+    --bg: #090d14;
+    --bg-card: #111824;
+    --bg-elevated: #172031;
+    --border: #1f2b3e;
+    --border-bright: #2e405c;
+    --text: #f1f5f9;
+    --text-dim: #94a3b8;
+    --text-muted: #64748b;
+    --accent: #38bdf8;
+    --accent-dim: rgba(56, 189, 248, 0.14);
+    --green: #10b981;
+    --green-dim: rgba(16, 185, 129, 0.14);
+    --amber: #f59e0b;
+    --amber-dim: rgba(245, 158, 11, 0.15);
+    --red: #ef4444;
+    --red-dim: rgba(239, 68, 68, 0.15);
+    --purple: #a78bfa;
+    --mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.45;
+    overscroll-behavior-y: none;
+    min-height: 100vh;
+  }
+
+  /* Sticky Top Header */
+  .top-header {
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    background: rgba(9, 13, 20, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .brand-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .brand-logo {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #0ea5e9, #10b981);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; color: #05080f; font-size: 15px;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+  }
+  .brand-title {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+  .brand-sub {
+    font-size: 10.5px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    display: inline-block;
+  }
+  .status-dot.offline { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+
+  .top-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn {
+    border: 1px solid var(--border-bright);
+    background: var(--bg-elevated);
+    color: var(--text);
+    padding: 7px 11px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: transform 0.08s ease, background 0.15s ease;
+    text-decoration: none;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn-primary {
+    background: linear-gradient(135deg, #0284c7, #0ea5e9);
+    border-color: #38bdf8;
+    color: #fff;
+  }
+  .btn-emerald {
+    background: rgba(16, 185, 129, 0.18);
+    border-color: rgba(16, 185, 129, 0.45);
+    color: #34d399;
+  }
+  .btn-danger {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.45);
+    color: #f87171;
+  }
+  .btn-amber {
+    background: rgba(245, 158, 11, 0.18);
+    border-color: rgba(245, 158, 11, 0.45);
+    color: #fbbf24;
+  }
+
+  /* Main Scroll Container */
+  .view-container {
+    padding: 12px 12px 92px 12px;
+    max-width: 680px;
+    margin: 0 auto;
+  }
+  .tab-view { display: none; }
+  .tab-view.active { display: block; }
+
+  /* KPI Strip */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .kpi-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 10px;
+  }
+  .kpi-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+  }
+  .kpi-val {
+    font-size: 18px;
+    font-weight: 800;
+    font-family: var(--mono);
+    margin-top: 2px;
+  }
+  .kpi-sub {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Section Headers */
+  .sec-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 14px 0 8px 0;
+  }
+  .sec-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+  }
+  .sec-badge {
+    font-size: 10.5px;
+    font-family: var(--mono);
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+
+  /* Cards */
+  .m-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  .m-card.highlight-emerald { border-left: 3px solid var(--green); }
+  .m-card.highlight-amber { border-left: 3px solid var(--amber); }
+  .m-card.highlight-red { border-left: 3px solid var(--red); }
+  .m-card.highlight-sky { border-left: 3px solid var(--accent); }
+
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    word-break: break-word;
+  }
+  .card-mono {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--accent);
+  }
+  .pill {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .pill-green { background: var(--green-dim); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); }
+  .pill-amber { background: var(--amber-dim); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); }
+  .pill-red { background: var(--red-dim); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); }
+  .pill-sky { background: var(--accent-dim); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); }
+  .pill-purple { background: rgba(167, 139, 250, 0.15); color: #c4b5fd; border: 1px solid rgba(167, 139, 250, 0.35); }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    font-size: 11.5px;
+  }
+  .meta-item {
+    display: flex;
+    flex-direction: column;
+  }
+  .meta-k { font-size: 9.5px; color: var(--text-muted); text-transform: uppercase; }
+  .meta-v { font-family: var(--mono); color: var(--text); font-size: 11px; }
+
+  .proof-box {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(56, 189, 248, 0.18);
+    font-size: 11.5px;
+    color: #cbd5e1;
+  }
+
+  /* Geiger Counter Specific */
+  .geiger-hero {
+    background: radial-gradient(circle at 50% 25%, rgba(14, 165, 233, 0.16), rgba(17, 24, 36, 0.96));
+    border: 1px solid var(--border-bright);
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .geiger-dbm {
+    font-family: var(--mono);
+    font-size: 46px;
+    font-weight: 900;
+    line-height: 1;
+    margin: 8px 0 4px 0;
+    letter-spacing: -0.03em;
+  }
+  .geiger-trend {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .geiger-bar-wrap {
+    height: 12px;
+    background: #090d14;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    margin: 10px 0;
+  }
+  .geiger-bar-fill {
+    height: 100%;
+    width: 50%;
+    background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444);
+    transition: width 0.25s ease;
+  }
+  .osc-canvas {
+    width: 100%;
+    height: 120px;
+    background: #070a10;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: block;
+    margin-top: 8px;
+  }
+
+  /* D-Pad Remote Control */
+  .dpad-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    max-width: 260px;
+    margin: 10px auto;
+  }
+  .dpad-btn {
+    height: 46px;
+    border-radius: 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-bright);
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+  }
+  .dpad-btn:active {
+    background: var(--accent);
+    color: #05080f;
+  }
+  .dpad-ok {
+    background: linear-gradient(135deg, #0284c7, #0ea5e9);
+    border-color: #38bdf8;
+  }
+
+  /* Inputs & Selects */
+  .m-select, .m-input {
+    width: 100%;
+    background: #0b101b;
+    border: 1px solid var(--border-bright);
+    color: var(--text);
+    padding: 9px 11px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-family: var(--mono);
+  }
+
+  /* Bottom Navigation Bar */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 100;
+    background: rgba(9, 13, 20, 0.96);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)) 4px;
+  }
+  .nav-item {
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 2px;
+    font-size: 10.5px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px;
+  }
+  .nav-item.active {
+    color: var(--accent);
+    background: rgba(56, 189, 248, 0.09);
+  }
+  .nav-icon {
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  /* Toast Banner */
+  #mobileToast {
+    position: fixed;
+    bottom: 74px;
+    left: 14px;
+    right: 14px;
+    z-index: 200;
+    background: #0f172a;
+    border: 1px solid var(--accent);
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.65);
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<header class="top-header">
+  <div class="brand-row">
+    <div class="brand-logo">NP</div>
+    <div>
+      <div class="brand-title">NetPulse Mobile</div>
+      <div class="brand-sub">
+        <span id="connDot" class="status-dot"></span>
+        <span id="connText">Connecting Node...</span>
+        <span id="nativeBadge" class="pill pill-emerald" style="display:none;padding:1px 5px;font-size:9px;">ANDROID HW</span>
+      </div>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button class="btn" onclick="openMobileSubscriptionModal()" id="mobileSubBtn" style="border-color:#a78bfa;color:#e9d5ff;">💎 <span id="mobileSubBadge">FREE</span></button>
+    <button class="btn btn-primary" onclick="triggerFullMobileScan()" id="btnScanNow">⟳ Scan</button>
+    <a class="btn btn-emerald" href="/download/NetPulse-Mobile.apk" id="btnTopApk" download>⬇ APK</a>
+  </div>
+</header>
+
+<main class="view-container">
+
+  <!-- ==================== TAB 1: UNIVERSAL HIDDEN DE-CLOAKER ==================== -->
+  <section id="view-decloaker" class="tab-view active">
+    <div class="kpi-grid">
+      <div class="kpi-box">
+        <div class="kpi-label">Hidden Unmasked</div>
+        <div class="kpi-val" style="color:#34d399" id="kpiHiddenCount">0</div>
+        <div class="kpi-sub" id="kpiHiddenSub">10-Stage TSF Engine</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-label">802.11 BSSIDs</div>
+        <div class="kpi-val" style="color:#38bdf8" id="kpiBssidCount">0</div>
+        <div class="kpi-sub" id="kpiClusterSub">0 Radio Chips</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-label">LAN Endpoints</div>
+        <div class="kpi-val" style="color:#a78bfa" id="kpiLanCount">0</div>
+        <div class="kpi-sub" id="kpiSubnetSub">192.168.12.0/24</div>
+      </div>
+    </div>
+
+    <div class="m-card highlight-emerald" style="padding:10px 12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <div>
+          <div style="font-weight:700;font-size:13px;color:#34d399;">Universal Hidden Entity De-Cloaker</div>
+          <div style="font-size:11px;color:var(--text-dim);">Unmasks hidden BSSIDs, randomized MACs & stealth hosts via 64-bit TSF clocks & silicon byte-diffing. Tap any signal to track with the walk-around Geiger Counter.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec-header">
+      <div class="sec-title">1. Unmasked Hidden BSSIDs, Privacy MACs & Stealth Hosts</div>
+      <span class="sec-badge" id="badgeHiddenTotal">0 Entities</span>
+    </div>
+    <div id="mobileHiddenList"></div>
+
+    <div class="sec-header">
+      <div class="sec-title">2. Full 802.11 Spectrum & Anomaly Attribution</div>
+      <span class="sec-badge" id="badgeAnomalyTotal">0 BSSIDs</span>
+    </div>
+    <div id="mobileAnomalyList"></div>
+  </section>
+
+  <!-- ==================== TAB 2: WALK-AROUND RF GEIGER FINDER ==================== -->
+  <section id="view-geiger" class="tab-view">
+    <div class="m-card" style="margin-bottom:10px;">
+      <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;font-weight:700;margin-bottom:5px;">Select Target BSSID / Transmitter to Track</div>
+      <select id="geigerTargetSelect" class="m-select" onchange="onGeigerTargetChange(this.value)"></select>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" style="flex:1" id="btnGeigerAudio" onclick="toggleGeigerAudio()">🔊 Enable Geiger Audio & Haptics</button>
+        <button class="btn" onclick="resetGeigerPeak()">↺ Reset Peak</button>
+        <button class="btn btn-emerald" onclick="pollFastGeigerNow()">⚡ Pulse Scan</button>
+      </div>
+    </div>
+
+    <div class="geiger-hero">
+      <div id="geigerTargetLabel" style="font-size:13px;font-weight:700;color:#fff;">Select a target BSSID</div>
+      <div id="geigerTargetSub" class="card-mono" style="margin-top:2px;">—</div>
+
+      <div class="geiger-dbm" id="geigerDbmValue">-- dBm</div>
+      <div id="geigerTrendPill" class="geiger-trend pill-sky">● READY TO TRACK</div>
+
+      <div class="geiger-bar-wrap">
+        <div class="geiger-bar-fill" id="geigerBarFill" style="width:0%"></div>
+      </div>
+
+      <div class="meta-grid" style="text-align:left;margin-top:10px;">
+        <div class="meta-item">
+          <span class="meta-k">Node (`jg`) RSSI</span>
+          <span class="meta-v" id="geigerNodeRssi">— dBm</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-k">Phone Handset RSSI</span>
+          <span class="meta-v" id="geigerPhoneRssi">Scanning...</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-k">Peak Hold / Min</span>
+          <span class="meta-v" id="geigerPeakHold">— / — dBm</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-k">Multipath Est. Range</span>
+          <span class="meta-v" id="geigerRangeBand">—</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-k">64-Bit TSF Uptime</span>
+          <span class="meta-v" id="geigerTsfUptime">—</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-k">Differential Vector</span>
+          <span class="meta-v" id="geigerDiffVector">—</span>
+        </div>
+      </div>
+
+      <canvas id="geigerCanvas" class="osc-canvas" width="600" height="140"></canvas>
+      <div style="font-size:10.5px;color:var(--text-muted);margin-top:5px;">
+        Real-Time RSSI Walk-Around Trace (60 Samples • Solid = Live dBm, Dashed = Peak Envelope)
+      </div>
+    </div>
+
+    <!-- Hardware Magnetometer & Compass Card -->
+    <div class="m-card highlight-sky">
+      <div class="card-top">
+        <div>
+          <div class="card-title">Close-Range Magnetic Flux (`µT`) & Compass</div>
+          <div style="font-size:11px;color:var(--text-dim);">Detects localized ferromagnetic / power-supply coils near walls or vents (`>65 µT` alert)</div>
+        </div>
+        <span class="pill pill-sky" id="magStatusPill">SENSOR ACTIVE</span>
+      </div>
+      <div class="meta-grid">
+        <div class="meta-item">
+          <span class="meta-k">Total Magnetic Flux |B|</span>
+          <span class="meta-v" style="font-size:15px;font-weight:800;color:#38bdf8;" id="magTotalUt">— µT</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-k">Compass Heading</span>
+          <span class="meta-v" style="font-size:15px;font-weight:800;color:#34d399;" id="compassHeading">—°</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-k">3-Axis Vector (Bx, By, Bz)</span>
+          <span class="meta-v" id="magAxes">—</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-k">Assessment</span>
+          <span class="meta-v" id="magVerdict">Baseline Earth Field</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== TAB 3: LAN DEVICES & REMOTE CONTROL ==================== -->
+  <section id="view-devices" class="tab-view">
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input type="text" id="mobileDevSearch" class="m-input" placeholder="Filter by IP, MAC, name, vendor, port..." oninput="renderMobileDevices()">
+    </div>
+
+    <!-- Quick Roku / Smart TV Touch Remote Modal / Collapsible -->
+    <div id="mobileRokuRemoteCard" class="m-card highlight-sky" style="display:none;">
+      <div class="card-top">
+        <div>
+          <div class="card-title" id="rokuRemoteTitle">Smart TV Touch Remote</div>
+          <div class="card-mono" id="rokuRemoteIp">192.168.12.193</div>
+        </div>
+        <button class="btn" onclick="document.getElementById('mobileRokuRemoteCard').style.display='none'">✕ Close</button>
+      </div>
+      <div class="dpad-grid">
+        <button class="dpad-btn" onclick="sendMobileRokuKey('Home')">⌂ Home</button>
+        <button class="dpad-btn" onclick="sendMobileRokuKey('Up')">▲</button>
+        <button class="dpad-btn btn-danger" onclick="sendMobileRokuKey('Power')">⏻ Pwr</button>
+
+        <button class="dpad-btn" onclick="sendMobileRokuKey('Left')">◄</button>
+        <button class="dpad-btn dpad-ok" onclick="sendMobileRokuKey('Select')">OK</button>
+        <button class="dpad-btn" onclick="sendMobileRokuKey('Right')">►</button>
+
+        <button class="dpad-btn" onclick="sendMobileRokuKey('Back')">↩ Back</button>
+        <button class="dpad-btn" onclick="sendMobileRokuKey('Down')">▼</button>
+        <button class="dpad-btn" onclick="sendMobileRokuKey('Info')">✱ Info</button>
+
+        <button class="dpad-btn" onclick="sendMobileRokuKey('VolumeDown')">Vol -</button>
+        <button class="dpad-btn" onclick="sendMobileRokuKey('VolumeMute')">Mute</button>
+        <button class="dpad-btn" onclick="sendMobileRokuKey('VolumeUp')">Vol +</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <input type="text" id="rokuMobileTextInput" class="m-input" placeholder="Type text onto TV screen...">
+        <button class="btn btn-primary" onclick="sendMobileRokuText()">Send</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+        <button class="btn" onclick="launchMobileDial('YouTube')">▶ YouTube</button>
+        <button class="btn" onclick="launchMobileDial('Netflix')">▶ Netflix</button>
+        <button class="btn" onclick="launchMobileRokuChannel('12')">Netflix (Ch)</button>
+        <button class="btn" onclick="launchMobileRokuChannel('837')">YouTube (Ch)</button>
+        <button class="btn" onclick="launchMobileRokuChannel('13')">Prime Video</button>
+      </div>
+    </div>
+
+    <div id="mobileDevicesList"></div>
+  </section>
+
+  <!-- ==================== TAB 4: 4-RING DEEP & WIDE AREA SCAN ==================== -->
+  <section id="view-areascan" class="tab-view">
+    <div class="sec-header" style="margin-top:0;">
+      <div class="sec-title">Interactive Tactical Topology Radar</div>
+      <div style="display:flex;gap:4px;">
+        <button class="btn btn-primary" id="mTopoBtnOnline" style="padding:4px 8px;font-size:10.5px;" onclick="setMobileTopoMode('online')">Online</button>
+        <button class="btn" id="mTopoBtnAll" style="padding:4px 8px;font-size:10.5px;" onclick="setMobileTopoMode('all')">All Hosts</button>
+        <button class="btn" id="mTopoBtnRf" style="padding:4px 8px;font-size:10.5px;" onclick="setMobileTopoMode('rf')">RF + LAN</button>
+      </div>
+    </div>
+    <div class="m-card" style="padding:8px;">
+      <canvas id="mobileTopoCanvas" width="640" height="320" style="width:100%;height:260px;background:#070a10;border-radius:8px;border:1px solid var(--border);display:block;touch-action:none;"></canvas>
+      <div style="font-size:10.5px;color:var(--text-muted);margin-top:5px;text-align:center;">
+        Tap any node to inspect or jump to LAN &amp; Control / Geiger Finder
+      </div>
+    </div>
+
+    <div class="sec-header">
+      <div class="sec-title">4-Ring Deep &amp; Wide Area Scan</div>
+      <button class="btn btn-primary" onclick="triggerFullMobileScan()">⟳ Refresh Rings</button>
+    </div>
+    <div id="mobileRingsList"></div>
+
+    <div class="sec-header">
+      <div class="sec-title">Physical Radio Silicon Clusters</div>
+      <span class="sec-badge" id="badgeClustersCount">0 Chips</span>
+    </div>
+    <div id="mobileClustersList"></div>
+
+    <div class="sec-header">
+      <div class="sec-title">Guardian Shield Security &amp; Port-Diff Log</div>
+      <span class="sec-badge" id="badgeEventsCount">0 Alerts</span>
+    </div>
+    <div id="mobileEventsList"></div>
+  </section>
+
+  <!-- ==================== TAB 5: NODE SYNC, STANDALONE HW & APK ==================== -->
+  <section id="view-setup" class="tab-view">
+    <div class="m-card highlight-sky">
+      <div class="card-top">
+        <div>
+          <div class="card-title">💎 Subscription &amp; Cryptographic License</div>
+          <div class="card-mono" id="setupSubStatusLine">Community Edition (Free Tier)</div>
+        </div>
+        <button class="btn btn-primary" onclick="openMobileSubscriptionModal()">Manage Plan</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <input type="text" id="setupLicInput" class="m-input" placeholder="Paste NP1-PRO-... or NP1-ENTERPRISE-... key">
+        <button class="btn btn-emerald" onclick="mobileActivateLicenseFromInput('setupLicInput')">Activate</button>
+      </div>
+    </div>
+
+    <div class="m-card highlight-emerald">
+      <div class="card-top">
+        <div>
+          <div class="card-title">Download Native Android App (`NetPulse-Mobile.apk`)</div>
+          <div style="font-size:11.5px;color:var(--text-dim);margin-top:3px;">
+            Signed Android 15 (API 35) Native Package with direct on-phone hardware Wi-Fi TSF scanner, 48-thread standalone LAN subnet sweeper, hardware Magnetometer (`µT`), and haptic Geiger counter.
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <a href="/download/NetPulse-Mobile.apk" download class="btn btn-emerald" style="flex:1;padding:10px;">⬇ Download NetPulse-Mobile.apk</a>
+        <button class="btn btn-primary" onclick="exportDesktopReport()">📄 Export Forensic Report</button>
+      </div>
+    </div>
+
+    <div class="m-card highlight-sky">
+      <div class="card-title">Sovereign Node Connection (`jg` Engine)</div>
+      <div style="font-size:11.5px;color:var(--text-dim);margin-top:2px;">
+        Connects over Wi-Fi to your stationary NetPulse Guardian Node (`192.168.12.225:8765`) for dual-receiver differential RF triangulation and raw 802.11 Information Element inspection.
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <input type="text" id="nodeUrlInput" class="m-input" value="http://192.168.12.225:8765">
+        <button class="btn btn-primary" onclick="saveNodeUrl()">Connect</button>
+      </div>
+      <div class="meta-grid" id="phoneHwInfoGrid" style="margin-top:10px;">
+        <div class="meta-item">
+          <span class="meta-k">Stationary Node IP</span>
+          <span class="meta-v" id="setupNodeIp">192.168.12.225:8765</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-k">Handset Mode</span>
+          <span class="meta-v" id="setupHandsetMode">Browser / PWA</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-k">Handset Wi-Fi IP / SSID</span>
+          <span class="meta-v" id="setupPhoneIp">—</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-k">Handset Link / RSSI</span>
+          <span class="meta-v" id="setupPhoneLink">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="m-card">
+      <div class="card-title">Standalone On-Phone Hardware Sweeper</div>
+      <div style="font-size:11.5px;color:var(--text-dim);margin-top:2px;">
+        When running inside the Native Android APK (`NetPulse-Mobile.apk`), you can scan any Wi-Fi network & `/24` LAN subnet directly from your phone's hardware even when away from home.
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" style="flex:1" onclick="runStandalonePhoneWifiScan()">📡 Phone Wi-Fi Scan</button>
+        <button class="btn btn-amber" style="flex:1" onclick="runStandalonePhoneLanSweep()">🔍 Phone Subnet Sweep</button>
+        <button class="btn btn-emerald" style="flex:1" onclick="runStandalonePhoneSsdpScan()">📻 Phone SSDP Sweep</button>
+      </div>
+      <div id="standaloneScanOutput" style="margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--text-dim);"></div>
+    </div>
+
+    <div class="m-card highlight-sky">
+      <div class="card-top">
+        <div>
+          <div class="card-title">🛠 All-Around Domain/TLS OSINT, CIDR &amp; Fleet WoL</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Inspect DNS (A/AAAA/MX/NS/SPF/DMARC) &amp; TLS :443 X.509 certificates, calculate CIDR blocks, or wake all LAN endpoints.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <input type="text" id="mobileDomainInput" class="m-input" value="cloudflare.com" placeholder="Domain or IP (e.g. cloudflare.com)">
+        <button class="btn btn-primary" onclick="runMobileDomainRecon()">🌐 Inspect Domain</button>
+      </div>
+      <div id="mobileDomainOutput" style="margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--text-dim);line-height:1.5;"></div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <input type="text" id="mobileCidrInput" class="m-input" value="192.168.12.0/24" placeholder="192.168.12.0/24">
+        <button class="btn btn-amber" onclick="runMobileCidrCalc()">🧮 CIDR Calc</button>
+        <button class="btn btn-emerald" onclick="runMobileWakeAll()">⚡ Wake All LAN</button>
+      </div>
+      <div id="mobileCidrOutput" style="margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--text-dim);line-height:1.5;"></div>
+    </div>
+  </section>
+
+</main>
+
+<div id="mobileToast"></div>
+
+<!-- Bottom Touch Navigation -->
+<nav class="bottom-nav">
+  <button class="nav-item active" onclick="switchMobileTab('decloaker', this)">
+    <span class="nav-icon">👁</span>
+    <span>De-Cloaker</span>
+  </button>
+  <button class="nav-item" onclick="switchMobileTab('geiger', this)">
+    <span class="nav-icon">◎</span>
+    <span>Geiger Finder</span>
+  </button>
+  <button class="nav-item" onclick="switchMobileTab('devices', this)">
+    <span class="nav-icon">⌘</span>
+    <span>LAN & Control</span>
+  </button>
+  <button class="nav-item" onclick="switchMobileTab('areascan', this)">
+    <span class="nav-icon">◈</span>
+    <span>Area Scan</span>
+  </button>
+  <button class="nav-item" onclick="switchMobileTab('setup', this)">
+    <span class="nav-icon">⚙</span>
+    <span>Node & APK</span>
+  </button>
+</nav>
+
+<script>
+  // Register PWA Service Worker when served over HTTP/HTTPS
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+
+  const isNativeAndroid = typeof window.AndroidNative !== 'undefined';
+  let API_BASE = localStorage.getItem('netpulse_node_url') ||
+    (location.protocol.startsWith('http') ? location.origin : 'http://192.168.12.225:8765');
+
+  document.getElementById('nodeUrlInput').value = API_BASE;
+  if (isNativeAndroid) {
+    document.getElementById('nativeBadge').style.display = 'inline-block';
+    document.getElementById('setupHandsetMode').textContent = 'Native Android APK (Hardware Bridge)';
+    document.getElementById('btnTopApk').style.display = 'none';
+  }
+
+  let appState = null;
+  let nativeWifiResults = [];
+  let nativePhoneInfo = null;
+  let activeRokuIp = '192.168.12.193';
+
+  // Geiger Counter state
+  let geigerTargetBssid = null;
+  let geigerHistory = [];
+  let geigerPeakDbm = -100;
+  let geigerMinDbm = 0;
+  let geigerAudioCtx = null;
+  let geigerAudioEnabled = false;
+  let geigerTimer = null;
+
+  function showToast(msg) {
+    const el = document.getElementById('mobileToast');
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3200);
+  }
+
+  function switchMobileTab(tabId, btnEl) {
+    document.querySelectorAll('.tab-view').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    const target = document.getElementById('view-' + tabId);
+    if (target) target.classList.add('active');
+    if (btnEl) btnEl.classList.add('active');
+    if (tabId === 'geiger') {
+      drawGeigerCanvas();
+    } else if (tabId === 'areascan') {
+      drawMobileTopology();
+    }
+  }
+
+  function saveNodeUrl() {
+    const val = document.getElementById('nodeUrlInput').value.trim().replace(/\/+$/, '');
+    if (val) {
+      API_BASE = val;
+      localStorage.setItem('netpulse_node_url', API_BASE);
+      document.getElementById('setupNodeIp').textContent = API_BASE;
+      showToast('Connecting to ' + API_BASE + '...');
+      fetchMobileState();
+      connectMobileWs();
+    }
+  }
+
+  async function apiFetch(path, opts = {}) {
+    const url = API_BASE + path;
+    const res = await fetch(url, opts);
+    const data = await res.json();
+    if (data && data.upgrade_required) {
+      openMobileSubscriptionModal(data);
+    }
+    return data;
+  }
+
+  async function fetchMobileState() {
+    try {
+      const data = await apiFetch('/api/state');
+      appState = data;
+      document.getElementById('connDot').className = 'status-dot';
+      document.getElementById('connText').textContent =
+        (data.interface && data.interface.ip ? 'Node ' + data.interface.ip : 'Node Connected');
+      renderAllMobileViews();
+    } catch (err) {
+      document.getElementById('connDot').className = 'status-dot offline';
+      document.getElementById('connText').textContent = isNativeAndroid ? 'Standalone Phone HW Mode' : 'Node Offline';
+      if (isNativeAndroid) {
+        runStandalonePhoneWifiScan(true);
+      }
+    }
+  }
+
+  let wsConn = null;
+  function connectMobileWs() {
+    try {
+      if (wsConn) { try { wsConn.close(); } catch(e) {} }
+      const wsUrl = API_BASE.replace(/^http/, 'ws') + '/ws';
+      wsConn = new WebSocket(wsUrl);
+      wsConn.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.type === 'full_state' && msg.data) {
+            appState = msg.data;
+            document.getElementById('connDot').className = 'status-dot';
+            renderAllMobileViews();
+          }
+        } catch (e) {}
+      };
+    } catch (e) {}
+  }
+
+  async function triggerFullMobileScan() {
+    const btn = document.getElementById('btnScanNow');
+    btn.textContent = '⟳ Scanning...';
+    if (isNativeAndroid) {
+      try {
+        const raw = window.AndroidNative.scanNativeWifi(true);
+        nativeWifiResults = JSON.parse(raw || '[]');
+      } catch (e) {}
+    }
+    try {
+      const res = await apiFetch('/api/action/area-scan', { method: 'POST' });
+      if (appState) {
+        appState.area_scan = res;
+      }
+      await fetchMobileState();
+      showToast('Deep Area & Hidden BSSID Scan complete');
+    } catch (e) {
+      if (isNativeAndroid) {
+        runStandalonePhoneWifiScan(false);
+      } else {
+        showToast('Scan error: check connection to ' + API_BASE);
+      }
+    } finally {
+      btn.textContent = '⟳ Scan';
+    }
+  }
+
+  function trackInGeiger(bssid) {
+    geigerTargetBssid = bssid;
+    geigerHistory = [];
+    geigerPeakDbm = -100;
+    geigerMinDbm = 0;
+    const navBtns = document.querySelectorAll('.nav-item');
+    switchMobileTab('geiger', navBtns[1]);
+    populateGeigerSelect();
+    updateGeigerDisplay();
+    showToast('Tracking ' + bssid + ' in Walk-Around Geiger Finder');
+  }
+
+  function renderAllMobileViews() {
+    if (!appState) return;
+    const area = appState.area_scan || {};
+    const hidden = area.hidden_entities || [];
+    const anomalies = area.anomaly_resolutions || [];
+    const clusters = area.physical_clusters || [];
+    const rings = area.rings || [];
+    const devs = appState.devices || [];
+    const aps = (appState.wifi && appState.wifi.access_points) || [];
+
+    // KPIs
+    document.getElementById('kpiHiddenCount').textContent = hidden.length;
+    document.getElementById('kpiBssidCount').textContent = aps.length;
+    document.getElementById('kpiClusterSub').textContent = clusters.length + ' Physical Radios';
+    document.getElementById('kpiLanCount').textContent = devs.length;
+    document.getElementById('kpiSubnetSub').textContent = (appState.interface && appState.interface.cidr) || 'LAN';
+
+    // Subscription badge update
+    const sub = appState.subscription || {};
+    const mSubBadge = document.getElementById('mobileSubBadge');
+    const mSubBtn = document.getElementById('mobileSubBtn');
+    const setupSubLine = document.getElementById('setupSubStatusLine');
+    if (mSubBadge && mSubBtn) {
+      if (sub.tier === 'enterprise') {
+        mSubBadge.textContent = '👑 ENT';
+        mSubBtn.style.borderColor = '#10b981';
+        mSubBtn.style.color = '#34d399';
+      } else if (sub.tier === 'pro') {
+        mSubBadge.textContent = '⚡ PRO';
+        mSubBtn.style.borderColor = '#38bdf8';
+        mSubBtn.style.color = '#38bdf8';
+      } else {
+        mSubBadge.textContent = '💎 FREE';
+        mSubBtn.style.borderColor = '#a78bfa';
+        mSubBtn.style.color = '#e9d5ff';
+      }
+    }
+    if (setupSubLine && sub.tier_name) {
+      setupSubLine.textContent = `${sub.tier_name} (${sub.plan ? sub.plan.toUpperCase() : 'FREE'}) • ${sub.expires_human || ''}`;
+    }
+
+    // 1. Universal Hidden De-Cloaker List
+    document.getElementById('badgeHiddenTotal').textContent = hidden.length + ' Unmasked';
+    const hContainer = document.getElementById('mobileHiddenList');
+    if (hidden.length === 0) {
+      hContainer.innerHTML = '<div class="m-card">No hidden entities detected. Tap Scan to run the 8-Stage De-Cloaker.</div>';
+    } else {
+      hContainer.innerHTML = hidden.map(h => {
+        const isRf = (h.domain || '').includes('802.11');
+        const borderClass = h.confidence >= 95 ? 'highlight-emerald' : 'highlight-amber';
+        const pillClass = h.confidence >= 95 ? 'pill-green' : 'pill-amber';
+        return `
+          <div class="m-card ${borderClass}">
+            <div class="card-top">
+              <div>
+                <span class="pill ${pillClass}">${h.domain}</span>
+                <div class="card-title" style="margin-top:4px;">${h.unmasked_identity}</div>
+                <div class="card-mono">${h.identifier} • ${h.cloaked_as}</div>
+              </div>
+              <span class="pill pill-sky">${h.confidence}% CONF</span>
+            </div>
+            <div class="meta-grid">
+              <div class="meta-item">
+                <span class="meta-k">Role / Type</span>
+                <span class="meta-v">${h.role_classification || '—'}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-k">Parent / Host</span>
+                <span class="meta-v">${h.parent_or_ip || '—'}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-k">Channel / Subnet</span>
+                <span class="meta-v">${h.channel_or_subnet || '—'}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-k">Signal / Multipath</span>
+                <span class="meta-v">${h.signal_or_rtt || '—'}</span>
+              </div>
+            </div>
+            <div class="proof-box">
+              <strong style="color:#38bdf8;">8-Stage Proof:</strong> ${h.silicon_proof || ''}
+            </div>
+            ${isRf ? `<div style="margin-top:8px;">
+              <button class="btn btn-primary" style="width:100%" onclick="trackInGeiger('${h.identifier}')">◎ Walk-Around Geiger Track (${h.identifier})</button>
+            </div>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 2. Anomaly & Spectrum Attribution List
+    document.getElementById('badgeAnomalyTotal').textContent = anomalies.length + ' BSSIDs';
+    const aContainer = document.getElementById('mobileAnomalyList');
+    aContainer.innerHTML = anomalies.map(ar => {
+      const v = ar.verdict || '';
+      const isVerified = v.startsWith('VERIFIED_');
+      const cardCls = isVerified ? 'highlight-sky' : 'highlight-amber';
+      const pillCls = isVerified ? 'pill-green' : 'pill-amber';
+      return `
+        <div class="m-card ${cardCls}">
+          <div class="card-top">
+            <div>
+              <div class="card-title">${ar.ssid}</div>
+              <div class="card-mono">${ar.bssid} • ${ar.band} Ch ${ar.channel} (${ar.freq_mhz || '?'} MHz)</div>
+            </div>
+            <span class="pill ${pillCls}">${ar.signal_dbm} dBm</span>
+          </div>
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-k">64-Bit TSF Uptime</span>
+              <span class="meta-v">${ar.tsf_clock || '—'}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-k">Multipath Band</span>
+              <span class="meta-v">${ar.distance_range_m || '—'}</span>
+            </div>
+          </div>
+          <div class="proof-box">
+            <strong>${v} (${ar.confidence}%):</strong> ${ar.technical_proof || ''}
+          </div>
+          <div style="margin-top:8px;">
+            <button class="btn" style="width:100%" onclick="trackInGeiger('${ar.bssid}')">◎ Track ${ar.bssid} in Geiger Finder</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Populate Geiger Target Dropdown
+    populateGeigerSelect();
+    updateGeigerDisplay();
+
+    // Render LAN Devices
+    renderMobileDevices();
+
+    // Render 4-Ring Area Scan & Physical Radio Clusters
+    const rContainer = document.getElementById('mobileRingsList');
+    rContainer.innerHTML = rings.map(r => `
+      <div class="m-card highlight-sky">
+        <div class="card-top">
+          <div>
+            <span class="pill pill-sky">RING ${r.ring}</span>
+            <div class="card-title" style="margin-top:4px;">${r.name}</div>
+          </div>
+          <span class="pill pill-green">${r.status}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:6px;">${r.summary}</div>
+      </div>
+    `).join('');
+
+    document.getElementById('badgeClustersCount').textContent = clusters.length + ' Chips';
+    const cContainer = document.getElementById('mobileClustersList');
+    cContainer.innerHTML = clusters.map(c => `
+      <div class="m-card highlight-emerald">
+        <div class="card-top">
+          <div>
+            <div class="card-title">${c.primary_ssid}</div>
+            <div class="card-mono">${c.cluster_id} • ${c.vendor}</div>
+          </div>
+          <span class="pill pill-green">${(c.bssids || []).length} VAPs</span>
+        </div>
+        <div style="font-size:11.5px;color:var(--text-dim);margin-top:6px;">
+          <strong>BSSIDs on Silicon:</strong> <span class="card-mono">${(c.bssids || []).join(', ')}</span><br>
+          <strong>Channels:</strong> ${(c.channels || []).join(', ')} • <strong>TSF Span:</strong> ${c.tsf_span_sec || 0}s
+        </div>
+      </div>
+    `).join('');
+
+    // Render Security & Port-Diff Events
+    const evs = (appState.events || []).slice(0, 20);
+    const evBadge = document.getElementById('badgeEventsCount');
+    if (evBadge) evBadge.textContent = evs.length + ' Events';
+    const evContainer = document.getElementById('mobileEventsList');
+    if (evContainer) {
+      evContainer.innerHTML = evs.map(e => {
+        const isWarn = e.severity === 'WARNING' || e.severity === 'CRITICAL' || e.event_type === 'PORT_OPENED';
+        return `
+          <div class="m-card ${isWarn ? 'highlight-red' : 'highlight-sky'}" style="padding:9px 11px;">
+            <div class="card-top">
+              <div>
+                <span class="pill ${isWarn ? 'pill-red' : 'pill-sky'}">${e.event_type}</span>
+                <span class="card-mono" style="margin-left:6px;">${e.device_name || e.ip || ''}</span>
+              </div>
+              <span style="font-size:10px;color:var(--text-muted);font-family:var(--mono);">${e.time_str || ''}</span>
+            </div>
+            <div style="font-size:11.5px;color:var(--text-dim);margin-top:4px;">${e.details || ''}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    drawMobileTopology();
+  }
+
+  function renderMobileDevices() {
+    if (!appState || !appState.devices) return;
+    const q = (document.getElementById('mobileDevSearch').value || '').toLowerCase();
+    const devs = appState.devices.filter(d => {
+      if (!q) return true;
+      const hay = `${d.ip} ${d.mac} ${d.display_name} ${d.custom_name || ''} ${d.vendor} ${d.category} ${(d.open_ports || []).join(',')}`.toLowerCase();
+      return hay.includes(q);
+    });
+
+    const container = document.getElementById('mobileDevicesList');
+    container.innerHTML = devs.map(d => {
+      const name = d.custom_name || d.display_name || d.ip;
+      const isRoku = (d.open_ports || []).includes(8060) || (d.category || '').toLowerCase().includes('tv');
+      const isPs = Boolean(d.playstation_info) || (d.category || '').toLowerCase().includes('playstation') || (d.vendor || '').toLowerCase().includes('sony');
+      const isCast = Boolean(d.google_cast_info) || (d.open_ports || []).includes(8008);
+      const isSonos = Boolean((d.extended_iot_info || {}).sonos) || (d.open_ports || []).includes(1400);
+      const iotProto = d.smart_iot_info && d.smart_iot_info.protocol ? d.smart_iot_info.protocol : '';
+      const isQuarantined = Boolean(d.is_quarantined) || d.trust_state === 'intruder';
+      const ports = (d.open_ports || []).join(', ') || 'Stealth / No TCP';
+      const wt = d.wire_traffic || {};
+      const rateKbps = d.rate_kbps != null ? d.rate_kbps : (wt.rate_kbps || 0);
+      const pps = d.pps != null ? d.pps : (wt.pps || 0);
+      const doms = (wt.domains || []).slice(0, 4).join(', ');
+      const ja3 = (wt.ja3_hashes || [])[0] || '';
+      const synSig = wt.tcp_syn_signature || '';
+
+      // 24-Hour Presence Heatmap Strip
+      const p24 = d.presence_24h || [];
+      const upPct = d.uptime_24h_pct != null ? d.uptime_24h_pct : (d.is_online ? 100 : 0);
+      const p24Bars = p24.length ? p24.map(slot => {
+        const bg = slot.status === 'ONLINE'
+          ? ((slot.avg_rtt_ms || 0) > 60 ? '#f59e0b' : '#10b981')
+          : 'rgba(255,255,255,0.08)';
+        return `<div title="${slot.hour}: ${slot.status}" style="flex:1;height:8px;border-radius:2px;background:${bg};"></div>`;
+      }).join('') : '';
+
+      // Protocol tags
+      const protoBadges = [];
+      if (d.google_cast_info) protoBadges.push(`<span class="pill pill-sky">CAST: ${d.google_cast_info.model || 'Eureka'}</span>`);
+      if (d.homekit_matter_info) protoBadges.push(`<span class="pill pill-purple">${d.homekit_matter_info.ecosystem || 'HomeKit/Matter'}</span>`);
+      if (d.snmp_info && d.snmp_info.sysName) protoBadges.push(`<span class="pill pill-green">SNMP: ${d.snmp_info.sysName}</span>`);
+      if (d.smart_iot_info && d.smart_iot_info.model) protoBadges.push(`<span class="pill pill-amber">IOT: ${d.smart_iot_info.model}</span>`);
+      if (d.ssh_info && d.ssh_info.crypto_grade) protoBadges.push(`<span class="pill pill-sky">SSH: ${d.ssh_info.crypto_grade.split(' ')[0]}</span>`);
+      if (d.smb_info && d.smb_info.dialect) protoBadges.push(`<span class="pill ${d.smb_info.signing_required ? 'pill-green' : 'pill-amber'}">${d.smb_info.dialect}</span>`);
+      if (isQuarantined) protoBadges.push(`<span class="pill pill-red">🛡 QUARANTINED</span>`);
+
+      return `
+        <div class="m-card ${isQuarantined ? 'highlight-red' : (d.is_gateway ? 'highlight-emerald' : 'highlight-sky')}">
+          <div class="card-top">
+            <div>
+              <div class="card-title">${name}</div>
+              <div class="card-mono">${d.ip} • ${d.mac}</div>
+              ${protoBadges.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">${protoBadges.join('')}</div>` : ''}
+            </div>
+            <span class="pill ${isQuarantined ? 'pill-red' : (d.is_online ? 'pill-green' : 'pill-amber')}">${isQuarantined ? 'QUARANTINED' : (d.power_state || 'ONLINE')}</span>
+          </div>
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-k">Vendor / Hardware</span>
+              <span class="meta-v">${d.vendor || 'Unknown'}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-k">OS / Category</span>
+              <span class="meta-v">${d.os_family || d.category || '—'}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-k">Open TCP Ports</span>
+              <span class="meta-v">${ports}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-k">RTT / Throughput</span>
+              <span class="meta-v">${d.rtt_ms != null ? d.rtt_ms + ' ms' : '—'} • <span style="color:#38bdf8;">${rateKbps} KB/s (${pps} pps)</span></span>
+            </div>
+          </div>
+          ${(doms || ja3 || synSig) ? `
+            <div class="proof-box" style="margin-top:6px;font-size:10.5px;">
+              ${doms ? `<div><strong style="color:#38bdf8;">Live Wire Domains:</strong> <span class="card-mono">${doms}</span></div>` : ''}
+              ${ja3 ? `<div><strong style="color:#a78bfa;">TLS JA3:</strong> <span class="card-mono">${ja3}</span></div>` : ''}
+              ${synSig ? `<div><strong style="color:#34d399;">p0f TCP SYN:</strong> <span class="card-mono">${synSig}</span></div>` : ''}
+            </div>
+          ` : ''}
+          ${p24Bars ? `
+            <div style="margin-top:8px;">
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-bottom:3px;">
+                <span>24h Presence Timeline</span>
+                <span style="color:#34d399;font-family:var(--mono);">${upPct}% Uptime</span>
+              </div>
+              <div style="display:flex;gap:2px;">${p24Bars}</div>
+            </div>
+          ` : ''}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
+            <button class="btn" onclick="mobileWakeOnLan('${d.mac}', '${d.ip}')">⚡ Wake-on-LAN</button>
+            <button class="btn" onclick="mobileNativePortScan('${d.ip}')">🔍 Port &amp; Banner Audit</button>
+            ${isRoku ? `<button class="btn btn-primary" onclick="openMobileRokuRemote('${d.ip}', '${name.replace(/'/g, '')}')">📺 TV Touch Remote</button>` : ''}
+            ${isPs ? `<button class="btn btn-primary" onclick="mobileWakePlayStation('${d.ip}', '${d.mac}')">🎮 Wake PlayStation</button>` : ''}
+            ${isSonos ? `
+              <button class="btn btn-emerald" onclick="mobileControlSonos('${d.ip}', 'Play')">▶ Sonos Play</button>
+              <button class="btn" onclick="mobileControlSonos('${d.ip}', 'Pause')">⏸ Pause</button>
+            ` : ''}
+            ${iotProto === 'kasa' || iotProto === 'shelly' ? `
+              <button class="btn btn-emerald" onclick="mobileControlSmartHome('${d.ip}', '${iotProto}', 'on')">🔌 Relay ON</button>
+              <button class="btn btn-amber" onclick="mobileControlSmartHome('${d.ip}', '${iotProto}', 'off')">🔌 Relay OFF</button>
+            ` : ''}
+            ${isCast ? `<button class="btn" onclick="mobileControlSmartHome('${d.ip}', 'google_cast', 'status')">📺 Cast Eureka</button>` : ''}
+            ${d.is_gateway ? `<button class="btn btn-emerald" onclick="refreshGateway5G('${d.ip}')">📡 5G NR Tower Status</button>` : ''}
+            ${d.is_gateway ? `<button class="btn" onclick="mobileDnsAudit('${d.ip}')">🌐 DNSSEC Audit</button>` : ''}
+            ${!d.is_gateway && !d.is_local_host ? (
+              isQuarantined
+                ? `<button class="btn btn-emerald" onclick="mobileToggleQuarantine('${d.ip}', '${d.mac}', 'release')">✓ Release Quarantine</button>`
+                : `<button class="btn btn-danger" onclick="mobileToggleQuarantine('${d.ip}', '${d.mac}', 'engage')">🛡 Quarantine</button>`
+            ) : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function openMobileRokuRemote(ip, title) {
+    activeRokuIp = ip;
+    document.getElementById('rokuRemoteTitle').textContent = title + ' Remote';
+    document.getElementById('rokuRemoteIp').textContent = ip + ':8060 (ECP)';
+    const card = document.getElementById('mobileRokuRemoteCard');
+    card.style.display = 'block';
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  async function sendMobileRokuKey(key) {
+    if (isNativeAndroid) {
+      try { window.AndroidNative.vibrate(18); } catch (e) {}
+    } else if (navigator.vibrate) {
+      navigator.vibrate(15);
+    }
+    try {
+      const res = await apiFetch('/api/action/roku-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: activeRokuIp, key })
+      });
+      showToast('TV Key: ' + key);
+    } catch (e) {
+      if (isNativeAndroid && window.AndroidNative.sendRokuKey) {
+        window.AndroidNative.sendRokuKey(activeRokuIp, key);
+        showToast('Direct Phone->TV Key: ' + key);
+      }
+    }
+  }
+
+  async function sendMobileRokuText() {
+    const inp = document.getElementById('rokuMobileTextInput');
+    const text = inp.value;
+    if (!text) return;
+    try {
+      await apiFetch('/api/action/roku-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: activeRokuIp, text })
+      });
+      inp.value = '';
+      showToast('Sent text to TV');
+    } catch (e) {}
+  }
+
+  async function launchMobileDial(appName) {
+    try {
+      await apiFetch('/api/action/dial-app', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: activeRokuIp, app_name: appName, action: 'launch' })
+      });
+      showToast('Launching ' + appName + ' on TV');
+    } catch (e) {}
+  }
+
+  async function launchMobileRokuChannel(appId) {
+    try {
+      await apiFetch('/api/action/roku-launch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: activeRokuIp, app_id: appId })
+      });
+      showToast('Launched channel ' + appId);
+    } catch (e) {}
+  }
+
+  async function mobileWakeOnLan(mac, ip) {
+    if (!mac || mac === '00:00:00:00:00:00') {
+      showToast('No hardware MAC available for ' + ip);
+      return;
+    }
+    if (isNativeAndroid && window.AndroidNative.sendWakeOnLan) {
+      try { window.AndroidNative.sendWakeOnLan(mac); } catch (e) {}
+    }
+    try {
+      const res = await apiFetch('/api/action/wol', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mac })
+      });
+      showToast(res.message || ('Sent WoL Magic Packet to ' + mac));
+    } catch (e) {
+      showToast('Sent direct phone WoL Magic Packet to ' + mac);
+    }
+  }
+
+  async function refreshGateway5G(ip) {
+    try {
+      const res = await apiFetch('/api/action/gateway-control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip, action: 'telemetry' })
+      });
+      showToast(res.message || 'Gateway 5G NR telemetry refreshed');
+    } catch (e) {}
+  }
+
+  async function exportDesktopReport() {
+    try {
+      const res = await apiFetch('/api/export/report', { method: 'POST' });
+      showToast(res.summary || 'Exported Forensic Report to Desktop');
+    } catch (e) {
+      showToast('Could not export report: node unreachable');
+    }
+  }
+
+  async function mobileToggleQuarantine(ip, mac, action) {
+    if (isNativeAndroid && action === 'engage' && window.AndroidNative.sendTcpResetPulse) {
+      try { window.AndroidNative.sendTcpResetPulse(ip); } catch (e) {}
+    }
+    try {
+      const res = await apiFetch('/api/action/quarantine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip, mac, action })
+      });
+      showToast(res.quarantined ? `🛡 Quarantined ${ip}` : `✓ Released ${ip} from quarantine`);
+      await fetchMobileState();
+    } catch (e) {
+      showToast(`Sent direct phone TCP RST pulse to ${ip}`);
+    }
+  }
+
+  async function mobileControlSmartHome(ip, protocol, action) {
+    if (isNativeAndroid && protocol === 'kasa' && window.AndroidNative.controlKasaPlug) {
+      try { window.AndroidNative.controlKasaPlug(ip, action === 'on' ? 1 : 0); } catch (e) {}
+    }
+    try {
+      const res = await apiFetch('/api/action/smart-home-control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip, protocol, action })
+      });
+      showToast(`${protocol.toUpperCase()} (${action.toUpperCase()}) -> ${res.ok ? 'OK' : (res.error || 'Sent')}`);
+    } catch (e) {
+      showToast(`Direct phone command (${protocol} ${action}) -> ${ip}`);
+    }
+  }
+
+  async function mobileControlSonos(ip, action) {
+    if (isNativeAndroid && window.AndroidNative.controlSonosNative) {
+      try { window.AndroidNative.controlSonosNative(ip, action); } catch (e) {}
+    }
+    try {
+      const res = await apiFetch('/api/action/sonos-control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip, action })
+      });
+      showToast(res.message || `Sonos (${action.toUpperCase()}) -> ${res.ok ? 'OK' : 'Sent'}`);
+    } catch (e) {
+      showToast(`Direct phone Sonos SOAP (${action}) -> ${ip}`);
+    }
+  }
+
+  async function mobileNativePortScan(ip) {
+    if (isNativeAndroid && window.AndroidNative.scanNativeHostPorts) {
+      showToast(`Scanning 28 TCP ports on ${ip} from phone...`);
+      setTimeout(() => {
+        try {
+          const raw = window.AndroidNative.scanNativeHostPorts(ip);
+          const list = JSON.parse(raw || '[]');
+          const summary = list.map(x => `${x.port}${x.banner ? ' (' + x.banner.slice(0, 18) + ')' : ''}`).join(', ');
+          showToast(`Phone found ${list.length} open ports on ${ip}: ${summary || 'None'}`);
+        } catch (e) {}
+      }, 40);
+      return;
+    }
+    try {
+      showToast(`Auditing TCP ports on ${ip}...`);
+      const res = await apiFetch('/api/action/port-range-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip, start_port: 1, end_port: 1024 })
+      });
+      showToast(`${ip}: ${(res.open_ports || []).length} open ports (${(res.open_ports || []).join(', ') || 'None'})`);
+    } catch (e) {
+      showToast(`Port scan error on ${ip}`);
+    }
+  }
+
+  async function mobileDnsAudit(ip) {
+    try {
+      const res = await apiFetch('/api/action/dns-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip })
+      });
+      showToast(`DNS (${ip}): ${res.security_grade || 'Audited'} • RTT ${res.query_rtt_ms ?? '?'} ms`);
+    } catch (e) {
+      showToast(`Could not run DNS audit on ${ip}`);
+    }
+  }
+
+  async function mobileWakePlayStation(ip, mac) {
+    if (isNativeAndroid) {
+      try {
+        if (window.AndroidNative.wakePlayStationNative) window.AndroidNative.wakePlayStationNative(ip);
+        if (mac && window.AndroidNative.sendWakeOnLan) window.AndroidNative.sendWakeOnLan(mac);
+      } catch (e) {}
+    }
+    try {
+      const res = await apiFetch('/api/action/playstation-wake', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip, mac })
+      });
+      showToast(res.message || `Sent DDP WAKEUP + WoL to PlayStation (${ip})`);
+    } catch (e) {
+      showToast(`Sent direct phone DDP WAKEUP to PlayStation (${ip})`);
+    }
+  }
+
+  // ==================== MOBILE 3-TIER TACTICAL TOPOLOGY RADAR ====================
+  let mobileTopoMode = 'online';
+  let mobileTopoNodes = [];
+
+  function setMobileTopoMode(mode) {
+    mobileTopoMode = mode;
+    ['online', 'all', 'rf'].forEach(m => {
+      const btn = document.getElementById('mTopoBtn' + m.charAt(0).toUpperCase() + m.slice(1));
+      if (btn) btn.className = (m === mode) ? 'btn btn-primary' : 'btn';
+    });
+    drawMobileTopology();
+  }
+
+  function drawMobileTopology() {
+    const canvas = document.getElementById('mobileTopoCanvas');
+    if (!canvas || !appState) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const cx = w / 2, cy = h / 2;
+    // Radar rings
+    [55, 110, 145].forEach(r => {
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    mobileTopoNodes = [];
+    const gw = (appState.devices || []).find(d => d.is_gateway) || { ip: '192.168.12.1', display_name: '5G Gateway' };
+    mobileTopoNodes.push({ x: cx, y: cy, r: 16, color: '#10b981', label: gw.custom_name || '5G Gateway', ip: gw.ip, type: 'gw' });
+
+    const devs = (appState.devices || []).filter(d => !d.is_gateway && (mobileTopoMode !== 'online' || d.is_online));
+    devs.forEach((d, i) => {
+      const angle = (i / Math.max(1, devs.length)) * Math.PI * 2 - Math.PI / 2;
+      const rad = d.is_online ? 96 : 132;
+      const nx = cx + Math.cos(angle) * rad;
+      const ny = cy + Math.sin(angle) * rad;
+      const col = d.is_quarantined ? '#ef4444' : (d.is_online ? '#38bdf8' : '#64748b');
+
+      ctx.strokeStyle = d.is_online ? 'rgba(56, 189, 248, 0.35)' : 'rgba(100, 116, 139, 0.18)';
+      ctx.lineWidth = d.is_online ? 1.5 : 1;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(nx, ny);
+      ctx.stroke();
+
+      const shortName = (d.custom_name || d.display_name || d.ip).slice(0, 14);
+      mobileTopoNodes.push({ x: nx, y: ny, r: 9, color: col, label: shortName, ip: d.ip, type: 'lan' });
+    });
+
+    if (mobileTopoMode === 'rf') {
+      const aps = ((appState.wifi && appState.wifi.access_points) || []).slice(0, 14);
+      aps.forEach((ap, idx) => {
+        const angle = (idx / Math.max(1, aps.length)) * Math.PI * 2;
+        const nx = cx + Math.cos(angle) * 145;
+        const ny = cy + Math.sin(angle) * 145;
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.25)';
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(nx, ny);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        mobileTopoNodes.push({ x: nx, y: ny, r: 7, color: ap.is_hidden ? '#ef4444' : '#f59e0b', label: (ap.ssid || ap.bssid).slice(0, 12), bssid: ap.bssid, type: 'rf' });
+      });
+    }
+
+    mobileTopoNodes.forEach(n => {
+      ctx.fillStyle = n.color;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(n.label, n.x, n.y + n.r + 11);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const tc = document.getElementById('mobileTopoCanvas');
+    if (tc) {
+      tc.addEventListener('click', (ev) => {
+        const rect = tc.getBoundingClientRect();
+        const sx = (ev.clientX - rect.left) * (tc.width / rect.width);
+        const sy = (ev.clientY - rect.top) * (tc.height / rect.height);
+        const hit = mobileTopoNodes.find(n => Math.hypot(n.x - sx, n.y - sy) <= n.r + 12);
+        if (hit) {
+          if (hit.type === 'rf' && hit.bssid) {
+            trackInGeiger(hit.bssid);
+          } else if (hit.ip) {
+            const navBtns = document.querySelectorAll('.nav-item');
+            switchMobileTab('devices', navBtns[2]);
+            const s = document.getElementById('mobileDevSearch');
+            if (s) { s.value = hit.ip; renderMobileDevices(); }
+            showToast(`Inspecting ${hit.label} (${hit.ip})`);
+          }
+        }
+      });
+    }
+  });
+
+  // ==================== GEIGER COUNTER & DUAL-NODE TRIANGULATION ====================
+  function populateGeigerSelect() {
+    const sel = document.getElementById('geigerTargetSelect');
+    const aps = (appState && appState.wifi && appState.wifi.access_points) || [];
+    if (aps.length === 0 && nativeWifiResults.length === 0) return;
+
+    const list = aps.length > 0 ? aps : nativeWifiResults;
+    if (!geigerTargetBssid && list.length > 0) {
+      // Prefer hidden BSSID 18:A5:1D:13:62:3D or first hidden AP
+      const firstHidden = list.find(a => a.is_hidden || (a.ssid || '').includes('Hidden'));
+      geigerTargetBssid = firstHidden ? firstHidden.bssid : list[0].bssid;
+    }
+
+    sel.innerHTML = list.map(ap => {
+      const label = `${ap.bssid} — ${ap.ssid || '[Hidden]'} (${ap.signal_dbm} dBm • Ch ${ap.channel || '?'})`;
+      const selected = ap.bssid === geigerTargetBssid ? 'selected' : '';
+      return `<option value="${ap.bssid}" ${selected}>${label}</option>`;
+    }).join('');
+  }
+
+  function onGeigerTargetChange(bssid) {
+    geigerTargetBssid = bssid;
+    geigerHistory = [];
+    geigerPeakDbm = -100;
+    geigerMinDbm = 0;
+    updateGeigerDisplay();
+  }
+
+  function resetGeigerPeak() {
+    geigerHistory = [];
+    geigerPeakDbm = -100;
+    geigerMinDbm = 0;
+    updateGeigerDisplay();
+  }
+
+  function updateGeigerDisplay() {
+    const aps = (appState && appState.wifi && appState.wifi.access_points) || [];
+    const nodeAp = aps.find(a => a.bssid === geigerTargetBssid);
+    const phoneAp = nativeWifiResults.find(a => (a.bssid || '').toUpperCase() === (geigerTargetBssid || '').toUpperCase());
+
+    const activeAp = phoneAp || nodeAp;
+    if (!activeAp) return;
+
+    const dbm = phoneAp ? phoneAp.signal_dbm : nodeAp.signal_dbm;
+    if (dbm > geigerPeakDbm) geigerPeakDbm = dbm;
+    if (geigerMinDbm === 0 || dbm < geigerMinDbm) geigerMinDbm = dbm;
+
+    geigerHistory.push(dbm);
+    if (geigerHistory.length > 60) geigerHistory.shift();
+
+    const ssidName = (nodeAp && (nodeAp.de_cloaked_parent || nodeAp.ssid)) || activeAp.ssid || '[Hidden Transmitter]';
+    document.getElementById('geigerTargetLabel').textContent = ssidName;
+    document.getElementById('geigerTargetSub').textContent =
+      `${geigerTargetBssid} • ${activeAp.band || ''} Ch ${activeAp.channel || '?'} (${activeAp.freq_mhz || '?'} MHz)`;
+
+    const dbmEl = document.getElementById('geigerDbmValue');
+    dbmEl.textContent = `${dbm} dBm`;
+    dbmEl.style.color = dbm >= -55 ? '#ef4444' : (dbm >= -70 ? '#f59e0b' : '#38bdf8');
+
+    const pct = Math.max(5, Math.min(100, Math.round((dbm + 95) * (100 / 60))));
+    document.getElementById('geigerBarFill').style.width = pct + '%';
+
+    // Compute proximity trend vs moving baseline
+    const pill = document.getElementById('geigerTrendPill');
+    if (geigerHistory.length >= 3) {
+      const prevAvg = geigerHistory.slice(-6, -1).reduce((a, b) => a + b, 0) / Math.min(5, geigerHistory.length - 1);
+      const diff = +(dbm - prevAvg).toFixed(1);
+      if (diff >= 1.5) {
+        pill.className = 'geiger-trend pill-red';
+        pill.textContent = `▲ GETTING WARMER / CLOSER (+${diff} dB)`;
+      } else if (diff <= -1.5) {
+        pill.className = 'geiger-trend pill-sky';
+        pill.textContent = `▼ MOVING COLDER / AWAY (${diff} dB)`;
+      } else {
+        pill.className = 'geiger-trend pill-green';
+        pill.textContent = `● HOLDING STEADY (${diff >= 0 ? '+' : ''}${diff} dB)`;
+      }
+    }
+
+    document.getElementById('geigerNodeRssi').textContent = nodeAp ? `${nodeAp.signal_dbm} dBm (${nodeAp.signal_pct}%)` : '—';
+    document.getElementById('geigerPhoneRssi').textContent = phoneAp ? `${phoneAp.signal_dbm} dBm (On-Phone HW)` : (isNativeAndroid ? 'Not in range' : 'Use APK for Dual-Node');
+    document.getElementById('geigerPeakHold').textContent = `${geigerPeakDbm} / ${geigerMinDbm} dBm`;
+    document.getElementById('geigerRangeBand').textContent = (nodeAp && nodeAp.distance_range_m) || `${Math.pow(10, (-42 - dbm)/26).toFixed(1)}m est`;
+    document.getElementById('geigerTsfUptime').textContent = (nodeAp && nodeAp.tsf_human) || (phoneAp && phoneAp.tsf_human) || '—';
+
+    if (nodeAp && phoneAp) {
+      const delta = phoneAp.signal_dbm - nodeAp.signal_dbm;
+      document.getElementById('geigerDiffVector').textContent =
+        delta > 2 ? `+${delta} dB Closer to Phone` : (delta < -2 ? `${delta} dB Closer to Laptop` : 'Equidistant (0 dB)');
+    } else {
+      document.getElementById('geigerDiffVector').textContent = 'Single-Receiver Mode';
+    }
+
+    drawGeigerCanvas();
+  }
+
+  function drawGeigerCanvas() {
+    const canvas = document.getElementById('geigerCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // Grid lines (-30 dBm top to -95 dBm bottom)
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    [-40, -60, -80].forEach(level => {
+      const y = h - ((level + 95) / 65) * h;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+      ctx.fillStyle = '#64748b';
+      ctx.font = '10px monospace';
+      ctx.fillText(level + ' dBm', 6, y - 3);
+    });
+
+    if (geigerHistory.length < 2) return;
+
+    // Peak line
+    const peakY = h - ((geigerPeakDbm + 95) / 65) * h;
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.45)';
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(0, peakY);
+    ctx.lineTo(w, peakY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // RSSI waveform
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    geigerHistory.forEach((val, idx) => {
+      const x = (idx / 59) * w;
+      const clamped = Math.max(-95, Math.min(-30, val));
+      const y = h - ((clamped + 95) / 65) * h;
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  function toggleGeigerAudio() {
+    geigerAudioEnabled = !geigerAudioEnabled;
+    const btn = document.getElementById('btnGeigerAudio');
+    if (geigerAudioEnabled) {
+      if (!geigerAudioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        geigerAudioCtx = new AudioContext();
+      }
+      if (geigerAudioCtx.state === 'suspended') geigerAudioCtx.resume();
+      btn.textContent = '🔇 Mute Geiger Audio & Haptics';
+      btn.className = 'btn btn-danger';
+      scheduleNextGeigerTick();
+    } else {
+      btn.textContent = '🔊 Enable Geiger Audio & Haptics';
+      btn.className = 'btn btn-primary';
+      clearTimeout(geigerTimer);
+    }
+  }
+
+  function fireGeigerClick(dbm) {
+    if (!geigerAudioEnabled) return;
+    try {
+      if (geigerAudioCtx) {
+        const osc = geigerAudioCtx.createOscillator();
+        const gain = geigerAudioCtx.createGain();
+        const norm = Math.max(0, Math.min(1, (dbm + 95) / 60));
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(420 + norm * 980, geigerAudioCtx.currentTime);
+        gain.gain.setValueAtTime(0.28, geigerAudioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, geigerAudioCtx.currentTime + 0.028);
+        osc.connect(gain);
+        gain.connect(geigerAudioCtx.destination);
+        osc.start();
+        osc.stop(geigerAudioCtx.currentTime + 0.03);
+      }
+      if (isNativeAndroid && window.AndroidNative.vibrate) {
+        window.AndroidNative.vibrate(12);
+      } else if (navigator.vibrate) {
+        navigator.vibrate(10);
+      }
+    } catch (e) {}
+  }
+
+  function scheduleNextGeigerTick() {
+    if (!geigerAudioEnabled) return;
+    const lastDbm = geigerHistory.length > 0 ? geigerHistory[geigerHistory.length - 1] : -80;
+    fireGeigerClick(lastDbm);
+    const norm = Math.max(0.05, Math.min(1, (lastDbm + 95) / 60));
+    const intervalMs = Math.round(900 - norm * 830); // 900ms at -95dBm down to 70ms at -35dBm
+    geigerTimer = setTimeout(scheduleNextGeigerTick, Math.max(65, intervalMs));
+  }
+
+  async function pollFastGeigerNow() {
+    if (isNativeAndroid && window.AndroidNative.scanNativeWifi) {
+      try {
+        const raw = window.AndroidNative.scanNativeWifi(true);
+        nativeWifiResults = JSON.parse(raw || '[]');
+      } catch (e) {}
+    }
+    await fetchMobileState();
+    updateGeigerDisplay();
+  }
+
+  // ==================== STANDALONE NATIVE ANDROID HARDWARE FUNCTIONS ====================
+  function runStandalonePhoneWifiScan(silent = false) {
+    if (!isNativeAndroid || !window.AndroidNative.scanNativeWifi) {
+      if (!silent) showToast('Install NetPulse-Mobile.apk for direct on-phone Wi-Fi hardware scanning');
+      return;
+    }
+    try {
+      const raw = window.AndroidNative.scanNativeWifi(true);
+      nativeWifiResults = JSON.parse(raw || '[]');
+      document.getElementById('standaloneScanOutput').textContent =
+        `Phone Wi-Fi Hardware detected ${nativeWifiResults.length} BSSIDs directly at handset antenna.`;
+      if (!silent) showToast(`Phone hardware scanned ${nativeWifiResults.length} BSSIDs`);
+      updateGeigerDisplay();
+    } catch (e) {}
+  }
+
+  function runStandalonePhoneLanSweep() {
+    if (!isNativeAndroid || !window.AndroidNative.scanNativeLanSubnet) {
+      showToast('Install NetPulse-Mobile.apk for standalone on-phone subnet sweeping');
+      return;
+    }
+    showToast('Running 48-thread standalone subnet sweep on phone...');
+    setTimeout(() => {
+      try {
+        const raw = window.AndroidNative.scanNativeLanSubnet();
+        const hosts = JSON.parse(raw || '[]');
+        document.getElementById('standaloneScanOutput').textContent =
+          `Standalone Phone Sweep found ${hosts.length} active LAN hosts: ` + hosts.map(h => h.ip).join(', ');
+        showToast(`Phone found ${hosts.length} LAN hosts directly`);
+      } catch (e) {}
+    }, 50);
+  }
+
+  function runStandalonePhoneSsdpScan() {
+    if (!isNativeAndroid || !window.AndroidNative.scanNativeSsdp) {
+      showToast('Install NetPulse-Mobile.apk for standalone on-phone SSDP multicast discovery');
+      return;
+    }
+    showToast('Sending UDP 239.255.255.250:1900 M-SEARCH from phone...');
+    setTimeout(() => {
+      try {
+        const raw = window.AndroidNative.scanNativeSsdp();
+        const responders = JSON.parse(raw || '[]');
+        document.getElementById('standaloneScanOutput').textContent =
+          `Phone SSDP Multicast found ${responders.length} UPnP/DLNA/Cast devices: ` +
+          responders.map(r => `${r.ip} (${r.server || r.st || 'UPnP'})`).join(', ');
+        showToast(`Phone SSDP found ${responders.length} devices`);
+      } catch (e) {}
+    }, 50);
+  }
+
+  async function runMobileDomainRecon() {
+    const target = (document.getElementById('mobileDomainInput')?.value || 'cloudflare.com').trim();
+    const out = document.getElementById('mobileDomainOutput');
+    if (out) out.textContent = `Probing ${target} (DNS A/AAAA/MX/NS/SPF/DMARC + TLS :443)…`;
+    try {
+      const r = await fetch(API_BASE + '/api/action/domain-intel', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({target})
+      });
+      const d = await r.json();
+      if (!d.ok) {
+        if (out) out.textContent = `Error: ${d.error}`;
+        return;
+      }
+      const tls = d.tls || {};
+      if (out) {
+        out.innerHTML = `<strong style="color:#38bdf8;">${d.domain}</strong> — Grade <strong>${d.security_grade} (${d.security_score}/100)</strong><br>` +
+          `IPv4: ${(d.ipv4_addresses || []).join(', ') || '—'} • IPv6: ${(d.ipv6_addresses || []).slice(0,2).join(', ') || '—'}<br>` +
+          `TLS: ${tls.protocol || 'Closed'} (${tls.cipher_suite || '—'}) • Issuer: ${tls.issuer_org || tls.issuer_cn || '—'}<br>` +
+          `SPF: ${d.spf_present ? '✓' : '✕'} • DMARC: ${d.dmarc_present ? '✓' : '✕'} • HTTP/3: ${(d.http || {}).http3_supported ? 'YES' : 'No'}`;
+      }
+    } catch (e) {
+      if (out) out.textContent = `Recon failed: ${e}`;
+    }
+  }
+
+  async function runMobileCidrCalc() {
+    const cidr = (document.getElementById('mobileCidrInput')?.value || '192.168.12.0/24').trim();
+    const out = document.getElementById('mobileCidrOutput');
+    try {
+      const r = await fetch(`${API_BASE}/api/subnet/calc?cidr=${encodeURIComponent(cidr)}`);
+      const d = await r.json();
+      if (!d.ok) {
+        if (out) out.textContent = `Error: ${d.error}`;
+        return;
+      }
+      if (out) {
+        out.innerHTML = `<strong style="color:#34d399;">${d.cidr}</strong> (${d.ip_class} • ${d.scope})<br>` +
+          `Range: ${d.first_usable} &rarr; ${d.last_usable} (<strong>${Number(d.usable_hosts).toLocaleString()}</strong> hosts) • Mask: ${d.netmask}`;
+      }
+    } catch (e) {
+      if (out) out.textContent = `CIDR calc failed: ${e}`;
+    }
+  }
+
+  async function runMobileWakeAll() {
+    const out = document.getElementById('mobileCidrOutput');
+    if (out) out.textContent = 'Transmitting IEEE 802.3 Magic Packets to all LAN endpoints…';
+    try {
+      const r = await fetch(API_BASE + '/api/action/wake-all', {method: 'POST'});
+      const d = await r.json();
+      if (out) out.textContent = `✓ Woke ${d.woken_count}/${d.total_targets} LAN hosts via UDP :9 broadcast`;
+      showToast(`Woke ${d.woken_count}/${d.total_targets} LAN hosts`);
+    } catch (e) {
+      if (out) out.textContent = `Wake-All failed: ${e}`;
+    }
+  }
+
+  // Poll hardware magnetometer & phone info
+  let lastMobileTelemetryPush = 0;
+  function pollHardwareSensors() {
+    if (isNativeAndroid) {
+      try {
+        let sensorObj = {};
+        if (window.AndroidNative.getDeviceSensors) {
+          const s = JSON.parse(window.AndroidNative.getDeviceSensors() || '{}');
+          sensorObj = s;
+          if (s.mag_total_ut != null) {
+            const ut = +s.mag_total_ut.toFixed(1);
+            document.getElementById('magTotalUt').textContent = ut + ' µT';
+            document.getElementById('compassHeading').textContent = (s.azimuth_deg || 0).toFixed(0) + '°';
+            document.getElementById('magAxes').textContent = `${(s.bx||0).toFixed(1)}, ${(s.by||0).toFixed(1)}, ${(s.bz||0).toFixed(1)} µT`;
+            const verdictEl = document.getElementById('magVerdict');
+            const pillEl = document.getElementById('magStatusPill');
+            if (ut > 75) {
+              verdictEl.textContent = '⚠ ELEVATED EM / FERROMAGNETIC FIELD';
+              verdictEl.style.color = '#ef4444';
+              pillEl.className = 'pill pill-red';
+              pillEl.textContent = 'HIGH FLUX ALERT';
+            } else {
+              verdictEl.textContent = 'Normal Geomagnetic Baseline';
+              verdictEl.style.color = '#34d399';
+              pillEl.className = 'pill pill-sky';
+              pillEl.textContent = 'SENSOR ACTIVE';
+            }
+          }
+        }
+        if (window.AndroidNative.getPhoneNetworkInfo) {
+          nativePhoneInfo = JSON.parse(window.AndroidNative.getPhoneNetworkInfo() || '{}');
+          document.getElementById('setupPhoneIp').textContent =
+            `${nativePhoneInfo.ip || '—'} (${nativePhoneInfo.ssid || 'Wi-Fi'})`;
+          document.getElementById('setupPhoneLink').textContent =
+            `${nativePhoneInfo.rssi_dbm || '?'} dBm • ${nativePhoneInfo.link_speed_mbps || '?'} Mbps • ${nativePhoneInfo.model || 'Android'}`;
+        }
+        if (window.AndroidNative.scanNativeWifi) {
+          const raw = window.AndroidNative.scanNativeWifi(false);
+          nativeWifiResults = JSON.parse(raw || '[]');
+        }
+        if (Date.now() - lastMobileTelemetryPush > 5000 && nativeWifiResults.length > 0) {
+          lastMobileTelemetryPush = Date.now();
+          fetch(API_BASE + '/api/mobile/telemetry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phone_model: (nativePhoneInfo && nativePhoneInfo.model) || 'Android Field Unit',
+              phone_ip: (nativePhoneInfo && nativePhoneInfo.ip) || '',
+              wifi_aps: nativeWifiResults,
+              mag_ut: {
+                bx: sensorObj.bx || 0,
+                by: sensorObj.by || 0,
+                bz: sensorObj.bz || 0,
+                total_ut: sensorObj.mag_total_ut || 0
+              },
+              azimuth_deg: sensorObj.azimuth_deg || 0
+            })
+          }).catch(() => {});
+        }
+      } catch (e) {}
+    }
+  }
+
+  // Browser DeviceOrientation fallback for compass when in Safari/Chrome
+  window.addEventListener('deviceorientation', (ev) => {
+    if (!isNativeAndroid && ev.alpha != null) {
+      const heading = (360 - ev.alpha) % 360;
+      document.getElementById('compassHeading').textContent = heading.toFixed(0) + '°';
+    }
+  });
+
+  // ==================== MOBILE SUBSCRIPTION & LICENSE MODAL ====================
+  function openMobileSubscriptionModal(gatePayload = null) {
+    const modal = document.getElementById('mobileSubModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    const banner = document.getElementById('mSubGateBanner');
+    if (banner) {
+      if (gatePayload && gatePayload.message) {
+        banner.style.display = 'block';
+        banner.innerHTML = `🔒 <strong>${gatePayload.feature_name || 'Premium Feature'}:</strong> ${gatePayload.message}`;
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+    const sub = (appState && appState.subscription) || {};
+    const curEl = document.getElementById('mSubCurrentTier');
+    if (curEl) {
+      curEl.textContent = `${sub.tier_name || 'Community Edition'} (${sub.badge || 'FREE'}) • ${sub.expires_human || ''}`;
+    }
+  }
+
+  function closeMobileSubscriptionModal() {
+    const modal = document.getElementById('mobileSubModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async function mobileStartCheckout(tier, plan = 'monthly') {
+    try {
+      const res = await fetch(API_BASE + '/api/subscription/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier, plan, email: 'mobile@netpulse.io', origin_url: API_BASE })
+      }).then(r => r.json());
+      if (res.ok && res.checkout_url) {
+        window.open(res.checkout_url, '_blank');
+      } else {
+        showToast(res.error || 'Configure Stripe key on node or tap Instant Mint below');
+      }
+    } catch (e) {
+      showToast('Node unreachable for Stripe Checkout');
+    }
+  }
+
+  async function mobileActivateLicenseFromInput(inputId) {
+    const inp = document.getElementById(inputId);
+    const key = (inp ? inp.value : '').trim();
+    if (!key) return;
+    try {
+      const res = await fetch(API_BASE + '/api/subscription/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ license_key: key })
+      }).then(r => r.json());
+      showToast(res.ok ? ('✓ ' + res.message) : ('✕ ' + res.error));
+      if (res.ok) {
+        await fetchMobileState();
+        closeMobileSubscriptionModal();
+      }
+    } catch (e) {
+      showToast('Error activating license key');
+    }
+  }
+
+  async function mobileStartFreeTrial() {
+    try {
+      const res = await fetch(API_BASE + '/api/subscription/trial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'mobile-trial@netpulse.io' })
+      }).then(r => r.json());
+      showToast(res.ok ? ('✓ ' + res.message) : ('✕ ' + res.error));
+      if (res.ok) {
+        await fetchMobileState();
+        closeMobileSubscriptionModal();
+      }
+    } catch (e) {
+      showToast('Error activating 7-day trial');
+    }
+  }
+
+  async function mobileAdminMint(tier, plan) {
+    try {
+      const admin_token = (document.getElementById('mAdminTokenInput')?.value || '').trim();
+      const res = await fetch(API_BASE + '/api/subscription/admin/mint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier, plan, email: 'founder@netpulse.io', auto_activate: true, admin_token })
+      }).then(r => r.json());
+      if (res.ok) {
+        const inp = document.getElementById('mSubKeyInput');
+        if (inp) inp.value = res.license_key;
+        showToast(`✓ Minted & Activated ${res.tier_name} (${res.plan.toUpperCase()})`);
+        await fetchMobileState();
+        closeMobileSubscriptionModal();
+      } else {
+        showToast('✕ ' + (res.error || 'Enter Admin Master Token'));
+      }
+    } catch (e) {
+      showToast('Error minting license key');
+    }
+  }
+
+  async function mobileDeactivateLicense() {
+    try {
+      await fetch(API_BASE + '/api/subscription/deactivate', { method: 'POST' });
+      showToast('Reverted to Community Edition (Free Tier)');
+      await fetchMobileState();
+      closeMobileSubscriptionModal();
+    } catch (e) {}
+  }
+
+  // Boot
+  fetchMobileState();
+  connectMobileWs();
+  setInterval(pollHardwareSensors, 1200);
+  setInterval(() => {
+    if (document.getElementById('view-geiger').classList.contains('active')) {
+      pollFastGeigerNow();
+    }
+  }, 3500);
+</script>
+
+<!-- MOBILE SUBSCRIPTION, STRIPE CHECKOUT & LICENSE ACTIVATION MODAL -->
+<div id="mobileSubModal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(5,8,15,0.92);backdrop-filter:blur(10px);align-items:flex-start;justify-content:center;padding:12px;overflow-y:auto;">
+  <div style="background:#111824;border:1px solid #2e405c;border-radius:14px;width:100%;max-width:520px;padding:14px;margin-top:8px;margin-bottom:24px;">
+    <div class="card-top" style="border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:10px;">
+      <div>
+        <div class="card-title">💎 NetPulse Subscription &amp; License</div>
+        <div class="card-mono" id="mSubCurrentTier">Community Edition (FREE)</div>
+      </div>
+      <button class="btn" onclick="closeMobileSubscriptionModal()">✕ Close</button>
+    </div>
+
+    <div id="mSubGateBanner" style="display:none;background:rgba(245,158,11,0.16);border:1px solid #f59e0b;color:#fde68a;padding:9px 11px;border-radius:8px;font-size:12px;margin-bottom:10px;"></div>
+
+    <!-- Pro Guardian Card -->
+    <div class="m-card highlight-sky">
+      <div class="card-top">
+        <div>
+          <span class="pill pill-sky">MOST POPULAR</span>
+          <div class="card-title" style="margin-top:3px;">Pro Guardian</div>
+          <div style="font-size:11px;color:var(--text-dim);">8-Stage De-Cloaker • RF Geiger Finder • 24h Heatmap • Smart Home/TV Control</div>
+        </div>
+        <div class="card-mono" style="font-size:16px;font-weight:800;color:#fff;">$9.99/mo</div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button class="btn btn-primary" style="flex:1" onclick="mobileStartCheckout('pro', 'monthly')">Stripe Checkout ($9.99/mo)</button>
+        <button class="btn" onclick="mobileStartCheckout('pro', 'annual')">$99/yr</button>
+        <button class="btn btn-emerald" onclick="mobileStartFreeTrial()">7-Day Free Trial</button>
+      </div>
+    </div>
+
+    <!-- Sovereign Enterprise Card -->
+    <div class="m-card highlight-emerald">
+      <div class="card-top">
+        <div>
+          <span class="pill pill-green">FULL SPECTRUM</span>
+          <div class="card-title" style="margin-top:3px;">Sovereign Enterprise</div>
+          <div style="font-size:11px;color:var(--text-dim);">Host Quarantine &amp; TCP RST • Live Wire DPI/JA3 • Camera Sweep • 5G Control • Forensic Export</div>
+        </div>
+        <div class="card-mono" style="font-size:16px;font-weight:800;color:#34d399;">$29.99/mo</div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button class="btn btn-emerald" style="flex:1" onclick="mobileStartCheckout('enterprise', 'monthly')">Stripe Checkout ($29.99/mo)</button>
+        <button class="btn" onclick="mobileStartCheckout('enterprise', 'annual')">$299/yr</button>
+      </div>
+    </div>
+
+    <!-- License Key Activation -->
+    <div class="m-card">
+      <div style="font-size:11.5px;font-weight:700;color:#fff;margin-bottom:6px;">Activate Cryptographic License Key (`NP1-*`)</div>
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="mSubKeyInput" class="m-input" placeholder="NP1-ENTERPRISE-...">
+        <button class="btn btn-primary" onclick="mobileActivateLicenseFromInput('mSubKeyInput')">Activate</button>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#a78bfa;margin:10px 0 6px 0;">Sovereign Operator Instant Key Generator:</div>
+      <input type="password" id="mAdminTokenInput" class="m-input" style="margin-bottom:6px;" placeholder="Admin Master Token (required over remote LAN)">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn" onclick="mobileAdminMint('pro', 'monthly')">⚡ Mint Pro Key</button>
+        <button class="btn btn-emerald" onclick="mobileAdminMint('enterprise', 'lifetime')">👑 Mint Enterprise Lifetime</button>
+        <button class="btn btn-danger" onclick="mobileDeactivateLicense()">Revert to Free</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetPulse // OmniSight — Commercial Pricing, Licensing & Downloads</title>
+  <style>
+    :root {
+      --bg: #070a10;
+      --surface: #0e1420;
+      --card: #131b2b;
+      --border: #1f2b3e;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --sky: #38bdf8;
+      --emerald: #10b981;
+      --purple: #a78bfa;
+      --amber: #f59e0b;
+      --mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.14), #070a10 55%);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.55;
+    }
+    .nav {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      font-size: 18px;
+      text-decoration: none;
+      color: #fff;
+    }
+    .logo {
+      width: 36px; height: 36px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #0ea5e9, #10b981);
+      display: flex; align-items: center; justify-content: center;
+      color: #05080f; font-weight: 900;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: #fff;
+      font-weight: 600;
+      font-size: 13.5px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.1s ease, border-color 0.15s ease;
+    }
+    .btn:hover { border-color: var(--sky); }
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #0ea5e9);
+      border-color: #38bdf8;
+    }
+    .btn-emerald {
+      background: linear-gradient(135deg, #059669, #10b981);
+      border-color: #34d399;
+    }
+    .hero {
+      max-width: 920px;
+      margin: 48px auto 32px auto;
+      padding: 0 24px;
+      text-align: center;
+    }
+    .pill {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      font-weight: 700;
+      background: rgba(56, 189, 248, 0.14);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: var(--sky);
+      margin-bottom: 14px;
+    }
+    h1 {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      margin: 0 0 14px 0;
+      line-height: 1.15;
+    }
+    .subtitle {
+      font-size: 17px;
+      color: var(--muted);
+      max-width: 720px;
+      margin: 0 auto 24px auto;
+    }
+    .pricing-wrap {
+      max-width: 1160px;
+      margin: 0 auto 60px auto;
+      padding: 0 24px;
+    }
+    .cycle-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    @media (max-width: 940px) {
+      .grid-3 { grid-template-columns: 1fr; }
+      h1 { font-size: 30px; }
+    }
+    .p-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 26px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .p-card.pro {
+      border-color: #0284c7;
+      box-shadow: 0 12px 40px rgba(14, 165, 233, 0.14);
+    }
+    .p-card.ent {
+      border-color: #10b981;
+      box-shadow: 0 12px 44px rgba(16, 185, 129, 0.16);
+    }
+    .price-big {
+      font-family: var(--mono);
+      font-size: 34px;
+      font-weight: 900;
+      margin: 10px 0 6px 0;
+    }
+    .feat-list {
+      list-style: none;
+      padding: 0;
+      margin: 18px 0 24px 0;
+      font-size: 13.5px;
+      color: #cbd5e1;
+    }
+    .feat-list li {
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .feat-list li::before {
+      content: "✓";
+      color: var(--emerald);
+      font-weight: 900;
+    }
+    .input {
+      background: #080c14;
+      border: 1px solid #2e405c;
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/?desktop=1" class="brand">
+      <div class="logo">NP</div>
+      <span>NetPulse // OmniSight v4.5</span>
+    </a>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <span id="activeLicensePill" class="pill" style="margin:0;">Checking Node License…</span>
+      <a href="/?desktop=1" class="btn">← Open Workbench</a>
+      <a href="/mobile" class="btn">📱 Mobile App</a>
+      <a href="/download/NetPulse-Mobile.apk" download class="btn btn-emerald">⬇ Android 15 APK</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="pill">SOVEREIGN NETWORK, DEEP PROTOCOL &amp; 802.11 TSF INTELLIGENCE</div>
+    <h1>Unmask Every Device, Hidden BSSID &amp; Wire Packet on Your Network.</h1>
+    <p class="subtitle">
+      Powered by 8-stage 64-bit hardware TSF clock correlation, Walk-Around RF Geiger triangulation,
+      Guardian Shield autonomous host quarantine, and deep LAN remote control across Desktop &amp; Android.
+    </p>
+    <div class="cycle-bar">
+      <button id="btnMonthly" class="btn btn-primary" onclick="setCycle('monthly')">Monthly Billing</button>
+      <button id="btnAnnual" class="btn" onclick="setCycle('annual')">Annual Billing (Save 17%)</button>
+      <button id="btnLifetime" class="btn" style="border-color:#a855f7;color:#e9d5ff;" onclick="setCycle('lifetime')">👑 Founder's Lifetime (One-Time)</button>
+      <input type="email" id="buyerEmail" class="input" style="min-width:250px;" placeholder="Enter subscriber email…" value="founder@netpulse.io" />
+    </div>
+  </section>
+
+  <section class="pricing-wrap">
+    <div class="grid-3">
+      <!-- Community -->
+      <div class="p-card">
+        <div>
+          <span class="pill" style="background:rgba(148,163,184,0.15);color:#cbd5e1;border-color:#475569;">COMMUNITY EDITION</span>
+          <h2 style="margin:6px 0 4px 0;">Community Free</h2>
+          <div class="price-big">$0 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ forever</span></div>
+          <p style="font-size:13px;color:var(--muted);">Essential subnet inventory, hardware OUI lookup, Ping Burst &amp; Wake-on-LAN.</p>
+          <ul class="feat-list">
+            <li>Real-time ARP &amp; IPv6 SLAAC EUI-64 Neighbor Discovery</li>
+            <li>47,033 IEEE Hardware OUI Vendor Signatures</li>
+            <li>ICMP / TCP Latency Sparklines &amp; 5-Sample Ping Burst</li>
+            <li>IEEE 802 Wake-on-LAN Magic Packet Transmitter</li>
+            <li>1 Stationary Node • Basic 802.11 Spectrum View</li>
+          </ul>
+        </div>
+        <a href="/?desktop=1" class="btn" style="width:100%;">Launch Community Workbench</a>
+      </div>
+
+      <!-- Pro Guardian -->
+      <div class="p-card pro">
+        <div>
+          <span class="pill">MOST POPULAR</span>
+          <h2 style="margin:6px 0 4px 0;color:var(--sky);">Pro Guardian</h2>
+          <div class="price-big" id="proPrice">$9.99 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ month</span></div>
+          <p style="font-size:13px;color:var(--muted);">Full 10-Stage Hidden BSSID De-Cloaker, Walk-Around RF Geiger Finder &amp; Smart Home Control.</p>
+          <ul class="feat-list">
+            <li><strong>10-Stage Universal Hidden BSSID, RNR/MLO &amp; Pearson Co-Variance De-Cloaker</strong></li>
+            <li><strong>Walk-Around RF Geiger Counter &amp; Dual-Node Triangulation</strong></li>
+            <li><strong>24-Hour Host Presence &amp; Availability Heatmap Timeline</strong></li>
+            <li><strong>Sonos UPnP SOAP, Roku ECP, DIAL, PlayStation DDP, Spotify &amp; Smart IoT Relays</strong></li>
+            <li><strong>4-Ring Deep &amp; Wide Area Scan • Up to 3 Nodes / Handsets</strong></li>
+          </ul>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button class="btn btn-primary" style="width:100%;" onclick="checkout('pro')">Subscribe with Stripe — Pro Guardian</button>
+          <button class="btn" style="width:100%;" onclick="claimTrial()">Start 7-Day Free Pro Trial</button>
+        </div>
+      </div>
+
+      <!-- Sovereign Enterprise -->
+      <div class="p-card ent">
+        <div>
+          <span class="pill" style="background:rgba(16,185,129,0.16);color:#34d399;border-color:#10b981;">SOVEREIGN ENTERPRISE</span>
+          <h2 style="margin:6px 0 4px 0;color:#34d399;">Sovereign Enterprise</h2>
+          <div class="price-big" id="entPrice">$29.99 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ month</span></div>
+          <p style="font-size:13px;color:var(--muted);">Autonomous Host Quarantine, Cryptographic Protocol Auditors, Wire DPI/JA3 &amp; Forensic Exports.</p>
+          <ul class="feat-list">
+            <li><strong>Guardian Shield Active Host Quarantine &amp; Anti-ARP-Spoofing Gateway Watchdog</strong></li>
+            <li><strong>SSHv2 Binary HASSH, SMB2/3 NTLM-Relay, RFC 4035 DNSSEC/DoT &amp; NTP Stratum Auditors</strong></li>
+            <li><strong>Live Wire DPI: Rolling KB/s Rate, DNS/TLS SNI, TLS JA3 &amp; p0f SYN Signatures</strong></li>
+            <li><strong>Counter-Surveillance ONVIF Sweep, UPnP IGD NAT Audit &amp; Multi-Port Knocking</strong></li>
+            <li><strong>T-Mobile 5G NR Gateway Control, Nmap (-sV) &amp; MTR Path Trace</strong></li>
+            <li><strong>One-Click Forensic Dossier Export (MD + JSON) • Up to 25 Nodes</strong></li>
+          </ul>
+        </div>
+        <button class="btn btn-emerald" style="width:100%;" onclick="checkout('enterprise')">Subscribe with Stripe — Enterprise</button>
+      </div>
+    </div>
+
+    <!-- License Key Activation Card -->
+    <div class="p-card" style="margin-top:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
+        <div>
+          <h3 style="margin:0 0 4px 0;">Already have a signed `NP1-*` Cryptographic License Key?</h3>
+          <div style="font-size:13px;color:var(--muted);">Activate your offline-verifiable HMAC-SHA256 license key to unlock both Desktop and Mobile instantly.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex:1;min-width:300px;max-width:540px;">
+          <input type="text" id="licKeyInput" class="input" style="flex:1;" placeholder="NP1-ENTERPRISE-... or NP1-PRO-..." />
+          <button class="btn btn-primary" onclick="activateKey()">Activate Key</button>
+        </div>
+      </div>
+      <div id="statusMsg" style="margin-top:10px;font-family:var(--mono);font-size:12.5px;color:var(--sky);"></div>
+    </div>
+  </section>
+
+  <script>
+    let cycle = 'monthly';
+    function setCycle(c) {
+      cycle = c;
+      document.getElementById('btnMonthly').className = c === 'monthly' ? 'btn btn-primary' : 'btn';
+      document.getElementById('btnAnnual').className = c === 'annual' ? 'btn btn-primary' : 'btn';
+      const btnLife = document.getElementById('btnLifetime');
+      if (btnLife) btnLife.className = c === 'lifetime' ? 'btn btn-primary' : 'btn';
+      if (c === 'lifetime') {
+        document.getElementById('proPrice').innerHTML = '$69 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ one-time lifetime</span>';
+        document.getElementById('entPrice').innerHTML = '$149 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ one-time lifetime</span>';
+      } else if (c === 'annual') {
+        document.getElementById('proPrice').innerHTML = '$99 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ year</span>';
+        document.getElementById('entPrice').innerHTML = '$299 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ year</span>';
+      } else {
+        document.getElementById('proPrice').innerHTML = '$9.99 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ month</span>';
+        document.getElementById('entPrice').innerHTML = '$29.99 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ month</span>';
+      }
+    }
+
+    async function loadStatus() {
+      try {
+        const st = await fetch('/api/subscription/status').then(r => r.json());
+        const pill = document.getElementById('activeLicensePill');
+        pill.textContent = `Active Node: ${st.tier_name} (${st.badge})`;
+      } catch (e) {}
+    }
+
+    async function checkout(tier) {
+      const email = document.getElementById('buyerEmail').value.trim() || 'subscriber@netpulse.io';
+      const msg = document.getElementById('statusMsg');
+      msg.textContent = `Creating Stripe Checkout Session for ${tier.toUpperCase()} (${cycle})…`;
+      const res = await fetch('/api/subscription/checkout', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tier, plan: cycle, email, origin_url: location.origin})
+      }).then(r => r.json());
+      if (res.ok && res.checkout_url) {
+        location.href = res.checkout_url;
+      } else {
+        msg.style.color = '#fbbf24';
+        msg.textContent = res.error || 'Stripe Checkout not configured on this node yet.';
+      }
+    }
+
+    async function claimTrial() {
+      const email = document.getElementById('buyerEmail').value.trim() || 'trial@netpulse.io';
+      const msg = document.getElementById('statusMsg');
+      const res = await fetch('/api/subscription/lead', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email, source: 'pricing_storefront', use_case: 'pro_trial'})
+      }).then(r => r.json());
+      msg.style.color = res.ok ? '#34d399' : '#f87171';
+      if (res.ok && res.trial_license) {
+        document.getElementById('licKeyInput').value = res.trial_license.license_key || '';
+      }
+      msg.textContent = res.ok ? `✓ ${res.message}` : `✕ ${res.error}`;
+      loadStatus();
+    }
+
+    async function activateKey() {
+      const license_key = document.getElementById('licKeyInput').value.trim();
+      if (!license_key) return;
+      const msg = document.getElementById('statusMsg');
+      const res = await fetch('/api/subscription/activate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({license_key})
+      }).then(r => r.json());
+      msg.style.color = res.ok ? '#34d399' : '#f87171';
+      msg.textContent = res.ok ? `✓ ${res.message}` : `✕ ${res.error}`;
+      loadStatus();
+    }
+
+    loadStatus();
+  </script>
+</body>
+</html>

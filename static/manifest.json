@@ -1,0 +1,19 @@
+{
+  "name": "NetPulse Mobile — Sovereign Network & RF Intelligence",
+  "short_name": "NetPulse",
+  "description": "Sovereign LAN Discovery, Universal Hidden BSSID De-Cloaker, Walk-Around RF Geiger Triangulation & Device Control",
+  "start_url": "/mobile",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090d14",
+  "theme_color": "#090d14",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+services:
+  netpulse:
+    build: .
+    container_name: netpulse-omnisight
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    env_file:
+      - .env
+    volumes:
+      - netpulse_data:/app/netpulse
+    restart: unless-stopped
+
+volumes:
+  netpulse_data:

@@ -1,0 +1,3283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetPulse Enterprise — Network Inventory, Deep Telemetry &amp; Device Control Workbench</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --bg-canvas: #0a0c10;
+      --bg-surface: #10131a;
+      --bg-elevated: #161a24;
+      --bg-hover: #1c212e;
+      --border: #1f2633;
+      --border-strong: #2d3748;
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-subtle: rgba(59, 130, 246, 0.12);
+      --status-online: #10b981;
+      --status-warn: #f59e0b;
+      --status-danger: #ef4444;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-canvas);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.45;
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Header Bar */
+    .header {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .app-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      letter-spacing: -0.5px;
+    }
+    .app-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .app-subtitle {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--status-online);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--status-online);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .meta-pill {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .meta-pill strong { color: var(--text-primary); font-weight: 600; }
+
+    .btn {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border: 1px solid var(--border-strong);
+      padding: 6px 12px;
+      border-radius: 5px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--text-secondary);
+    }
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.22);
+    }
+    .btn-sm {
+      padding: 4px 9px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+
+    /* Telemetry Summary Strip */
+    .summary-strip {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    @media (max-width: 1100px) {
+      .summary-strip { grid-template-columns: repeat(2, 1fr); }
+    }
+    .summary-cell {
+      background: var(--bg-surface);
+      padding: 12px 18px;
+    }
+    .summary-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      font-weight: 600;
+    }
+    .summary-val {
+      font-size: 18px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      color: var(--text-primary);
+      margin: 3px 0 2px;
+    }
+    .summary-sub {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Navigation Bar */
+    .nav-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-tabs {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+    }
+    .nav-tab {
+      background: transparent;
+      color: var(--text-secondary);
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 11px 14px;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.12s, border-color 0.12s;
+    }
+    .nav-tab:hover { color: var(--text-primary); }
+    .nav-tab.active {
+      color: var(--text-primary);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Main Content Container */
+    .workspace {
+      padding: 16px 20px 36px;
+    }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* Toolbar / Filter Bar */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .input-field {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      padding: 6px 11px;
+      border-radius: 5px;
+      font-size: 12px;
+      font-family: var(--font-sans);
+      min-width: 280px;
+    }
+    .input-field:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .filter-group {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 11.5px;
+      cursor: pointer;
+    }
+    .filter-btn.active {
+      background: var(--accent-subtle);
+      color: var(--accent);
+      border-color: rgba(59, 130, 246, 0.4);
+      font-weight: 600;
+    }
+
+    /* Master-Detail Layout for Inventory */
+    .inventory-split {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    .inventory-split.with-inspector {
+      grid-template-columns: 1.15fr 0.85fr;
+    }
+    @media (max-width: 1280px) {
+      .inventory-split.with-inspector {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Enterprise Data Table */
+    .panel {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .panel-header {
+      padding: 10px 14px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .panel-body {
+      padding: 14px;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+    table.ent-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    table.ent-table th {
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 10.5px;
+      letter-spacing: 0.4px;
+      padding: 9px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    table.ent-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    table.ent-table tr.host-row {
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    table.ent-table tr.host-row:hover {
+      background: var(--bg-hover);
+    }
+    table.ent-table tr.host-row.selected {
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    .host-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .host-thumb {
+      width: 36px;
+      height: 36px;
+      border-radius: 5px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      overflow: hidden;
+      color: var(--text-secondary);
+    }
+    .host-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: 2px;
+    }
+    .host-primary {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 12.5px;
+    }
+    .host-secondary {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .mono { font-family: var(--font-mono); }
+
+    /* Tags & Pills */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      font-weight: 500;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .tag-online { background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.25); }
+    .tag-standby { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border-color: rgba(245, 158, 11, 0.25); }
+    .tag-offline { background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.25); }
+    .tag-neutral { background: var(--bg-elevated); color: var(--text-secondary); border-color: var(--border-strong); }
+    .tag-blue { background: var(--accent-subtle); color: #60a5fa; border-color: rgba(59, 130, 246, 0.3); }
+
+    .port-tag {
+      display: inline-block;
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-strong);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 1.5px 5px;
+      border-radius: 3px;
+      margin: 1px 3px 1px 0;
+    }
+
+    /* Side Inspector / Control Workbench */
+    .inspector-pane {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      position: sticky;
+      top: 62px;
+      max-height: calc(100vh - 80px);
+      overflow-y: auto;
+      display: none;
+    }
+    .inspector-pane.open {
+      display: block;
+    }
+    .inspector-top {
+      padding: 14px 16px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .inspector-section {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .spec-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+    }
+    .spec-table td {
+      padding: 5px 6px;
+      border-bottom: 1px solid rgba(31, 38, 51, 0.65);
+      vertical-align: top;
+    }
+    .spec-table td.spec-k {
+      color: var(--text-muted);
+      width: 38%;
+      font-weight: 500;
+    }
+    .spec-table td.spec-v {
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      word-break: break-word;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+      gap: 6px;
+    }
+    .dpad-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 86px);
+      gap: 6px;
+      justify-content: center;
+      margin: 10px 0;
+    }
+
+    .terminal-output {
+      background: #07090d;
+      border: 1px solid var(--border-strong);
+      border-radius: 5px;
+      padding: 10px 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #cbd5e1;
+      max-height: 280px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      margin-top: 8px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 1100px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    /* Topology Canvas */
+    .topo-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      height: 640px;
+      position: relative;
+      overflow: hidden;
+    }
+    #topologyCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: pointer;
+    }
+
+    #wanMap {
+      width: 100%;
+      height: 430px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP ENTERPRISE HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="app-mark">NP</div>
+      <div>
+        <div class="app-title">
+          NetPulse Workbench
+          <span class="status-indicator"><span class="status-dot"></span><span id="wsStateLabel">Connected</span></span>
+        </div>
+        <div class="app-subtitle">Local Network Inventory, Protocol Telemetry &amp; Endpoint Control</div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="meta-pill" id="ifaceMetaPill">Interface: <strong>wlo1</strong></div>
+      <button class="btn" onclick="openSubscriptionModal()" id="subTierBtn" style="background:rgba(167,139,250,0.16);border-color:#a78bfa;color:#e9d5ff;font-weight:700;">💎 <span id="subTierBadgeText">FREE TIER</span></button>
+      <button class="btn btn-primary" onclick="triggerManualScan()" id="scanBtn">Scan Subnet</button>
+      <button class="btn btn-primary" onclick="triggerAreaScan()" id="areaScanBtn" style="background:#0284c7;border-color:#0369a1;">Deep Area Scan</button>
+      <button class="btn" onclick="triggerCameraSweep()" id="camBtn">ONVIF &amp; RF Audit</button>
+      <button class="btn" onclick="openOuiModal()" id="ouiBtn">🔍 OUI &amp; EUI-64 Lookup</button>
+      <button class="btn" onclick="openAllAroundToolkitModal()" id="toolkitBtn" style="border-color:#38bdf8;color:#7dd3fc;">🛠 All-Around Toolkit</button>
+      <button class="btn" onclick="triggerSpeedtest()" id="speedBtn">WAN Benchmark</button>
+      <button class="btn" onclick="exportForensicReport()" id="exportBtn">Export Report</button>
+      <a class="btn" href="/api/export/csv" download="NetPulse_Inventory.csv" style="text-decoration:none;">⬇ CSV</a>
+      <button class="btn btn-primary" onclick="openMobileQrModal()" id="mobileQrBtn" style="background:#059669;border-color:#10b981;">📱 Mobile App &amp; APK</button>
+      <a class="btn btn-primary" href="/launch" style="background:#7c3aed;border-color:#a855f7;text-decoration:none;display:inline-flex;align-items:center;">🚀 Play Store &amp; Launch Hub</a>
+    </div>
+  </header>
+
+  <!-- METRIC SUMMARY STRIP -->
+  <section class="summary-strip">
+    <div class="summary-cell">
+      <div class="summary-label">Discovered Hosts</div>
+      <div class="summary-val" id="sumHosts">--</div>
+      <div class="summary-sub" id="sumHostsSub">Awaiting scan…</div>
+    </div>
+    <div class="summary-cell">
+      <div class="summary-label">Gateway &amp; 5G NR Uplink</div>
+      <div class="summary-val" id="sum5g">--</div>
+      <div class="summary-sub" id="sum5gSub">--</div>
+    </div>
+    <div class="summary-cell">
+      <div class="summary-label">802.11 RF &amp; Silicon Clusters</div>
+      <div class="summary-val" id="sumWifi">--</div>
+      <div class="summary-sub" id="sumWifiSub">--</div>
+    </div>
+    <div class="summary-cell">
+      <div class="summary-label">WAN Egress &amp; DNS</div>
+      <div class="summary-val" id="sumWan">--</div>
+      <div class="summary-sub" id="sumWanSub">--</div>
+    </div>
+    <div class="summary-cell" onclick="openSecurityPostureModal()" style="cursor:pointer;" title="Click to open 5-Pillar Security Posture, IPv6 Dual-Stack &amp; 24h SQLite Analytics">
+      <div class="summary-label">Security Posture &amp; Analytics ↗</div>
+      <div class="summary-val" id="sumSec">--</div>
+      <div class="summary-sub" id="sumSecSub">--</div>
+    </div>
+  </section>
+
+  <!-- NAVIGATION BAR -->
+  <div class="nav-bar">
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-tab="inventory" onclick="switchTab('inventory', this)">Network Inventory &amp; Device Control</button>
+      <button class="nav-tab" data-tab="areascan" onclick="switchTab('areascan', this)">Area Scan (Deep &amp; Wide) &amp; RF Attribution</button>
+      <button class="nav-tab" data-tab="spectrum" onclick="switchTab('spectrum', this)">802.11 Spectrum &amp; Bluetooth</button>
+      <button class="nav-tab" data-tab="topology" onclick="switchTab('topology', this)">Topology Graph</button>
+      <button class="nav-tab" data-tab="uplink" onclick="switchTab('uplink', this)">5G Gateway, WAN &amp; Geo-Map</button>
+      <button class="nav-tab" data-tab="packets" onclick="switchTab('packets', this)">Wire Packet Capture &amp; Event Log</button>
+    </div>
+  </div>
+
+  <!-- WORKSPACE -->
+  <main class="workspace">
+
+    <!-- TAB 1: NETWORK INVENTORY & DEVICE CONTROL WORKBENCH -->
+    <section id="tab-inventory" class="tab-pane active">
+      <div id="advisoryBanner"></div>
+
+      <div class="toolbar">
+        <input type="text" id="hostSearch" class="input-field" placeholder="Search IP, MAC, manufacturer, model, serial, open port, or running app…" oninput="renderInventory()" />
+        <div class="filter-group">
+          <button class="filter-btn active" onclick="setFilter('ALL', this)">All Endpoints</button>
+          <button class="filter-btn" onclick="setFilter('Gateway', this)">Gateway</button>
+          <button class="filter-btn" onclick="setFilter('TV', this)">Displays &amp; Media</button>
+          <button class="filter-btn" onclick="setFilter('Console', this)">Game Consoles</button>
+          <button class="filter-btn" onclick="setFilter('Speaker', this)">Audio / Speakers</button>
+          <button class="filter-btn" onclick="setFilter('Server', this)">Servers &amp; Workstations</button>
+          <button class="filter-btn" onclick="setFilter('Smartphone', this)">Mobile / LAA</button>
+          <button class="filter-btn" onclick="setFilter('IoT', this)">IoT</button>
+        </div>
+      </div>
+
+      <div class="inventory-split with-inspector" id="inventorySplit">
+        <!-- Left: Host Table -->
+        <div class="panel">
+          <div class="panel-header">
+            <span>Subnet Endpoint Matrix</span>
+            <span class="mono" style="color:var(--text-muted);font-weight:400;font-size:11px;">Select any endpoint to inspect hardware dossier &amp; execute remote control</span>
+          </div>
+          <div class="table-wrap">
+            <table class="ent-table">
+              <thead>
+                <tr>
+                  <th>Endpoint / Model</th>
+                  <th>IPv4 / Hardware MAC</th>
+                  <th>Manufacturer &amp; OUI</th>
+                  <th>OS &amp; Firmware</th>
+                  <th>State / Active App</th>
+                  <th>Open Services</th>
+                  <th>RTT / Trend</th>
+                </tr>
+              </thead>
+              <tbody id="inventoryTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Right: Deep Dossier & Device Control Workbench -->
+        <aside class="inspector-pane open" id="inspectorPane"></aside>
+      </div>
+    </section>
+
+    <!-- TAB: AREA SCAN (DEEP & WIDE) & 5-VECTOR RF ATTRIBUTION -->
+    <section id="tab-areascan" class="tab-pane">
+      <div class="panel" style="border-color:rgba(16,185,129,0.35);">
+        <div class="panel-header" style="background:rgba(16,185,129,0.06);">
+          <span>Universal Hidden De-Cloaker — 100% Resolution of Hidden 802.11 BSSIDs, Privacy MACs &amp; Stealth Endpoints</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span id="hiddenDeCloakBadge" class="tag tag-online"></span>
+            <button class="btn btn-sm btn-primary" onclick="triggerAreaScan()">De-Cloak &amp; Re-Verify All Hidden</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="ent-table">
+            <thead>
+              <tr>
+                <th>Domain &amp; Identifier</th>
+                <th>Cloaking Mechanism</th>
+                <th>Unmasked Real Identity &amp; Function</th>
+                <th>Parent Router / Subnet</th>
+                <th>Channel / State &amp; Signal / RTT</th>
+                <th>Conf</th>
+                <th>8-Stage Silicon, 64-Bit TSF &amp; Protocol Proof</th>
+              </tr>
+            </thead>
+            <tbody id="hiddenEntitiesBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span>Complete 802.11 Spectrum &amp; Technical Anomaly Attribution Ledger (64-Bit TSF + HE PHY + QBSS + WPS + LAA Proof)</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span id="areaScanSummaryBadge" class="mono" style="color:var(--text-secondary);font-size:11px;"></span>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="ent-table">
+            <thead>
+              <tr>
+                <th>BSSID &amp; Broadcast SSID</th>
+                <th>Band / Ch / Freq</th>
+                <th>64-Bit Hardware TSF Clock</th>
+                <th>802.11e QBSS Load</th>
+                <th>Signal &amp; Multipath Range Band</th>
+                <th>Attribution Verdict</th>
+                <th>Cryptographic / Silicon Proof &amp; Linked Hardware</th>
+              </tr>
+            </thead>
+            <tbody id="anomalyLedgerBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-header">
+            <span>Physical Radio Silicon Clusters (Grouped by Synchronized 64-Bit TSF Clock &amp; MAC Silicon)</span>
+            <span class="mono" style="color:var(--text-muted);font-size:11px;">Multi-VAP Co-Location Proof</span>
+          </div>
+          <div class="panel-body" id="siliconClustersBody"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <span>4-Ring Deep &amp; Wide Area Scan Matrix (0m Local Bridge &rarr; 2.5km 5G NR Cell Sector)</span>
+            <span class="mono" style="color:var(--text-muted);font-size:11px;">Multi-Domain Perimeter</span>
+          </div>
+          <div class="panel-body" id="areaRingsBody"></div>
+        </div>
+      </div>
+
+      <div class="panel" id="cameraAuditPanel" style="display:none;">
+        <div class="panel-header">
+          <span>Active Counter-Surveillance &amp; ONVIF / RTSP / RF Attribution Audit Output</span>
+          <button class="btn btn-sm" onclick="document.getElementById('cameraAuditPanel').style.display='none'">Close</button>
+        </div>
+        <div class="panel-body">
+          <pre id="cameraAuditPre" class="terminal-output" style="max-height:360px;margin-top:0;"></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: TOPOLOGY GRAPH -->
+    <section id="tab-topology" class="tab-pane">
+      <div class="topo-container" style="position:relative;">
+        <div style="position:absolute;top:12px;left:14px;z-index:10;display:flex;gap:8px;align-items:center;background:rgba(15,19,28,0.88);padding:6px 10px;border:1px solid var(--border-subtle);border-radius:6px;">
+          <span class="mono" style="font-size:11px;color:var(--text-secondary);margin-right:4px;">TOPOLOGY VIEW:</span>
+          <button class="btn" id="topoModeOnlineBtn" onclick="setTopologyMode('online')" style="padding:3px 9px;font-size:11px;border-color:var(--accent-blue);color:#fff;">Online Active</button>
+          <button class="btn" id="topoModeAllBtn" onclick="setTopologyMode('all')" style="padding:3px 9px;font-size:11px;">+ Offline History (2-Ring)</button>
+          <button class="btn" id="topoModeRfBtn" onclick="setTopologyMode('rf')" style="padding:3px 9px;font-size:11px;">+ Co-Located RF BSSIDs</button>
+          <span class="mono" style="font-size:10.5px;color:var(--text-muted);margin-left:8px;">Drag nodes to arrange • Click node to inspect</span>
+        </div>
+        <canvas id="topologyCanvas"></canvas>
+      </div>
+    </section>
+
+    <!-- TAB 3: 802.11 SPECTRUM & BLUETOOTH -->
+    <section id="tab-spectrum" class="tab-pane">
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-header">
+            <span>802.11 2.4 / 5 GHz Access Points, 64-Bit TSF Clocks &amp; Multipath Range Bands</span>
+            <span id="wifiSummaryLabel" class="mono" style="color:var(--text-secondary);"></span>
+          </div>
+          <div class="table-wrap">
+            <table class="ent-table">
+              <thead>
+                <tr>
+                  <th>SSID / Attribution Proof</th>
+                  <th>BSSID</th>
+                  <th>Channel / Freq</th>
+                  <th>64-Bit TSF Clock &amp; QBSS</th>
+                  <th>Signal &amp; Multipath Range</th>
+                  <th>Security</th>
+                  <th>OUI / Beacon WPS Identity</th>
+                </tr>
+              </thead>
+              <tbody id="wifiTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <div class="panel">
+            <div class="panel-header">Channel Utilization</div>
+            <div class="panel-body" id="channelUtilizationBody"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">Bluetooth 5.2 Controller &amp; Discovered Peripherals</div>
+            <div class="panel-body" id="bluetoothBody"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: 5G GATEWAY, WAN & GEO-MAP -->
+    <section id="tab-uplink" class="tab-pane">
+      <div class="two-col">
+        <div>
+          <div class="panel">
+            <div class="panel-header">Arcadyan TMO-G4AR 5G NR Cellular Telemetry (/TMI/v1/gateway)</div>
+            <div class="panel-body" id="gatewayTelemetryBody"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <span>DNS Resolver Latency &amp; Multi-Stream WAN Throughput</span>
+              <button class="btn btn-sm btn-primary" onclick="triggerSpeedtest()">Run Benchmark</button>
+            </div>
+            <div class="panel-body">
+              <div id="dnsBenchBody" style="margin-bottom:12px;"></div>
+              <div id="speedtestBody"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">WAN Egress &amp; Cellular Sector Coverage Map</div>
+          <div class="panel-body">
+            <div id="wanMap"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: WIRE PACKETS & EVENT LOG -->
+    <section id="tab-packets" class="tab-pane">
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-header">
+            <span>Live Link-Layer Broadcast &amp; Multicast Capture (tshark)</span>
+            <span class="mono" style="font-size:11px;color:var(--text-muted);">ARP • mDNS • SSDP • DHCP • NBNS • DNS</span>
+          </div>
+          <div class="table-wrap" style="max-height:540px;overflow-y:auto;">
+            <table class="ent-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Proto</th>
+                  <th>Source</th>
+                  <th>Destination</th>
+                  <th>Summary</th>
+                </tr>
+              </thead>
+              <tbody id="wireTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <div class="panel">
+            <div class="panel-header">Per-Host Wire Frame Accounting (Top Talkers)</div>
+            <div class="table-wrap">
+              <table class="ent-table">
+                <thead>
+                  <tr>
+                    <th>IPv4</th>
+                    <th>MAC Address</th>
+                    <th>Frames</th>
+                    <th>Protocols Observed</th>
+                    <th>Last Frame</th>
+                  </tr>
+                </thead>
+                <tbody id="topTalkersBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">Network State &amp; Security Event Log (SQLite)</div>
+            <div class="table-wrap" style="max-height:340px;overflow-y:auto;">
+              <table class="ent-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Event</th>
+                    <th>Endpoint</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody id="eventTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    let appState = null;
+    let activeFilter = 'ALL';
+    let selectedIp = null;
+    let leafletMap = null;
+    let mapReady = false;
+    let topoNodes = [];
+
+    /* Clean geometric SVG icons */
+    const SVG_ICONS = {
+      router: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="14" width="20" height="6" rx="2"/><path d="M6 17h.01M10 17h.01M12 14V6M8.5 9.5a5 5 0 0 1 7 0M5.5 6.5a9 9 0 0 1 13 0"/></svg>`,
+      tv: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`,
+      stick: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="6" y="3" width="12" height="18" rx="3"/><circle cx="12" cy="14" r="3"/><path d="M12 7h.01"/></svg>`,
+      console: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="6" width="20" height="12" rx="4"/><path d="M6 12h4M8 10v4M15 11h.01M18 13h.01"/></svg>`,
+      speaker: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="2" width="14" height="20" rx="3"/><circle cx="12" cy="14" r="4"/><path d="M12 6h.01"/></svg>`,
+      phone: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 18h.01"/></svg>`,
+      laptop: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20"/></svg>`,
+      server: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="7" rx="1.5"/><rect x="3" y="14" width="18" height="7" rx="1.5"/><path d="M7 6.5h.01M7 17.5h.01"/></svg>`,
+      iot: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/><circle cx="12" cy="12" r="4"/></svg>`,
+      device: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg>`
+    };
+
+    function formatUptime(sec) {
+      if (!sec && sec !== 0) return '—';
+      const d = Math.floor(sec / 86400);
+      const h = Math.floor((sec % 86400) / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      if (d > 0) return `${d}d ${h}h ${m}m`;
+      if (h > 0) return `${h}h ${m}m`;
+      return `${m}m ${sec % 60}s`;
+    }
+
+    function sparklineSvg(vals) {
+      if (!vals || vals.length === 0) return '';
+      const pts = vals.length === 1 ? [vals[0], vals[0]] : vals;
+      const w = 78, h = 20;
+      const minV = Math.min(...pts);
+      const maxV = Math.max(...pts, minV + 1);
+      const poly = pts.map((v, i) => {
+        const x = (i / (pts.length - 1)) * (w - 4) + 2;
+        const y = h - 3 - ((v - minV) / (maxV - minV)) * (h - 6);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(' ');
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="vertical-align:middle;margin-left:6px;">
+        <polyline fill="none" stroke="#3b82f6" stroke-width="1.5" points="${poly}" />
+      </svg>`;
+    }
+
+    function switchTab(id, btn) {
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + id).classList.add('active');
+      if (btn) btn.classList.add('active');
+      if (id === 'topology') resizeTopology();
+      if (id === 'uplink') initOrUpdateMap();
+    }
+
+    function setFilter(cat, btn) {
+      activeFilter = cat;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      renderInventory();
+    }
+
+    function updateDashboard(state) {
+      appState = state;
+      const meta = state.meta || {};
+      const iface = state.interface || {};
+      const gw5g = (state.gateway_5g || {}).signal?.['5g'] || {};
+      const gwDev = (state.gateway_5g || {}).device || {};
+      const wifi = state.wifi || {};
+      const wan = state.wan || {};
+
+      document.getElementById('ifaceMetaPill').innerHTML =
+        `Interface: <strong>${iface.interface || 'wlo1'}</strong> &bull; Subnet: <strong>${iface.cidr || ''}</strong> &bull; SSID: <strong>${iface.ssid || 'LAN'} (Ch ${iface.channel || '?'})</strong>`;
+
+      document.getElementById('sumHosts').textContent = `${meta.online_devices || 0} Online / ${meta.total_devices || 0} Known`;
+      document.getElementById('sumHostsSub').textContent = `Scan #${meta.scan_count || 1} (${meta.last_scan_duration_sec || 0}s at ${meta.last_scan_time || ''})`;
+
+      if (gw5g.rsrp !== undefined) {
+        document.getElementById('sum5g').textContent = `Band ${(gw5g.bands || ['n41']).join(',')} • SINR ${gw5g.sinr} dB`;
+        document.getElementById('sum5gSub').textContent = `RSRP ${gw5g.rsrp} dBm • gNBID ${gw5g.gNBID} • ${gwDev.model || 'TMO-G4AR'}`;
+      }
+
+      const clustersCount = ((state.area_scan || {}).summary || {}).physical_radio_appliances || (wifi.physical_clusters || []).length || 0;
+      document.getElementById('sumWifi').textContent = `${wifi.total_aps || 0} BSSIDs &rarr; ${clustersCount} Physical Radios`;
+      document.getElementById('sumWifi').innerHTML = `${wifi.total_aps || 0} BSSIDs &rarr; ${clustersCount} Silicon Radios`;
+      document.getElementById('sumWifiSub').textContent = `2.4 GHz: ${wifi.band_24_count || 0} • 5 GHz: ${wifi.band_5_count || 0} • ${wifi.hidden_aps || 0} Hidden Attributed`;
+
+      const gwDns = (wan.dns_benchmarks || [])[0];
+      document.getElementById('sumWan').textContent = wan.public_ip || '—';
+      document.getElementById('sumWanSub').textContent = `${wan.city || ''} ${wan.region || ''} • Gateway DNS ${gwDns?.rtt_ms ?? '?'} ms`;
+
+      const threats = state.threats || [];
+      const posture = state.security_posture || {};
+      const secScore = posture.score !== undefined ? posture.score : (meta.security_score ?? 100);
+      const secGrade = posture.grade || meta.security_grade || 'A+';
+      document.getElementById('sumSec').textContent = `Posture ${secScore}/100 (${secGrade})`;
+      document.getElementById('sumSecSub').textContent = `${(meta.oui_database_size || 47033).toLocaleString()} OUIs • ${threats.length} Advisory Item(s)`;
+
+      const sub = state.subscription || {};
+      const subBtn = document.getElementById('subTierBtn');
+      const subBadge = document.getElementById('subTierBadgeText');
+      if (subBtn && subBadge) {
+        if (sub.tier === 'enterprise') {
+          subBadge.textContent = '👑 SOVEREIGN ENTERPRISE';
+          subBtn.style.background = 'rgba(16,185,129,0.18)';
+          subBtn.style.borderColor = '#10b981';
+          subBtn.style.color = '#6ee7b7';
+        } else if (sub.tier === 'pro') {
+          subBadge.textContent = '⚡ PRO GUARDIAN';
+          subBtn.style.background = 'rgba(56,189,248,0.18)';
+          subBtn.style.borderColor = '#38bdf8';
+          subBtn.style.color = '#bae6fd';
+        } else {
+          subBadge.textContent = '💎 UPGRADE (FREE TIER)';
+          subBtn.style.background = 'rgba(167,139,250,0.16)';
+          subBtn.style.borderColor = '#a78bfa';
+          subBtn.style.color = '#e9d5ff';
+        }
+      }
+
+      const advBox = document.getElementById('advisoryBanner');
+      if (advBox) {
+        advBox.innerHTML = threats.map(t => `
+          <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-left:3px solid var(--status-danger);padding:8px 12px;border-radius:5px;margin-bottom:10px;font-size:12px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <strong style="color:#fca5a5;">[${t.severity} • ${t.category}] ${t.title}</strong>
+              <span style="color:var(--text-secondary);margin-left:8px;">${t.details}</span>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      if (!selectedIp && (state.devices || []).length > 0) {
+        // Select the Living Room TV or Gateway by default so the control workbench is immediately populated
+        const defDev = state.devices.find(d => d.ip === '192.168.12.140') || state.devices[0];
+        selectedIp = defDev.ip;
+      }
+
+      renderInventory();
+      renderInspector();
+      renderAreaScan();
+      renderSpectrum();
+      renderUplink();
+      renderPackets();
+      rebuildTopology();
+    }
+
+    function renderInventory() {
+      if (!appState) return;
+      const tbody = document.getElementById('inventoryTableBody');
+      const q = (document.getElementById('hostSearch').value || '').toLowerCase().trim();
+
+      const filtered = (appState.devices || []).filter(d => {
+        if (activeFilter !== 'ALL') {
+          const hayCat = `${d.category} ${d.icon_type} ${d.brand} ${d.model}`.toLowerCase();
+          if (!hayCat.includes(activeFilter.toLowerCase())) return false;
+        }
+        if (!q) return true;
+        return JSON.stringify(d).toLowerCase().includes(q);
+      });
+
+      tbody.innerHTML = filtered.map(d => {
+        const name = d.custom_name || d.display_name || d.ip;
+        const pwr = d.power_state || 'ACTIVE';
+        let tagClass = 'tag-online';
+        if (pwr.includes('STANDBY') || pwr.includes('POWERSAVE')) tagClass = 'tag-standby';
+        if (pwr.includes('OFFLINE')) tagClass = 'tag-offline';
+
+        const thumb = d.hardware_image_url
+          ? `<img src="${d.hardware_image_url}" onerror="this.parentElement.innerHTML=SVG_ICONS['${d.icon_type}']||SVG_ICONS.device" alt="" />`
+          : (SVG_ICONS[d.icon_type] || SVG_ICONS.device);
+
+        const ports = (d.port_services || []).map(ps => `<span class="port-tag">:${ps.port} ${ps.service}</span>`).join('') || `<span style="color:var(--text-muted);font-size:11px;">No open TCP</span>`;
+        const secMacs = (d.secondary_macs || []).length ? `<div class="host-secondary">+${d.secondary_macs.join(', ')}</div>` : '';
+
+        return `
+          <tr class="host-row ${selectedIp === d.ip ? 'selected' : ''}" onclick="selectHost('${d.ip}')">
+            <td>
+              <div class="host-cell">
+                <div class="host-thumb">${thumb}</div>
+                <div>
+                  <div class="host-primary">${name}</div>
+                  <div class="host-secondary">${d.category} &bull; ${d.confidence_score}% conf</div>
+                </div>
+              </div>
+            </td>
+            <td class="mono">
+              <div style="color:var(--text-primary);font-weight:600;">${d.ip}</div>
+              <div class="host-secondary">${d.mac}</div>
+              ${secMacs}
+            </td>
+            <td>
+              <div style="color:var(--text-primary);">${d.vendor}</div>
+              <div class="host-secondary">${d.registry_type || ''}</div>
+            </td>
+            <td>
+              <div style="color:var(--text-primary);">${d.os_family || '—'}</div>
+              <div class="host-secondary">${d.firmware_version || (d.serial_number ? 'SN: ' + d.serial_number : '—')}</div>
+            </td>
+            <td>
+              <span class="tag ${tagClass}">${pwr}</span>
+            </td>
+            <td>${ports}</td>
+            <td class="mono" style="white-space:nowrap;">
+              <span>${d.rtt_ms !== null && d.rtt_ms !== undefined ? d.rtt_ms + ' ms' : 'ARP'}</span>
+              ${sparklineSvg(d.latency_sparkline || [])}
+              <div class="host-secondary">${d.rtt_method || ''}</div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function selectHost(ip) {
+      selectedIp = ip;
+      renderInventory();
+      renderInspector();
+    }
+
+    function renderInspector() {
+      const pane = document.getElementById('inspectorPane');
+      if (!appState || !selectedIp) {
+        pane.innerHTML = '';
+        return;
+      }
+      const d = (appState.devices || []).find(x => x.ip === selectedIp);
+      if (!d) return;
+
+      const specs = d.hardware_specs || {};
+      const specRows = Object.entries(specs).map(([k, v]) => `
+        <tr>
+          <td class="spec-k">${k}</td>
+          <td class="spec-v">${v}</td>
+        </tr>
+      `).join('');
+
+      const hasRoku = (d.open_ports || []).includes(8060) || Object.keys(d.roku_info || {}).length > 0;
+      const dialApps = d.roku_info?.dial_apps || [];
+      const hasPs = Object.keys(d.playstation_info || {}).length > 0;
+      const hasSpotify = Object.keys(d.spotify_info || {}).length > 0;
+      const hasSonos = Boolean((d.extended_iot_info || {}).sonos) || (d.open_ports || []).includes(1400);
+      const hasGateway = Boolean(d.is_gateway);
+
+      /* 1. DIAL v2.1 Application Launcher & Process Control (works even when Roku ECP is limited) */
+      const dialControlHtml = (hasRoku || dialApps.length > 0) ? `
+        <div class="inspector-section">
+          <div class="section-title">
+            <span>DIAL v2.1 Application Control (${d.ip}:8060/dial)</span>
+            <span class="tag tag-online">Unauthenticated REST</span>
+          </div>
+          <div style="font-size:11.5px;color:var(--text-secondary);margin-bottom:8px;">
+            Launch or terminate installed DIAL v2.1 applications directly on <strong>${d.display_name}</strong>:
+          </div>
+          <div style="margin-bottom:8px;">
+            <input id="dialPayloadInput" class="input-field mono" style="width:100%;font-size:11px;padding:5px 8px;" placeholder="Optional DIAL launch payload / deep-link query (e.g. contentId=80057281)" />
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            ${(dialApps.length ? dialApps : [{name:'Netflix',state:'unknown'},{name:'AmazonInstantVideo',state:'unknown'},{name:'PlutoTV',state:'unknown'},{name:'ParamountPlus',state:'unknown'}]).map(app => `
+              <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-canvas);border:1px solid var(--border);padding:7px 10px;border-radius:5px;">
+                <div>
+                  <strong class="mono">${app.name}</strong>
+                  <span class="tag ${app.state==='running'?'tag-online':'tag-neutral'}" style="margin-left:8px;">${app.state}</span>
+                </div>
+                <div style="display:flex;gap:6px;">
+                  <button class="btn btn-sm btn-primary" onclick="controlDialApp('${d.ip}', '${app.name}', 'launch')">Launch on Screen</button>
+                  <button class="btn btn-sm btn-danger" onclick="controlDialApp('${d.ip}', '${app.name}', 'stop')">Stop App</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : '';
+
+      /* 2. Roku ECP Hardware Remote Control Pad */
+      const ecpMode = d.roku_info?.['ecp-setting-mode'] || 'default';
+      const rokuEcpHtml = hasRoku ? `
+        <div class="inspector-section">
+          <div class="section-title">
+            <span>Roku ECP Hardware Remote (${d.ip}:8060)</span>
+            <span class="tag ${ecpMode==='limited'?'tag-standby':'tag-online'}">ECP Mode: ${ecpMode}</span>
+          </div>
+          ${ecpMode === 'limited' ? `
+            <div style="font-size:11px;color:var(--text-secondary);background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);padding:7px 9px;border-radius:4px;margin-bottom:8px;">
+              Note: Roku OS 16.0.4 sets ECP keypresses to <code>limited</code> by default (DIAL app launch above works without restriction). To enable full D-Pad keypress injection, set <em>Settings &rarr; System &rarr; Advanced system settings &rarr; Control by mobile apps &rarr; Network access &rarr; Permissive</em>.
+            </div>
+          ` : ''}
+          <div class="control-grid" style="margin-bottom:8px;">
+            <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'PowerOn')">Power On</button>
+            <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'PowerOff')">Power Off</button>
+            <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'Home')">Home</button>
+            <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'VolumeUp')">Volume +</button>
+            <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'VolumeDown')">Volume -</button>
+            <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'VolumeMute')">Mute</button>
+            <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'InputHDMI1')">HDMI 1</button>
+            <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'InputHDMI2')">HDMI 2</button>
+            <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'InputHDMI3')">HDMI 3</button>
+            <button class="btn btn-sm btn-primary" onclick="sendRokuKey('${d.ip}', 'FindRemote')">Ping Remote Finder</button>
+          </div>
+          <div class="dpad-grid">
+            <div></div>
+            <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'Up')">Up</button>
+            <div></div>
+            <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'Left')">Left</button>
+            <button class="btn btn-sm btn-primary" onclick="sendRokuKey('${d.ip}', 'Select')">Select</button>
+            <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'Right')">Right</button>
+            <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'Back')">Back</button>
+            <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'Down')">Down</button>
+            <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'Play')">Play / Pause</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;margin-top:8px;">
+            <input id="rokuTextInput" class="input-field mono" style="min-width:0;padding:5px 8px;font-size:11px;" placeholder="Type text to send to TV search bar (Lit_<char>)…" />
+            <button class="btn btn-sm btn-primary" onclick="sendRokuText('${d.ip}')">Send Text</button>
+            <button class="btn btn-sm" onclick="probeHttpCustom('${d.ip}', 8060, '/query/active-app', 'GET')">Poll Active App</button>
+          </div>
+        </div>
+      ` : '';
+
+      /* 3. Sony PlayStation DDP Wake & Control */
+      const psHtml = hasPs ? `
+        <div class="inspector-section">
+          <div class="section-title">
+            <span>Sony PlayStation DDP Control (${d.playstation_info['host-type']} • UDP :${d.playstation_info['ddp_port']})</span>
+            <span class="tag tag-blue">${d.playstation_info['power_state']}</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-primary" onclick="wakePlayStation('${d.ip}', '${d.mac}', '${d.playstation_info['host-id']||''}')">Transmit DDP WAKEUP + Dual-MAC WoL</button>
+            <button class="btn btn-sm" onclick="wakePlayStation('${d.ip}', '', '')">Poll Live DDP Status</button>
+          </div>
+        </div>
+      ` : '';
+
+      /* 4. Spotify Connect ZeroConf Control */
+      const spotifyEndpoint = d.spotify_info?.endpoint_url || '';
+      const spotifyHtml = hasSpotify ? `
+        <div class="inspector-section">
+          <div class="section-title">
+            <span>Spotify Connect ZeroConf Control</span>
+            <span class="tag tag-online">v${d.spotify_info.version || '2.9.0'}</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-primary" onclick="controlSpotify('${d.ip}', '${spotifyEndpoint}', 'getInfo')">Query ZeroConf Session Info</button>
+            <button class="btn btn-sm btn-danger" onclick="controlSpotify('${d.ip}', '${spotifyEndpoint}', 'resetUsers')">Disconnect / Reset Active Users</button>
+          </div>
+        </div>
+      ` : '';
+
+      /* 4b. Sonos UPnP AVTransport & RenderingControl (:1400) */
+      const sonosInfo = (d.extended_iot_info || {}).sonos || {};
+      const sonosHtml = hasSonos ? `
+        <div class="inspector-section">
+          <div class="section-title">
+            <span>Sonos UPnP AVTransport &amp; Volume Control (${d.ip}:1400)</span>
+            <span class="tag tag-online">${sonosInfo.room_name || sonosInfo.model || 'ZonePlayer'}</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+            <button class="btn btn-sm btn-primary" onclick="controlSonos('${d.ip}', 'Play', 25)">▶ Play</button>
+            <button class="btn btn-sm" onclick="controlSonos('${d.ip}', 'Pause', 25)">⏸ Pause</button>
+            <button class="btn btn-sm" onclick="controlSonos('${d.ip}', 'Stop', 25)">⏹ Stop</button>
+            <button class="btn btn-sm" onclick="controlSonos('${d.ip}', 'Previous', 25)">⏮ Prev</button>
+            <button class="btn btn-sm" onclick="controlSonos('${d.ip}', 'Next', 25)">⏭ Next</button>
+            <button class="btn btn-sm" onclick="controlSonos('${d.ip}', 'GetTransportInfo', 25)">Poll Transport State</button>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <span class="mono" style="font-size:11px;color:var(--text-secondary);">Volume (0–100):</span>
+            <input id="sonosVolInput" type="number" min="0" max="100" value="25" class="input-field mono" style="width:70px;padding:4px 8px;" />
+            <button class="btn btn-sm btn-primary" onclick="controlSonos('${d.ip}', 'SetVolume', parseInt(document.getElementById('sonosVolInput')?.value||'25',10))">Set Volume</button>
+          </div>
+        </div>
+      ` : '';
+
+      /* 5. Gateway Telemetry & Admin Controller */
+      const gwControlHtml = hasGateway ? `
+        <div class="inspector-section">
+          <div class="section-title">
+            <span>Arcadyan 5G Gateway Controller (${d.ip})</span>
+            <span class="tag tag-online">TMI v2.1</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+            <button class="btn btn-sm btn-primary" onclick="probeHttpCustom('${d.ip}', 80, '/TMI/v1/gateway?get=all', 'GET')">Poll Full 5G Tower &amp; Device JSON</button>
+            <button class="btn btn-sm" onclick="probeHttpCustom('${d.ip}', 80, '/TMI/v1/gateway?get=signal', 'GET')">Poll Live 5G NR Signal</button>
+            <button class="btn btn-sm" onclick="probeHttpCustom('${d.ip}', 80, '/TMI/v1/version', 'GET')">Check TMI API Version</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;">
+            <input id="gwAdminPassInput" type="password" class="input-field mono" style="min-width:0;padding:5px 8px;font-size:11px;" placeholder="Gateway Admin Password (unlocks /TMI/v1/network/telemetry &amp; reboot)" />
+            <button class="btn btn-sm btn-primary" onclick="controlGateway('${d.ip}', 'telemetry')">Auth &amp; Pull Full Client/SIM Telemetry</button>
+            <button class="btn btn-sm btn-danger" onclick="controlGateway('${d.ip}', 'reboot')">Reboot Gateway</button>
+          </div>
+        </div>
+      ` : '';
+
+      /* 6. Native Workstation Session Launcher (SSH / HTTP Web UI / RDP) */
+      const openPts = d.open_ports || [];
+      const hasSessionPorts = openPts.some(p => [22, 80, 443, 1337, 3389, 8060, 8080, 8443].includes(p));
+      const sessionLauncherHtml = hasSessionPorts ? `
+        <div class="inspector-section">
+          <div class="section-title">
+            <span>Direct Workstation Session Launchers</span>
+            <span class="tag tag-blue">Native Desktop</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${openPts.includes(22) ? `<button class="btn btn-sm btn-primary" onclick="launchLocalClient('${d.ip}', 22, 'ssh')">Open SSH Terminal (:22)</button>` : ''}
+            ${openPts.includes(80) ? `<button class="btn btn-sm" onclick="launchLocalClient('${d.ip}', 80, 'http')">Open Web UI (:80)</button>` : ''}
+            ${openPts.includes(443) ? `<button class="btn btn-sm" onclick="launchLocalClient('${d.ip}', 443, 'https')">Open HTTPS UI (:443)</button>` : ''}
+            ${openPts.includes(1337) ? `<button class="btn btn-sm" onclick="launchLocalClient('${d.ip}', 1337, 'http')">Open Controller UI (:1337)</button>` : ''}
+            ${openPts.includes(8080) ? `<button class="btn btn-sm" onclick="launchLocalClient('${d.ip}', 8080, 'http')">Open Web Service (:8080)</button>` : ''}
+            ${openPts.includes(8060) ? `<button class="btn btn-sm" onclick="launchLocalClient('${d.ip}', 8060, 'http')">Open UPnP/ECP Root (:8060)</button>` : ''}
+            ${openPts.includes(3389) ? `<button class="btn btn-sm btn-primary" onclick="launchLocalClient('${d.ip}', 3389, 'rdp')">Open Remote Desktop (:3389)</button>` : ''}
+          </div>
+        </div>
+      ` : '';
+
+      const defaultPort = (d.open_ports || [])[0] || 80;
+      const isQuarantined = Boolean(d.is_quarantined || d.trust_state === 'intruder');
+      const smartProto = d.smart_iot_info?.protocol || ((d.open_ports || []).includes(9999) ? 'kasa' : ((d.open_ports || []).includes(8008) ? 'google_cast' : ''));
+
+      /* 7. 24-Hour Presence & Availability Heatmap Timeline */
+      const pres24 = d.presence_24h || [];
+      const uptimePct = d.uptime_24h_pct ?? (d.is_online ? 100.0 : 0.0);
+      const presenceHtml = pres24.length > 0 ? `
+        <div class="inspector-section">
+          <div class="section-title">
+            <span>24-Hour Presence &amp; Availability Heatmap</span>
+            <span class="tag ${uptimePct >= 80 ? 'tag-online' : (uptimePct >= 25 ? 'tag-standby' : 'tag-neutral')}">${uptimePct}% 24h Presence</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(24,1fr);gap:3px;margin-top:6px;">
+            ${pres24.map(b => {
+              const bg = b.status === 'ONLINE' ? '#10b981' : '#1e2636';
+              const tip = `${b.hour} — ${b.status}${b.samples ? ' (' + b.samples + ' scans, avg ' + (b.avg_rtt_ms ?? '?') + ' ms)' : ''}`;
+              return `<div title="${tip}" style="height:22px;background:${bg};border-radius:3px;border:1px solid rgba(255,255,255,0.06);"></div>`;
+            }).join('')}
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:4px;" class="mono">
+            <span>${pres24[0]?.hour || '-24h'}</span>
+            <span>${pres24[12]?.hour || '-12h'}</span>
+            <span>Now (${pres24[pres24.length - 1]?.hour || 'Live'})</span>
+          </div>
+        </div>
+      ` : '';
+
+      /* 8. Real-Time Per-Host Wire DPI, Rolling Bandwidth & SNI Domain Matrix */
+      const wt = d.wire_traffic || {};
+      const domTl = wt.domain_timeline || [];
+      const wireDpiHtml = `
+        <div class="inspector-section">
+          <div class="section-title">
+            <span>Live Wire DPI, Rolling Bandwidth &amp; SNI Domain Matrix</span>
+            <span class="tag tag-blue">${wt.rate_kbps ?? 0} KB/s (Peak ${wt.peak_kbps ?? 0} KB/s &bull; ${wt.pps ?? 0} pkt/s)</span>
+          </div>
+          <div style="font-size:11.5px;color:var(--text-secondary);margin-bottom:6px;" class="mono">
+            Frames: <strong>${wt.packets ?? 0}</strong> (${(wt.bytes ?? 0).toLocaleString()} B) &bull;
+            Protocols: <strong>${(wt.protocols || []).join(', ') || 'Idle'}</strong>
+            ${wt.tcp_syn_signature ? ` &bull; TCP Stack: <strong>${wt.tcp_syn_signature}</strong>` : ''}
+          </div>
+          ${domTl.length > 0 ? `
+            <div style="max-height:110px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:6px;background:var(--bg-canvas);" class="mono">
+              ${domTl.map(item => `
+                <div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+                  <span style="color:#e2e8f0;">${item.domain}</span>
+                  <span style="color:var(--text-muted);">${item.proto} &bull; ${item.time}</span>
+                </div>
+              `).join('')}
+            </div>
+          ` : `<div style="font-size:11px;color:var(--text-muted);">Listening on wire for DNS / TLS SNI / DHCP / JA3 frames from ${d.ip}…</div>`}
+        </div>
+      `;
+
+      pane.innerHTML = `
+        <div class="inspector-top">
+          <div>
+            <div style="font-size:15px;font-weight:600;color:var(--text-primary);">${d.custom_name || d.display_name}</div>
+            <div class="mono" style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">${d.ip} &bull; ${d.mac} &bull; ${d.vendor}</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            ${isQuarantined ? `<span class="tag tag-offline">QUARANTINED</span>` : ''}
+            <span class="tag tag-blue">${d.confidence_score}% Confidence</span>
+          </div>
+        </div>
+
+        <!-- Active Diagnostics, Guardian Shield Quarantine & Universal Endpoint Control -->
+        <div class="inspector-section">
+          <div class="section-title">Endpoint Diagnostics, Guardian Shield &amp; Network Control</div>
+          <div class="control-grid">
+            <button class="btn btn-sm btn-primary" onclick="runPingBurst('${d.ip}')">5x Latency &amp; Jitter Burst</button>
+            <button class="btn btn-sm" onclick="runDeepNmap('${d.ip}')">Nmap Service Audit (-sV)</button>
+            <button class="btn btn-sm" onclick="runPortRangeScan('${d.ip}', 1, 10000)">Scan TCP 1–10000</button>
+            <button class="btn btn-sm btn-primary" onclick="runPortRangeScan('${d.ip}', 1, 65535)">Full 65,535-Port + X.509 Sweep</button>
+            <button class="btn btn-sm" onclick="runTraceroute('${d.ip}')">MTR Path Trace</button>
+            <button class="btn btn-sm" onclick="sendWoL('${d.mac}', '${d.ip}')">Send Wake-on-LAN (UDP :9)</button>
+            <button class="btn btn-sm" onclick="runSshAudit('${d.ip}', 22)">SSHv2 HASSH Audit (:22)</button>
+            <button class="btn btn-sm" onclick="runSmbAudit('${d.ip}', 445)">SMB2/3 Signing Audit (:445)</button>
+            <button class="btn btn-sm" onclick="runDnsAudit('${d.ip}')">DNS &amp; DNSSEC Audit (:53)</button>
+            <button class="btn btn-sm" onclick="runNtpAudit('${d.ip}')">NTP Stratum Audit (:123)</button>
+            ${d.is_gateway ? `<button class="btn btn-sm btn-primary" onclick="runUpnpNatAudit('${d.ip}')">UPnP NAT Port-Forwards</button>` : ''}
+            ${!d.is_local && !d.is_gateway ? (
+              isQuarantined
+                ? `<button class="btn btn-sm btn-primary" onclick="toggleQuarantine('${d.ip}', '${d.mac}', 'release')">Release Host Quarantine</button>`
+                : `<button class="btn btn-sm btn-danger" onclick="toggleQuarantine('${d.ip}', '${d.mac}', 'engage')">Guardian Shield: Quarantine Host</button>`
+            ) : ''}
+            ${smartProto ? `
+              <button class="btn btn-sm btn-primary" onclick="controlSmartHome('${d.ip}', '${smartProto}', 'on')">Smart Relay ON</button>
+              <button class="btn btn-sm btn-danger" onclick="controlSmartHome('${d.ip}', '${smartProto}', 'off')">Smart Relay OFF</button>
+            ` : ''}
+          </div>
+          <div id="consoleWrap" style="display:none;">
+            <pre class="terminal-output" id="consolePre"></pre>
+          </div>
+        </div>
+
+        ${presenceHtml}
+        ${wireDpiHtml}
+        ${sessionLauncherHtml}
+        ${dialControlHtml}
+        ${rokuEcpHtml}
+        ${psHtml}
+        ${spotifyHtml}
+        ${sonosHtml}
+        ${gwControlHtml}
+
+        <!-- Interactive HTTP / REST Endpoint Inspector -->
+        <div class="inspector-section">
+          <div class="section-title">Interactive HTTP / Service Request Tester &amp; Port Knocking</div>
+          <div style="display:grid;grid-template-columns:75px 80px 1fr auto;gap:6px;margin-bottom:8px;">
+            <select id="httpMethodSel" class="input-field" style="min-width:0;padding:5px 8px;">
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+            </select>
+            <input id="httpPortInput" type="number" class="input-field mono" style="min-width:0;padding:5px 8px;" value="${defaultPort}" placeholder="Port" />
+            <input id="httpPathInput" type="text" class="input-field mono" style="min-width:0;padding:5px 8px;" value="/" placeholder="/path" />
+            <button class="btn btn-sm btn-primary" onclick="submitCustomHttp('${d.ip}')">Send HTTP</button>
+          </div>
+          <div style="display:grid;grid-template-columns:75px 1fr 90px auto;gap:6px;">
+            <select id="knockProtoSel" class="input-field" style="min-width:0;padding:5px 8px;">
+              <option value="tcp">TCP</option>
+              <option value="udp">UDP</option>
+            </select>
+            <input id="knockSeqInput" type="text" class="input-field mono" style="min-width:0;padding:5px 8px;" value="7000,8000,9000" placeholder="Knock sequence (7000,8000,9000)" />
+            <input id="knockVerifyInput" type="number" class="input-field mono" style="min-width:0;padding:5px 8px;" value="22" placeholder="Verify port" />
+            <button class="btn btn-sm" onclick="submitPortKnock('${d.ip}')">Port Knock</button>
+          </div>
+        </div>
+
+        <!-- Deep Hardware & Protocol Specification Table -->
+        <div class="inspector-section">
+          <div class="section-title">Hardware, Radio &amp; Protocol Specification Dossier</div>
+          <table class="spec-table">
+            <tbody>${specRows}</tbody>
+          </table>
+        </div>
+
+        <!-- Forensic Classification Audit Trail -->
+        <div class="inspector-section">
+          <div class="section-title">Multi-Signal Identification Evidence</div>
+          <ul style="padding-left:16px;font-size:11.5px;color:var(--text-secondary);font-family:var(--font-mono);">
+            ${(d.fingerprint_reasons || []).map(r => `<li style="margin-bottom:4px;">${r}</li>`).join('')}
+          </ul>
+        </div>
+
+        <!-- Asset Labeling & Trust Persistence -->
+        <div class="inspector-section">
+          <div class="section-title">Asset Label &amp; Trust Classification (SQLite)</div>
+          <div style="display:grid;grid-template-columns:1fr 140px auto auto;gap:6px;">
+            <input id="custNameInput" class="input-field" style="min-width:0;" placeholder="Custom asset label…" value="${d.custom_name || ''}" />
+            <select id="custTrustSelect" class="input-field" style="min-width:0;">
+              <option value="trusted" ${d.trust_state==='trusted'?'selected':''}>Trusted</option>
+              <option value="known" ${d.trust_state==='known'?'selected':''}>Known</option>
+              <option value="watchlist" ${d.trust_state==='watchlist'?'selected':''}>Watchlist</option>
+              <option value="intruder" ${d.trust_state==='intruder'?'selected':''}>Untrusted</option>
+            </select>
+            <button class="btn btn-sm btn-primary" onclick="saveAssetMeta('${d.device_key}')">Save</button>
+            ${!d.is_local && !d.is_gateway ? `<button class="btn btn-sm btn-danger" onclick="deleteDeviceRecord('${d.device_key}')" title="Purge device from SQLite inventory">Delete</button>` : ''}
+          </div>
+        </div>
+
+        <!-- Raw Telemetry Payload -->
+        <div class="inspector-section">
+          <div class="section-title">Raw Protocol Responses (mDNS / UPnP / ECP / AirPlay / DDP / Spotify / Cast / HAP / SNMP / IoT)</div>
+          <pre class="terminal-output" style="max-height:240px;">${JSON.stringify({
+            port_services: d.port_services,
+            mdns_services: d.mdns_services,
+            upnp_info: d.upnp_info,
+            roku_info: d.roku_info,
+            airplay_info: d.airplay_info,
+            spotify_info: d.spotify_info,
+            playstation_info: d.playstation_info,
+            gateway_5g_info: d.gateway_5g_info,
+            google_cast_info: d.google_cast_info,
+            homekit_matter_info: d.homekit_matter_info,
+            snmp_info: d.snmp_info,
+            smart_iot_info: d.smart_iot_info,
+            ssh_info: d.ssh_info,
+            smb_info: d.smb_info,
+            extended_iot_info: d.extended_iot_info
+          }, null, 2)}</pre>
+        </div>
+      `;
+    }
+
+    async function runConsoleAction(label, promise) {
+      const wrap = document.getElementById('consoleWrap');
+      const pre = document.getElementById('consolePre');
+      if (wrap && pre) {
+        wrap.style.display = 'block';
+        pre.textContent = `[Running] ${label}…`;
+      }
+      try {
+        const res = await promise;
+        if (res && typeof res === 'object' && res.upgrade_required) {
+          if (pre) pre.textContent = `🔒 [SUBSCRIPTION GATE] ${res.message}`;
+          openSubscriptionModal(res);
+          return;
+        }
+        if (pre) pre.textContent = typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+      } catch (e) {
+        if (pre) pre.textContent = `[Error] ${e}`;
+      }
+    }
+
+    async function runPingBurst(ip) {
+      await runConsoleAction(`5-Packet Latency & Jitter Burst -> ${ip}`, fetch('/api/action/ping-burst', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip})
+      }).then(r => r.json()));
+    }
+
+    async function runDeepNmap(ip) {
+      await runConsoleAction(`Nmap Service & Version Probe (-sV) -> ${ip}`, fetch('/api/action/deep-nmap', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip})
+      }).then(r => r.json()).then(d => d.output || JSON.stringify(d, null, 2)));
+    }
+
+    async function runPortRangeScan(ip, start_port, end_port) {
+      await runConsoleAction(`Concurrent TCP Port Scan (${start_port}-${end_port}) -> ${ip}`, fetch('/api/action/port-range-scan', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, start_port, end_port})
+      }).then(r => r.json()));
+    }
+
+    async function runTraceroute(ip) {
+      await runConsoleAction(`MTR Multi-Hop Path Trace -> ${ip}`, fetch('/api/action/traceroute', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip})
+      }).then(r => r.json()).then(d => d.output || JSON.stringify(d, null, 2)));
+    }
+
+    async function sendWoL(mac, ip) {
+      await runConsoleAction(`IEEE 802 Wake-on-LAN Magic Packet -> ${mac}`, fetch('/api/action/wol', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({mac, ip})
+      }).then(r => r.json()));
+    }
+
+    async function sendRokuKey(ip, key) {
+      await runConsoleAction(`Roku ECP Keypress '${key}' -> ${ip}:8060`, fetch('/api/action/roku-key', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, key})
+      }).then(r => r.json()));
+    }
+
+    async function sendRokuText(ip) {
+      const el = document.getElementById('rokuTextInput');
+      const text = el ? el.value : '';
+      if (!text) return;
+      await runConsoleAction(`Roku ECP Lit_ String '${text}' -> ${ip}:8060`, fetch('/api/action/roku-text', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, text})
+      }).then(r => r.json()));
+    }
+
+    async function controlDialApp(ip, app_name, action) {
+      const payloadEl = document.getElementById('dialPayloadInput');
+      const payload = payloadEl ? payloadEl.value.trim() : '';
+      await runConsoleAction(`DIAL v2.1 ${action.toUpperCase()} '${app_name}' -> ${ip}:8060`, fetch('/api/action/dial-app', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, app_name, action, payload})
+      }).then(r => r.json()));
+    }
+
+    async function controlGateway(ip, action) {
+      const passEl = document.getElementById('gwAdminPassInput');
+      const password = passEl ? passEl.value : '';
+      await runConsoleAction(`T-Mobile 5G Gateway (${action}) -> ${ip}`, fetch('/api/action/gateway-control', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, action, username: 'admin', password})
+      }).then(r => r.json()));
+    }
+
+    async function launchLocalClient(ip, port, protocol) {
+      await runConsoleAction(`Launch Native ${protocol.toUpperCase()} Session -> ${ip}:${port}`, fetch('/api/action/launch-client', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, port, protocol})
+      }).then(r => r.json()));
+    }
+
+    async function controlBt(mac, action) {
+      const outEl = document.getElementById('btConsolePre');
+      if (outEl) {
+        outEl.style.display = 'block';
+        outEl.textContent = `[Running] bluetoothctl ${action} ${mac}…`;
+      }
+      const res = await fetch('/api/action/bt-control', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({mac, action})
+      }).then(r => r.json());
+      if (outEl) {
+        outEl.textContent = res.output || res.devices_raw || JSON.stringify(res, null, 2);
+      }
+    }
+
+    async function wakePlayStation(ip, mac, host_id) {
+      await runConsoleAction(`PlayStation DDP WAKEUP + Dual-MAC WoL -> ${ip}`, fetch('/api/action/playstation-wake', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, mac, host_id})
+      }).then(r => r.json()));
+    }
+
+    async function controlSpotify(ip, endpoint_url, action) {
+      await runConsoleAction(`Spotify Connect ZeroConf (${action}) -> ${ip}`, fetch('/api/action/spotify-control', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, endpoint_url, action})
+      }).then(r => r.json()));
+    }
+
+    function renderAll() {
+      if (appState) updateDashboard(appState);
+    }
+
+    async function toggleQuarantine(ip, mac, action) {
+      await runConsoleAction(`Guardian Shield Host Quarantine (${action.toUpperCase()}) -> ${ip}`, fetch('/api/action/quarantine', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, mac, action})
+      }).then(r => r.json()));
+      const res = await fetch('/api/state');
+      appState = await res.json();
+      updateDashboard(appState);
+    }
+
+    async function controlSmartHome(ip, protocol, action) {
+      await runConsoleAction(`Smart Home Relay (${protocol.toUpperCase()} -> ${action.toUpperCase()}) -> ${ip}`, fetch('/api/action/smart-home-control', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, protocol, action})
+      }).then(r => r.json()));
+    }
+
+    async function controlSonos(ip, action, volume = 25) {
+      await runConsoleAction(`Sonos UPnP AVTransport (${action}) -> ${ip}:1400`, fetch('/api/action/sonos-control', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, action, volume})
+      }).then(r => r.json()));
+    }
+
+    async function runSshAudit(ip, port = 22) {
+      await runConsoleAction(`SSHv2 Binary KEXINIT & HASSH Cryptographic Audit -> ${ip}:${port}`, fetch('/api/action/ssh-audit', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, port})
+      }).then(r => r.json()));
+    }
+
+    async function runSmbAudit(ip, port = 445) {
+      await runConsoleAction(`SMB2/3 Dialect & NTLM-Relay Signing Audit -> ${ip}:${port}`, fetch('/api/action/smb-audit', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, port})
+      }).then(r => r.json()));
+    }
+
+    async function runUpnpNatAudit(gateway_ip) {
+      await runConsoleAction(`UPnP IGD External NAT Port-Forwarding Audit -> ${gateway_ip}`, fetch('/api/action/upnp-nat-audit', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({gateway_ip})
+      }).then(r => r.json()));
+    }
+
+    async function runDnsAudit(ip) {
+      await runConsoleAction(`RFC 4035 DNSSEC & DoT (:853) Resolver Security Audit -> ${ip}`, fetch('/api/action/dns-audit', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip})
+      }).then(r => r.json()));
+    }
+
+    async function runNtpAudit(ip) {
+      await runConsoleAction(`RFC 5905 NTPv4 Stratum, Reference Clock & Mode-6 Audit -> ${ip}:123`, fetch('/api/action/ntp-audit', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip})
+      }).then(r => r.json()));
+    }
+
+    async function submitPortKnock(ip) {
+      const protocol = document.getElementById('knockProtoSel').value || 'tcp';
+      const rawSeq = document.getElementById('knockSeqInput').value || '7000,8000,9000';
+      const ports = rawSeq.split(',').map(x => parseInt(x.trim(), 10)).filter(x => x > 0 && x <= 65535);
+      const verify_port = parseInt(document.getElementById('knockVerifyInput').value || '22', 10);
+      await runConsoleAction(`Port Knock (${protocol.toUpperCase()} [${ports.join(' -> ')}]) -> ${ip}`, fetch('/api/action/port-knock', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, ports, protocol, verify_port})
+      }).then(r => r.json()));
+    }
+
+    async function openSecurityPostureModal() {
+      const modal = document.getElementById('securityPostureModal');
+      if (!modal) return;
+      modal.style.display = 'flex';
+      try {
+        const res = await fetch('/api/analytics');
+        const data = await res.json();
+        const pos = data.security_posture || {};
+        const v6 = data.ipv6_posture || {};
+        const ana = data.database_analytics || {};
+        document.getElementById('secModalGradeBadge').textContent = `Score: ${pos.score ?? '--'}/100 (Grade ${pos.grade || '--'})`;
+        const pillarsEl = document.getElementById('secModalPillars');
+        if (pillarsEl && pos.pillars) {
+          pillarsEl.innerHTML = Object.values(pos.pillars).map(p => {
+            const pct = Math.round(((p.score || 0) / Math.max(1, p.max || 25)) * 100);
+            const col = pct >= 85 ? '#10b981' : (pct >= 65 ? '#f59e0b' : '#ef4444');
+            return `
+              <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:8px;padding:10px 12px;">
+                <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:6px;">
+                  <span>${p.label}</span>
+                  <span class="mono" style="color:${col};">${p.score}/${p.max} pts (${pct}%)</span>
+                </div>
+                <div style="height:7px;background:#1e293b;border-radius:4px;overflow:hidden;">
+                  <div style="width:${pct}%;height:100%;background:${col};"></div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+        const v6El = document.getElementById('secModalIpv6Box');
+        if (v6El) {
+          const rtrs = (v6.ipv6_routers || []).map(r => `${r.ipv6} (${r.mac} • ${r.vendor})`).join(', ') || 'None detected';
+          v6El.innerHTML = `
+            <div><strong>IPv6 Posture Grade:</strong> <span class="mono" style="color:#38bdf8;">${v6.security_grade || 'N/A'}</span></div>
+            <div><strong>Global Unicast v6:</strong> <span class="mono">${(v6.global_unicast_addresses || []).join(', ') || 'None'}</span></div>
+            <div><strong>RFC 8981 Privacy Extensions:</strong> <span class="mono">${v6.privacy_extensions_active ? 'ACTIVE (Temporary SLAAC)' : 'Inactive / EUI-64'}</span></div>
+            <div><strong>Active ICMPv6 Routers:</strong> <span class="mono">${rtrs}</span></div>
+          `;
+        }
+        const anaEl = document.getElementById('secModalDbBox');
+        if (anaEl) {
+          const rtt = ana.subnet_rtt_24h || {};
+          const cats = Object.entries(ana.category_distribution || {}).map(([k, v]) => `${k}: ${v}`).join(' • ');
+          anaEl.innerHTML = `
+            <div><strong>24h RTT Telemetry (${rtt.samples || 0} samples):</strong> <span class="mono">Avg ${rtt.avg_rtt_ms ?? '--'} ms • Min ${rtt.min_rtt_ms ?? '--'} ms • Max ${rtt.max_rtt_ms ?? '--'} ms</span></div>
+            <div><strong>Inventory Breakdown:</strong> <span class="mono">${ana.online_devices || 0} Online / ${ana.total_devices || 0} Total • ${ana.randomized_mac_devices || 0} Privacy MACs</span></div>
+            <div><strong>Category Taxonomy:</strong> <span class="mono">${cats || '—'}</span></div>
+          `;
+        }
+      } catch (e) {}
+    }
+
+    function closeSecurityPostureModal() {
+      const m = document.getElementById('securityPostureModal');
+      if (m) m.style.display = 'none';
+    }
+
+    async function deleteDeviceRecord(deviceKey) {
+      const res = await fetch(`/api/device/${encodeURIComponent(deviceKey)}`, {method: 'DELETE'});
+      if (res.ok) {
+        selectedIp = null;
+        const st = await fetch('/api/state');
+        appState = await st.json();
+        updateDashboard(appState);
+      }
+    }
+
+    async function probeHttpCustom(ip, port, path, method) {
+      await runConsoleAction(`HTTP ${method} ${ip}:${port}${path}`, fetch('/api/action/http-probe', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, port, path, method})
+      }).then(r => r.json()));
+    }
+
+    async function submitCustomHttp(ip) {
+      const method = document.getElementById('httpMethodSel').value;
+      const port = parseInt(document.getElementById('httpPortInput').value || '80', 10);
+      const path = document.getElementById('httpPathInput').value || '/';
+      await probeHttpCustom(ip, port, path, method);
+    }
+
+    async function saveAssetMeta(deviceKey) {
+      const custom_name = document.getElementById('custNameInput').value;
+      const trust_state = document.getElementById('custTrustSelect').value;
+      await fetch(`/api/device/${encodeURIComponent(deviceKey)}/customize`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({custom_name, trust_state})
+      });
+    }
+
+    async function triggerManualScan() {
+      const btn = document.getElementById('scanBtn');
+      btn.textContent = 'Scanning…';
+      try {
+        const res = await fetch('/api/scan', {method: 'POST'});
+        updateDashboard(await res.json());
+      } finally {
+        btn.textContent = 'Scan Subnet';
+      }
+    }
+
+    async function triggerAreaScan() {
+      const btn = document.getElementById('areaScanBtn');
+      if (btn) btn.textContent = 'Scanning Rings…';
+      try {
+        const res = await fetch('/api/action/area-scan', {method: 'POST'});
+        const areaData = await res.json();
+        if (areaData && areaData.upgrade_required) {
+          openSubscriptionModal(areaData);
+          return;
+        }
+        if (appState) {
+          appState.area_scan = areaData;
+          renderAreaScan();
+        }
+        const areaTabBtn = document.querySelector('.nav-tab[data-tab="areascan"]');
+        switchTab('areascan', areaTabBtn);
+      } finally {
+        if (btn) btn.textContent = 'Deep Area Scan';
+      }
+    }
+
+    async function triggerCameraSweep() {
+      const btn = document.getElementById('camBtn');
+      btn.textContent = 'Auditing…';
+      try {
+        const res = await fetch('/api/action/camera-sweep', {method: 'POST'});
+        const data = await res.json();
+        if (data && data.upgrade_required) {
+          openSubscriptionModal(data);
+          return;
+        }
+        const areaTabBtn = document.querySelector('.nav-tab[data-tab="areascan"]');
+        switchTab('areascan', areaTabBtn);
+        const auditPanel = document.getElementById('cameraAuditPanel');
+        const auditPre = document.getElementById('cameraAuditPre');
+        if (auditPanel && auditPre) {
+          auditPanel.style.display = 'block';
+          auditPre.textContent = JSON.stringify(data, null, 2);
+        }
+        await runConsoleAction('ONVIF WS-Discovery & 5-Vector 802.11 TSF Attribution Audit', Promise.resolve(data));
+      } finally {
+        btn.textContent = 'ONVIF & RF Audit';
+      }
+    }
+
+    async function triggerSpeedtest() {
+      const btn = document.getElementById('speedBtn');
+      btn.textContent = 'Benchmarking…';
+      try {
+        const res = await fetch('/api/action/speedtest', {method: 'POST'});
+        const data = await res.json();
+        if (appState) {
+          appState.speedtest = data;
+          renderUplink();
+        }
+      } finally {
+        btn.textContent = 'WAN Benchmark';
+      }
+    }
+
+    async function exportForensicReport() {
+      const btn = document.getElementById('exportBtn');
+      btn.textContent = 'Exporting…';
+      try {
+        const res = await fetch('/api/export/report', {method: 'POST'});
+        const data = await res.json();
+        if (data && data.upgrade_required) {
+          btn.textContent = 'Export Report';
+          openSubscriptionModal(data);
+          return;
+        }
+        btn.textContent = 'Saved to Desktop';
+        setTimeout(() => { btn.textContent = 'Export Report'; }, 2500);
+      } catch (_) {
+        btn.textContent = 'Export Report';
+      }
+    }
+
+    function jumpToLanHost(ip) {
+      if (!ip) return;
+      selectedIp = ip;
+      const invTabBtn = document.querySelector('.nav-tab[data-tab="inventory"]');
+      switchTab('inventory', invTabBtn);
+      renderInventory();
+      renderInspector();
+    }
+
+    function renderAreaScan() {
+      if (!appState) return;
+      const area = appState.area_scan || {};
+      const sum = area.summary || {};
+      const badge = document.getElementById('areaScanSummaryBadge');
+      if (badge) {
+        badge.textContent = `${sum.total_80211_bssids || 0} BSSIDs collapsed into ${sum.physical_radio_appliances || 0} Physical Radio Chips • ${sum.hidden_bssids_resolved || 0}/${sum.hidden_bssids_total || 0} Hidden BSSIDs Unmasked`;
+      }
+      const hBadge = document.getElementById('hiddenDeCloakBadge');
+      const hiddenList = area.hidden_entities || [];
+      if (hBadge) {
+        hBadge.textContent = `${hiddenList.length} Hidden / Cloaked Targets 100% Unmasked (${sum.hidden_bssids_resolved || 0}/${sum.hidden_bssids_total || 0} Hidden BSSIDs)`;
+      }
+
+      const hiddenBody = document.getElementById('hiddenEntitiesBody');
+      if (hiddenBody) {
+        hiddenBody.innerHTML = hiddenList.map(h => {
+          const isRf = (h.domain || '').includes('802.11');
+          const domTag = isRf
+            ? `<span class="tag tag-standby">${h.domain}</span>`
+            : `<span class="tag tag-blue">${h.domain}</span>`;
+          const jumpBtn = h.linked_lan_ip
+            ? `<div style="margin-top:4px;"><button class="btn btn-sm btn-primary" onclick="jumpToLanHost('${h.linked_lan_ip}')">Inspect &amp; Control ${h.linked_lan_ip}</button></div>`
+            : '';
+          return `
+            <tr>
+              <td>
+                <div style="margin-bottom:3px;">${domTag}</div>
+                <div class="mono" style="font-weight:600;color:var(--text-primary);">${h.identifier}</div>
+              </td>
+              <td>
+                <span class="mono" style="color:var(--status-warn);font-size:11.5px;">${h.cloaked_as}</span>
+              </td>
+              <td>
+                <div style="font-weight:600;color:var(--status-online);font-size:12.5px;">${h.unmasked_identity}</div>
+                <div style="color:var(--text-secondary);font-size:11px;margin-top:2px;">Role: ${h.role_classification}</div>
+              </td>
+              <td class="mono" style="font-size:11.5px;color:var(--text-primary);">${h.parent_or_ip}</td>
+              <td class="mono" style="font-size:11.5px;">
+                <div>${h.channel_or_subnet}</div>
+                <div style="color:var(--text-secondary);font-size:11px;">${h.signal_or_rtt}</div>
+              </td>
+              <td><span class="tag tag-online">${h.confidence}%</span></td>
+              <td style="max-width:440px;">
+                <div style="color:var(--text-secondary);font-size:11.5px;line-height:1.4;">${h.silicon_proof}</div>
+                ${jumpBtn}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      const ledgerBody = document.getElementById('anomalyLedgerBody');
+      if (ledgerBody) {
+        const rows = area.anomaly_resolutions || [];
+        ledgerBody.innerHTML = rows.map(r => {
+          const isVerified = (r.verdict || '').startsWith('VERIFIED_');
+          const vBadge = isVerified
+            ? `<span class="tag tag-online">${r.verdict} (${r.confidence}%)</span>`
+            : `<span class="tag tag-standby">${r.verdict} (${r.confidence}%)</span>`;
+          const qbssStr = r.qbss_stations !== null && r.qbss_stations !== undefined
+            ? `${r.qbss_stations} sta &bull; ${r.qbss_utilization_pct ?? '?'}% util`
+            : `<span style="color:var(--text-muted);">No QBSS IE</span>`;
+          const lanJump = r.linked_lan_ip
+            ? `<div style="margin-top:4px;"><button class="btn btn-sm btn-primary" onclick="jumpToLanHost('${r.linked_lan_ip}')">Inspect LAN Host ${r.linked_lan_ip}</button></div>`
+            : '';
+          return `
+            <tr>
+              <td>
+                <div class="mono" style="font-weight:600;color:var(--text-primary);">${r.bssid}</div>
+                <div style="font-size:11.5px;color:${r.is_hidden ? 'var(--status-warn)' : 'var(--text-secondary)'};">
+                  ${r.ssid} ${r.ula_bit === 'LAA (Locally Administered / Virtual Bit=1)' ? '<span class="tag tag-neutral" style="margin-left:4px;">U/L=1 Virtual MAC</span>' : '<span class="tag tag-blue" style="margin-left:4px;">UAA Burned-In</span>'}
+                </div>
+              </td>
+              <td class="mono">
+                <div>${r.band} &bull; Ch ${r.channel}</div>
+                <div style="color:var(--text-muted);font-size:11px;">${r.freq_mhz ? r.freq_mhz + ' MHz' : '—'}</div>
+              </td>
+              <td class="mono">
+                <div style="color:var(--text-primary);font-weight:600;">${r.tsf_clock || '—'}</div>
+                <div style="color:var(--text-muted);font-size:10.5px;">${r.tsf_usec ? r.tsf_usec.toLocaleString() + ' µs' : 'Passive cache'}</div>
+              </td>
+              <td class="mono">${qbssStr}</td>
+              <td class="mono">
+                <div style="color:var(--text-primary);font-weight:600;">${r.signal_dbm} dBm (${r.signal_pct}%)</div>
+                <div style="color:var(--text-secondary);font-size:11px;">Band: ${r.distance_range_m || '—'} (&sigma;=${r.rssi_stddev_db ?? 0} dB)</div>
+              </td>
+              <td>${vBadge}</td>
+              <td style="max-width:440px;">
+                <div style="font-weight:600;color:var(--text-primary);font-size:11.5px;margin-bottom:2px;">${r.parent_appliance || ''}</div>
+                <div style="color:var(--text-secondary);font-size:11.5px;line-height:1.4;">${r.technical_proof || ''}</div>
+                ${r.wps_hardware ? `<div class="mono" style="color:#93c5fd;font-size:10.5px;margin-top:3px;">Beacon WPS IE: ${r.wps_hardware}</div>` : ''}
+                ${lanJump}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      const clustersBody = document.getElementById('siliconClustersBody');
+      if (clustersBody) {
+        const clusters = (appState.wifi || {}).physical_clusters || [];
+        clustersBody.innerHTML = clusters.map(c => `
+          <div style="background:var(--bg-canvas);border:1px solid var(--border);border-radius:5px;padding:10px 12px;margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <div>
+                <strong style="color:var(--text-primary);font-size:12.5px;">${c.appliance_name}</strong>
+                <span class="tag tag-blue" style="margin-left:6px;">${c.bssid_count} Co-Located BSSID(s)</span>
+              </div>
+              <span class="mono" style="font-size:11px;color:var(--text-secondary);">TSF Uptime: <strong>${c.tsf_uptime || '—'}</strong> &bull; Peak ${c.max_signal_dbm} dBm</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              ${(c.bssids || []).map(b => `
+                <div class="mono" style="display:flex;justify-content:space-between;font-size:11px;padding:4px 8px;background:var(--bg-surface);border-radius:4px;">
+                  <span><strong>${b.bssid}</strong> &rarr; ${b.ssid}</span>
+                  <span style="color:var(--text-secondary);">${b.band} Ch ${b.channel} (${b.signal_dbm} dBm) &bull; ${b.verdict}</span>
+                </div>
+              `).join('')}
+            </div>
+            ${c.linked_lan_ip ? `<div style="margin-top:6px;"><button class="btn btn-sm btn-primary" onclick="jumpToLanHost('${c.linked_lan_ip}')">Open ${c.linked_lan_ip} Control Workbench</button></div>` : ''}
+          </div>
+        `).join('');
+      }
+
+      const ringsBody = document.getElementById('areaRingsBody');
+      if (ringsBody) {
+        const rings = area.rings || [];
+        ringsBody.innerHTML = rings.map(rg => {
+          let detailsHtml = '';
+          if (rg.ring_id === 'RING_1_HOST_AND_BRIDGES') {
+            detailsHtml = (rg.interfaces || []).map(iface => `
+              <div class="mono" style="font-size:11px;padding:3px 0;color:var(--text-secondary);">
+                <strong>${iface.ifname}</strong> [${iface.operstate}] &mdash; MAC ${iface.mac || 'N/A'} &bull; ${(iface.ipv4 || []).join(', ') || 'L2 Bridge'}
+              </div>
+            `).join('');
+          } else if (rg.ring_id === 'RING_4_CELLULAR_AND_WAN') {
+            const c = rg.cellular_tower || {};
+            const w = rg.wan_egress || {};
+            const b = rg.bluetooth_perimeter || {};
+            detailsHtml = `
+              <div class="mono" style="font-size:11px;color:var(--text-secondary);line-height:1.6;">
+                <div><strong>5G NR Base Station:</strong> ${c.carrier || 'T-Mobile'} gNBID <strong>${c.gnb_id ?? '—'}</strong> (Cell ID ${c.cell_id ?? '—'}, Band ${c.band || 'n41'})</div>
+                <div><strong>Cellular RF Telemetry:</strong> RSRP ${c.rsrp_dbm ?? '—'} dBm &bull; SINR ${c.sinr_db ?? '—'} dB &bull; RSRQ ${c.rsrq_db ?? '—'} dB &bull; Antenna: ${c.antenna || 'Internal_omni'}</div>
+                <div><strong>WAN Egress IP:</strong> ${w.public_ip || '—'} (${w.isp || ''} &mdash; ${w.city || ''}, ${w.region || ''})</div>
+                <div><strong>Bluetooth 5.2 Perimeter:</strong> Controller ${b.controller_mac || 'N/A'} (${b.controller_version || ''}) &bull; ${b.discovered_peripherals || 0} Peripheral(s)</div>
+              </div>
+            `;
+          } else {
+            const clList = rg.physical_radio_clusters || [];
+            detailsHtml = `<div class="mono" style="font-size:11px;color:var(--text-secondary);">${clList.length} Physical Radio Silicon Cluster(s) in this zone: ${clList.map(x => x.appliance_name).join(' • ')}</div>`;
+          }
+
+          return `
+            <div style="background:var(--bg-canvas);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:5px;padding:10px 12px;margin-bottom:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <strong style="color:var(--text-primary);font-size:12px;">${rg.title}</strong>
+                <span class="tag tag-neutral">${rg.range_band}</span>
+              </div>
+              ${detailsHtml}
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    function renderSpectrum() {
+      if (!appState || !appState.wifi) return;
+      const wifi = appState.wifi;
+      document.getElementById('wifiSummaryLabel').textContent =
+        `${wifi.total_aps || 0} BSSIDs (${wifi.hidden_aps || 0} Hidden Resolved via 64-Bit TSF & MAC Silicon)`;
+
+      document.getElementById('wifiTableBody').innerHTML = (wifi.access_points || []).map(ap => {
+        const qbss = ap.qbss_stations !== null && ap.qbss_stations !== undefined
+          ? `${ap.qbss_stations} sta / ${ap.qbss_utilization_pct}% util`
+          : '—';
+        const ssidLabel = ap.is_hidden && ap.de_cloaked_ssid
+          ? `<span style="color:var(--status-warn);">&lt;Hidden&gt;</span> &rarr; <span style="color:var(--status-online);">${ap.de_cloaked_ssid}</span>`
+          : ap.ssid;
+        return `
+          <tr style="${ap.in_use ? 'background:rgba(16,185,129,0.06);' : ''}">
+            <td>
+              <div style="font-weight:600;color:var(--text-primary);">${ap.in_use ? '[Connected] ' : ''}${ssidLabel}</div>
+              ${ap.de_cloaked_parent ? `<div class="mono" style="color:var(--text-secondary);font-size:11px;">Parent Appliance: ${ap.de_cloaked_parent}</div>` : ''}
+              ${ap.attribution_proof ? `<div style="color:var(--text-muted);font-size:10.5px;max-width:340px;">${ap.attribution_proof}</div>` : ''}
+            </td>
+            <td class="mono">
+              <div>${ap.bssid}</div>
+              <div style="font-size:10px;color:var(--text-muted);">${ap.is_locally_administered ? 'U/L=1 Virtual' : 'UAA Burned-In'}</div>
+            </td>
+            <td class="mono">
+              <div>${ap.band} (Ch ${ap.channel})</div>
+              <div style="font-size:10.5px;color:var(--text-muted);">${ap.freq_mhz ? ap.freq_mhz + ' MHz' : ''}</div>
+            </td>
+            <td class="mono">
+              <div>${ap.tsf_human || '—'}</div>
+              <div style="font-size:10.5px;color:var(--text-secondary);">${qbss}</div>
+            </td>
+            <td class="mono">
+              <div>${ap.signal_pct}% (${ap.signal_dbm} dBm)</div>
+              <div style="font-size:10.5px;color:var(--text-secondary);">Band: ${ap.distance_range_m || ('~' + ap.est_distance_m + 'm')} (&sigma;=${ap.rssi_stddev_db ?? 0}dB)</div>
+            </td>
+            <td class="mono">${ap.security}</td>
+            <td>
+              <div>${ap.vendor}</div>
+              ${ap.wps_identity ? `<div class="mono" style="font-size:10.5px;color:#93c5fd;">WPS: ${ap.wps_identity}</div>` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      const chRec = wifi.channel_recommendations || {};
+      const b24 = chRec.band_24ghz || {};
+      const b5 = chRec.band_5ghz || {};
+      const recBanner = (b24.recommended_channel || b5.recommended_channel) ? `
+        <div style="background:var(--bg-canvas);border:1px solid var(--border-strong);border-left:3px solid var(--status-online);padding:9px 11px;border-radius:5px;margin-bottom:12px;font-family:var(--font-mono);font-size:11px;">
+          <div style="color:var(--status-online);font-weight:700;margin-bottom:4px;">RF Spectral Channel Optimizer</div>
+          <div><strong>2.4 GHz Optimal:</strong> Ch ${b24.recommended_channel ?? 1} (Congestion ${b24.congestion_score ?? 0}%) &mdash; ${b24.rationale || ''}</div>
+          <div style="margin-top:3px;"><strong>5 GHz Optimal:</strong> Ch ${b5.recommended_channel ?? 36} (Congestion ${b5.congestion_score ?? 0}%) &mdash; ${b5.rationale || ''}</div>
+        </div>
+      ` : '';
+
+      document.getElementById('channelUtilizationBody').innerHTML = recBanner + (wifi.channel_congestion || []).map(c => `
+        <div style="margin-bottom:10px;font-family:var(--font-mono);font-size:11.5px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+            <span>Channel ${c.channel} (${c.band}) &mdash; ${c.ap_count} BSSID(s)</span>
+            <span>Peak ${c.max_signal_pct}%</span>
+          </div>
+          <div style="height:6px;background:var(--bg-canvas);border-radius:3px;overflow:hidden;">
+            <div style="height:100%;width:${c.max_signal_pct}%;background:var(--accent);"></div>
+          </div>
+          <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">${c.ssids.join(', ')}</div>
+        </div>
+      `).join('');
+
+      const bt = appState.bluetooth || {};
+      const ctrl = bt.controller || {};
+      const btDevs = bt.devices || [];
+      document.getElementById('bluetoothBody').innerHTML = `
+        <table class="spec-table" style="margin-bottom:10px;">
+          <tr><td class="spec-k">HCI Controller</td><td class="spec-v">${ctrl.interface || 'hci0'} (${ctrl.bd_address || 'N/A'}) &mdash; ${ctrl.status || ''}</td></tr>
+          <tr><td class="spec-k">HCI Version</td><td class="spec-v">${ctrl.hci_version || ''} &bull; ${ctrl.manufacturer || ''}</td></tr>
+          <tr><td class="spec-k">Traffic Counters</td><td class="spec-v">RX ${(ctrl.rx_bytes||0).toLocaleString()} B / TX ${(ctrl.tx_bytes||0).toLocaleString()} B</td></tr>
+        </table>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span class="mono" style="font-size:11px;color:var(--text-secondary);">Discovered Peripherals (${btDevs.length})</span>
+          <button class="btn btn-sm btn-primary" onclick="controlBt('', 'scan')">Run 4s BLE / Classic Inquiry Scan</button>
+        </div>
+        ${btDevs.map(d => `
+          <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-canvas);border:1px solid var(--border);padding:7px 10px;border-radius:5px;margin-bottom:6px;">
+            <div class="mono" style="font-size:11.5px;">
+              <strong>${d.name}</strong> [${d.mac}] <span style="color:var(--text-muted);">(${d.vendor})</span>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-sm" onclick="controlBt('${d.mac}', 'info')">Inspect GATT/UUIDs</button>
+              <button class="btn btn-sm btn-primary" onclick="controlBt('${d.mac}', 'connect')">Connect</button>
+              <button class="btn btn-sm btn-danger" onclick="controlBt('${d.mac}', 'disconnect')">Disconnect</button>
+            </div>
+          </div>
+        `).join('')}
+        <pre id="btConsolePre" class="terminal-output" style="display:none;max-height:180px;margin-top:8px;"></pre>
+      `;
+    }
+
+    function renderUplink() {
+      if (!appState) return;
+      const gw = appState.gateway_5g || {};
+      const dev = gw.device || {};
+      const sig = gw.signal?.['5g'] || {};
+      const gen = gw.signal?.generic || {};
+      const tm = gw.time || {};
+
+      document.getElementById('gatewayTelemetryBody').innerHTML = `
+        <table class="spec-table">
+          <tr><td class="spec-k">Gateway Hardware</td><td class="spec-v">${dev.manufacturer || 'Arcadyan'} ${dev.model || 'TMO-G4AR'} (HW Rev ${dev.hardwareVersion || 'R01'})</td></tr>
+          <tr><td class="spec-k">Firmware &amp; Serial</td><td class="spec-v">v${dev.softwareVersion || '1.00.18'} (${dev.updateState || 'latest'}) &bull; SN ${dev.serial || 'JT50C623A'}</td></tr>
+          <tr><td class="spec-k">5G NR Band &amp; Cell</td><td class="spec-v">Band ${(sig.bands||['n41']).join(', ')} &bull; gNBID ${sig.gNBID ?? '—'} &bull; Cell ID ${sig.cid ?? '—'}</td></tr>
+          <tr><td class="spec-k">5G Radio Signal</td><td class="spec-v">RSRP ${sig.rsrp ?? '—'} dBm &bull; SINR ${sig.sinr ?? '—'} dB &bull; RSRQ ${sig.rsrq ?? '—'} dB &bull; RSSI ${sig.rssi ?? '—'} dBm (${sig.bars ?? '—'} Bars)</td></tr>
+          <tr><td class="spec-k">APN &amp; Antenna</td><td class="spec-v">${gen.apn || 'FBB.HOME'} (IPv6: ${gen.hasIPv6 ? 'Enabled' : 'Disabled'}) &bull; ${sig.antennaUsed || 'Internal_omni'}</td></tr>
+          <tr><td class="spec-k">System Uptime</td><td class="spec-v">${formatUptime(tm.upTime)}</td></tr>
+        </table>
+      `;
+
+      const wan = appState.wan || {};
+      document.getElementById('dnsBenchBody').innerHTML = (wan.dns_benchmarks || []).map(d => `
+        <div style="margin-bottom:8px;font-family:var(--font-mono);font-size:11.5px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+            <span>${d.name} (${d.server})</span>
+            <span>${d.rtt_ms !== null ? d.rtt_ms + ' ms' : 'Timeout'}</span>
+          </div>
+          <div style="height:5px;background:var(--bg-canvas);border-radius:3px;overflow:hidden;">
+            <div style="height:100%;width:${Math.min(100, (d.rtt_ms || 100))}%;background:var(--status-online);"></div>
+          </div>
+        </div>
+      `).join('');
+
+      const st = appState.speedtest;
+      document.getElementById('speedtestBody').innerHTML = st ? `
+        <div style="background:var(--bg-canvas);border:1px solid var(--border-strong);border-radius:5px;padding:10px 12px;font-family:var(--font-mono);font-size:12px;">
+          <div style="font-size:15.5px;font-weight:600;color:var(--text-primary);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <span>⬇ Download: ${st.download_mbps} Mbps</span>
+            <span style="color:#38bdf8;">⬆ Upload: ${st.upload_mbps ?? '—'} Mbps</span>
+            <span class="tag ${String(st.bufferbloat_grade||'A').startsWith('A')?'tag-online':'tag-standby'}">Bufferbloat: ${st.bufferbloat_grade || 'A+'} (+${st.bufferbloat_delta_ms ?? 0} ms)</span>
+          </div>
+          <div style="color:var(--text-secondary);margin-top:5px;">
+            Unloaded Ping: ${st.unloaded_ping_ms} ms &bull; Loaded Ping: ${st.loaded_ping_ms ?? st.unloaded_ping_ms} ms &bull; Jitter: ${st.jitter_ms} ms &bull; ${(st.bytes_transferred/1e6).toFixed(1)} MB down / ${((st.upload_bytes_transferred||0)/1e6).toFixed(1)} MB up in ${st.duration_sec}s
+          </div>
+        </div>
+      ` : `<div style="font-size:11.5px;color:var(--text-muted);">Click "Run Benchmark" to measure multi-stream WAN download, upload &amp; bufferbloat.</div>`;
+    }
+
+    function initOrUpdateMap() {
+      if (!appState || !appState.wan) return;
+      const wan = appState.wan;
+      const lat = wan.latitude || 39.8291;
+      const lon = wan.longitude || -86.0859;
+
+      if (!mapReady) {
+        mapReady = true;
+        const esriSat = L.tileLayer(
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+          { maxZoom: 19, attribution: 'Esri World Imagery' }
+        );
+        const cartoDark = L.tileLayer(
+          'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+          { maxZoom: 19, attribution: 'CartoDB Dark Matter' }
+        );
+        const cartoVoyager = L.tileLayer(
+          'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+          { maxZoom: 19, attribution: 'CartoDB Voyager' }
+        );
+
+        leafletMap = L.map('wanMap', { center: [lat, lon], zoom: 13, layers: [cartoDark] });
+        L.control.layers({
+          'Dark Matter (CartoDB)': cartoDark,
+          'World Imagery (Esri Satellite)': esriSat,
+          'Voyager Street (CartoDB)': cartoVoyager
+        }).addTo(leafletMap);
+
+        L.circle([lat, lon], {
+          color: '#3b82f6',
+          fillColor: '#3b82f6',
+          fillOpacity: 0.12,
+          radius: 1200
+        }).addTo(leafletMap).bindPopup(
+          `<b>WAN Egress &amp; 5G Sector</b><br/>IP: ${wan.public_ip}<br/>ISP: ${wan.isp}<br/>${wan.city}, ${wan.region}`
+        ).openPopup();
+      } else if (leafletMap) {
+        leafletMap.invalidateSize();
+      }
+    }
+
+    function renderPackets() {
+      if (!appState) return;
+      document.getElementById('wireTableBody').innerHTML = (appState.wire_packets || []).slice(0, 60).map(p => {
+        const dstTarget = p.ip_dst || p.eth_dst || '';
+        const dstLink = (p.ip_dst && !p.ip_dst.startsWith('224.') && !p.ip_dst.startsWith('239.') && !p.ip_dst.startsWith('255.'))
+          ? `<span style="cursor:pointer;text-decoration:underline;color:#38bdf8;" title="Inspect destination in All-Around Toolkit" onclick="openAllAroundToolkitModal('${p.ip_dst}')">${dstTarget}</span>`
+          : dstTarget;
+        return `
+          <tr class="mono">
+            <td style="color:var(--text-muted);">${p.time_str || ''}</td>
+            <td><span class="tag tag-blue">${p.protocol || 'L2'}</span></td>
+            <td>${p.ip_src || p.eth_src || ''}</td>
+            <td>${dstLink}</td>
+            <td style="color:var(--text-secondary);">${p.info || ''}</td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('topTalkersBody').innerHTML = (appState.top_talkers || []).map(t => `
+        <tr class="mono">
+          <td>${t.ip}</td>
+          <td style="color:var(--text-secondary);">${t.mac}</td>
+          <td style="font-weight:600;">${t.packets} <span style="color:var(--accent-blue);font-size:11px;">(${t.rate_kbps || 0} KB/s)</span></td>
+          <td>${(t.protocols || []).join(', ')}</td>
+          <td style="color:var(--text-muted);font-size:11px;">${t.last_info || ''}</td>
+        </tr>
+      `).join('');
+
+      document.getElementById('eventTableBody').innerHTML = (appState.events || []).slice(0, 50).map(e => `
+        <tr>
+          <td class="mono" style="color:var(--text-muted);white-space:nowrap;">${e.time_str || ''}</td>
+          <td><span class="tag ${e.severity==='CRITICAL'?'tag-offline':(e.severity==='WARNING'?'tag-standby':'tag-neutral')}">${e.event_type}</span></td>
+          <td style="font-weight:600;">${e.device_name || e.ip || ''}</td>
+          <td style="color:var(--text-secondary);">${e.details || ''}</td>
+        </tr>
+      `).join('');
+    }
+
+    /* Tactical Multi-Tier Topology Graph */
+    let topoMode = 'online'; // 'online' | 'all' | 'rf'
+    let draggedTopoNode = null;
+    let hoveredTopoNode = null;
+    let topoDragMoved = false;
+
+    function setTopologyMode(mode) {
+      topoMode = mode;
+      ['online', 'all', 'rf'].forEach(m => {
+        const b = document.getElementById('topoMode' + m.charAt(0).toUpperCase() + m.slice(1) + 'Btn');
+        if (b) {
+          b.style.borderColor = (m === mode) ? 'var(--accent-blue)' : 'var(--border-subtle)';
+          b.style.color = (m === mode) ? '#fff' : 'var(--text-secondary)';
+        }
+      });
+      rebuildTopology();
+    }
+
+    function rebuildTopology() {
+      if (!appState || !appState.devices) return;
+      const canvas = document.getElementById('topologyCanvas');
+      if (!canvas) return;
+      const w = canvas.width || 1100, h = canvas.height || 640;
+      const cx = w / 2, cy = h / 2 + 18;
+
+      const devs = appState.devices;
+      const gw = devs.find(d => d.is_gateway) || devs[0];
+      const onlineOthers = devs.filter(d => d !== gw && d.is_online);
+      const offlineOthers = devs.filter(d => d !== gw && !d.is_online);
+
+      topoNodes = [];
+      if (gw) {
+        topoNodes.push({
+          ip: gw.ip,
+          label: (gw.custom_name || gw.display_name || 'Gateway').slice(0, 32),
+          sub: `${gw.ip} • Primary Gateway`,
+          badge: '5G GATEWAY',
+          x: cx, y: cy, r: 28,
+          color: '#10b981',
+          isOnline: true,
+          isGateway: true,
+          rtt: gw.rtt_ms || 1.5
+        });
+      }
+
+      // Add WAN 5G NR Cell Tower uplink node at top
+      const wan = appState.wan || {};
+      const sig5g = (appState.gateway_5g && appState.gateway_5g.signal && appState.gateway_5g.signal['5g']) || {};
+      topoNodes.push({
+        ip: gw ? gw.ip : '192.168.12.1',
+        label: `5G NR Tower gNBID ${sig5g.gNBID || '1077839'} (${(sig5g.bands || ['n41']).join(',')})`,
+        sub: `WAN Egress ${wan.public_ip || ''} • SINR ${sig5g.sinr ?? '?'} dB`,
+        badge: 'WAN UPLINK',
+        x: cx, y: Math.max(72, cy - Math.min(w, h) * 0.40), r: 22,
+        color: '#8b5cf6',
+        isOnline: true,
+        isUplink: true,
+        rtt: 18
+      });
+
+      // Inner Ring: Active Online LAN Devices
+      const innerRad = Math.min(w, h) * (topoMode === 'online' ? 0.34 : 0.24);
+      onlineOthers.forEach((d, idx) => {
+        const ang = (idx / Math.max(1, onlineOthers.length)) * Math.PI * 2 - Math.PI / 3;
+        let col = '#3b82f6';
+        if (d.is_local) col = '#06b6d4';
+        else if ((d.power_state || '').includes('STANDBY') || (d.power_state || '').includes('POWERSAVE')) col = '#f59e0b';
+        topoNodes.push({
+          ip: d.ip,
+          label: (d.custom_name || d.display_name || d.ip).slice(0, 26),
+          sub: `${d.ip} • ${d.rtt_ms != null ? d.rtt_ms + ' ms' : 'ARP'}`,
+          badge: (d.active_app || d.category || '').slice(0, 18),
+          x: cx + Math.cos(ang) * innerRad,
+          y: cy + Math.sin(ang) * innerRad,
+          r: 20,
+          color: col,
+          isOnline: true,
+          rtt: d.rtt_ms || 8
+        });
+      });
+
+      // Outer Ring: Offline Historical or RF Co-Located BSSIDs
+      const outerRad = Math.min(w, h) * 0.42;
+      if (topoMode === 'all') {
+        offlineOthers.forEach((d, idx) => {
+          const ang = (idx / Math.max(1, offlineOthers.length)) * Math.PI * 2;
+          topoNodes.push({
+            ip: d.ip,
+            label: (d.custom_name || d.display_name || d.ip).slice(0, 22),
+            sub: `${d.ip} (Offline)`,
+            badge: 'OFFLINE',
+            x: cx + Math.cos(ang) * outerRad,
+            y: cy + Math.sin(ang) * outerRad,
+            r: 14,
+            color: '#64748b',
+            isOnline: false,
+            rtt: 0
+          });
+        });
+      } else if (topoMode === 'rf' && appState.wifi && appState.wifi.access_points) {
+        const aps = appState.wifi.access_points.slice(0, 16);
+        aps.forEach((ap, idx) => {
+          const ang = (idx / Math.max(1, aps.length)) * Math.PI * 2;
+          topoNodes.push({
+            ip: ap.linked_lan_ip || (gw ? gw.ip : ''),
+            label: (ap.de_cloaked_ssid || ap.ssid || ap.bssid).slice(0, 22),
+            sub: `${ap.bssid} • ${ap.signal_dbm} dBm`,
+            badge: ap.band || 'RF',
+            x: cx + Math.cos(ang) * outerRad,
+            y: cy + Math.sin(ang) * outerRad,
+            r: 15,
+            color: ap.is_hidden ? '#f59e0b' : '#ec4899',
+            isOnline: true,
+            isRf: true,
+            rtt: 12
+          });
+        });
+      }
+    }
+
+    function resizeTopology() {
+      const canvas = document.getElementById('topologyCanvas');
+      if (!canvas) return;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width || 1100;
+      canvas.height = rect.height || 640;
+      rebuildTopology();
+    }
+
+    function drawTopology() {
+      const canvas = document.getElementById('topologyCanvas');
+      if (canvas && canvas.offsetParent !== null && topoNodes.length > 0) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const gw = topoNodes[0];
+        const t = performance.now() / 1000;
+
+        // Subtle orbital guide rings around Gateway
+        const minDim = Math.min(canvas.width, canvas.height);
+        [minDim * (topoMode === 'online' ? 0.34 : 0.24), topoMode !== 'online' ? minDim * 0.42 : 0].forEach(rad => {
+          if (rad > 0) {
+            ctx.beginPath();
+            ctx.arc(gw.x, gw.y, rad, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(38, 48, 66, 0.45)';
+            ctx.setLineDash([4, 6]);
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        });
+
+        for (let i = 1; i < topoNodes.length; i++) {
+          const n = topoNodes[i];
+          ctx.beginPath();
+          ctx.moveTo(gw.x, gw.y);
+          ctx.lineTo(n.x, n.y);
+          ctx.strokeStyle = n.isOnline ? '#263042' : 'rgba(38, 48, 66, 0.4)';
+          ctx.lineWidth = n.isUplink ? 2.2 : (n.isOnline ? 1.5 : 1.0);
+          ctx.stroke();
+
+          if (n.isOnline) {
+            const speed = Math.max(0.25, Math.min(1.1, 8.0 / Math.max(2, n.rtt || 10)));
+            const frac = (t * speed + i * 0.17) % 1;
+            const px = gw.x + (n.x - gw.x) * frac;
+            const py = gw.y + (n.y - gw.y) * frac;
+            ctx.beginPath();
+            ctx.arc(px, py, n.isUplink ? 4 : 3, 0, Math.PI * 2);
+            ctx.fillStyle = n.color;
+            ctx.fill();
+          }
+        }
+
+        topoNodes.forEach(n => {
+          const isHover = hoveredTopoNode === n;
+          if (isHover || n.isGateway) {
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, n.r + 6, 0, Math.PI * 2);
+            ctx.strokeStyle = n.color + '44';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+          }
+
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+          ctx.fillStyle = '#141923';
+          ctx.fill();
+          ctx.lineWidth = isHover ? 2.8 : 2;
+          ctx.strokeStyle = n.color;
+          ctx.stroke();
+
+          if (n.badge) {
+            ctx.font = '700 8.5px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = n.color;
+            ctx.fillText(n.badge.toUpperCase(), n.x, n.y + 3);
+          }
+
+          ctx.font = '600 11px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = n.isOnline ? '#e2e8f0' : '#94a3b8';
+          ctx.fillText(n.label, n.x, n.y + n.r + 14);
+
+          ctx.font = '10px monospace';
+          ctx.fillStyle = '#64748b';
+          ctx.fillText(n.sub, n.x, n.y + n.r + 26);
+        });
+      }
+      requestAnimationFrame(drawTopology);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('topologyCanvas');
+      canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+        topoDragMoved = false;
+        for (const n of topoNodes) {
+          if (Math.hypot(mx - n.x, my - n.y) <= n.r + 8) {
+            draggedTopoNode = n;
+            break;
+          }
+        }
+      });
+      canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+        if (draggedTopoNode) {
+          topoDragMoved = true;
+          draggedTopoNode.x = mx;
+          draggedTopoNode.y = my;
+          return;
+        }
+        hoveredTopoNode = null;
+        for (const n of topoNodes) {
+          if (Math.hypot(mx - n.x, my - n.y) <= n.r + 8) {
+            hoveredTopoNode = n;
+            break;
+          }
+        }
+        canvas.style.cursor = hoveredTopoNode ? 'pointer' : 'default';
+      });
+      window.addEventListener('mouseup', () => {
+        draggedTopoNode = null;
+      });
+      canvas.addEventListener('click', (e) => {
+        if (topoDragMoved) return;
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+        for (const n of topoNodes) {
+          if (Math.hypot(mx - n.x, my - n.y) <= n.r + 8 && n.ip) {
+            selectHost(n.ip);
+            switchTab('inventory', document.querySelector('.nav-tab'));
+            break;
+          }
+        }
+      });
+      window.addEventListener('resize', resizeTopology);
+      requestAnimationFrame(drawTopology);
+
+      fetch('/api/state').then(r => r.json()).then(updateDashboard).catch(() => {});
+
+      function connectWs() {
+        const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${proto}//${location.host}/ws`);
+        ws.onopen = () => { document.getElementById('wsStateLabel').textContent = 'Connected'; };
+        ws.onmessage = (ev) => {
+          try {
+            const msg = JSON.parse(ev.data);
+            if (msg.type === 'full_state') updateDashboard(msg.data);
+            else if (msg.type === 'wire_packet' && appState) {
+              appState.wire_packets = [msg.packet, ...(appState.wire_packets || [])].slice(0, 80);
+              renderPackets();
+            } else if (msg.type === 'speedtest_result' && appState) {
+              appState.speedtest = msg.data;
+              renderUplink();
+            }
+          } catch (_) {}
+        };
+        ws.onclose = () => {
+          document.getElementById('wsStateLabel').textContent = 'Reconnecting…';
+          setTimeout(connectWs, 2500);
+        };
+      }
+      connectWs();
+    });
+
+    async function openMobileQrModal() {
+      const modal = document.getElementById('mobileQrModal');
+      modal.style.display = 'flex';
+      try {
+        const res = await fetch('/api/mobile-qr');
+        const data = await res.json();
+        document.getElementById('qrMobileUrlText').textContent = data.mobile_url;
+        document.getElementById('qrApkUrlText').textContent = data.apk_url;
+        document.getElementById('qrMobileSvgWrap').innerHTML = data.mobile_qr_svg || '';
+        document.getElementById('qrApkSvgWrap').innerHTML = data.apk_qr_svg || '';
+        document.getElementById('qrSsidBadge').textContent = `Wi-Fi: ${data.ssid} (${data.host_ip}:8765)`;
+        document.getElementById('qrApkSizeBadge').textContent = `Signed Android 15 APK (${data.apk_size_kb} KB)`;
+      } catch (e) {}
+    }
+
+    function closeMobileQrModal() {
+      document.getElementById('mobileQrModal').style.display = 'none';
+    }
+
+    function openOuiModal() {
+      const m = document.getElementById('ouiSearchModal');
+      if (m) m.style.display = 'flex';
+      runOuiSearch();
+    }
+
+    function closeOuiModal() {
+      const m = document.getElementById('ouiSearchModal');
+      if (m) m.style.display = 'none';
+    }
+
+    async function runOuiSearch() {
+      const q = (document.getElementById('ouiQueryInput')?.value || 'Arcadyan').trim();
+      const tbody = document.getElementById('ouiResultsBody');
+      if (!tbody) return;
+      try {
+        const res = await fetch(`/api/oui/search?q=${encodeURIComponent(q)}&limit=40`).then(r => r.json());
+        const rows = res.results || [];
+        document.getElementById('ouiModeBadge').textContent = `Mode: ${res.mode || 'vendor'} • ${rows.length} Match(es)`;
+        tbody.innerHTML = rows.map(r => {
+          const prefix = r.unmasked_mac ? `${r.ipv6} &rarr; <strong>${r.unmasked_mac}</strong>` : (r.oui_prefix || r.mac || '');
+          const extra = r.unmasked_parent_vendor
+            ? `<div style="color:#34d399;font-size:10.5px;">Unmasked LAA Parent: ${r.unmasked_parent_oui} (${r.unmasked_parent_vendor})</div>`
+            : '';
+          return `
+            <tr>
+              <td class="mono" style="font-weight:600;color:#38bdf8;">${prefix}</td>
+              <td style="font-weight:600;color:#fff;">${r.vendor || ''} ${extra}</td>
+              <td class="mono" style="font-size:11px;color:#94a3b8;">${r.registry_type || 'IEEE MA-L (24-bit)'}</td>
+              <td style="font-size:11px;color:#cbd5e1;">${r.address || r.vendor_address || '—'}</td>
+            </tr>
+          `;
+        }).join('') || `<tr><td colspan="4" style="color:var(--text-muted);">No matching IEEE OUI or EUI-64 records found.</td></tr>`;
+      } catch (e) {}
+    }
+
+    let billingCycle = 'monthly';
+
+    async function openSubscriptionModal(gatePayload = null) {
+      const modal = document.getElementById('subscriptionModal');
+      if (!modal) return;
+      modal.style.display = 'flex';
+      const banner = document.getElementById('subGateBanner');
+      if (banner) {
+        if (gatePayload && gatePayload.message) {
+          banner.style.display = 'block';
+          banner.innerHTML = `🔒 <strong>Feature Locked (${gatePayload.feature_name || 'Premium Feature'}):</strong> ${gatePayload.message}`;
+        } else {
+          banner.style.display = 'none';
+        }
+      }
+      await refreshSubscriptionModal();
+    }
+
+    function closeSubscriptionModal() {
+      const modal = document.getElementById('subscriptionModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function setBillingCycle(cycle) {
+      billingCycle = cycle;
+      document.getElementById('cycleMonthlyBtn').className = cycle === 'monthly' ? 'btn btn-primary btn-sm' : 'btn btn-sm';
+      document.getElementById('cycleAnnualBtn').className = cycle === 'annual' ? 'btn btn-primary btn-sm' : 'btn btn-sm';
+      document.getElementById('priceProLabel').textContent = cycle === 'annual' ? '$99 / yr' : '$9.99 / mo';
+      document.getElementById('priceEntLabel').textContent = cycle === 'annual' ? '$299 / yr' : '$29.99 / mo';
+    }
+
+    async function refreshSubscriptionModal() {
+      try {
+        const res = await fetch('/api/subscription/status');
+        const st = await res.json();
+        if (appState) {
+          appState.subscription = st;
+          updateDashboard(appState);
+        }
+        document.getElementById('subActiveTierName').textContent = `${st.tier_name} (${st.badge})`;
+        document.getElementById('subActiveMeta').textContent =
+          `Subscriber: ${st.email} • Key: ${st.license_key_masked} • Expires: ${st.expires_human} • Max Nodes: ${st.max_nodes}`;
+        document.getElementById('btnDeactivateLic').style.display = st.is_paid ? 'inline-flex' : 'none';
+
+        // Highlight active card buttons
+        const btnFree = document.getElementById('btnPlanFree');
+        const btnPro = document.getElementById('btnPlanPro');
+        const btnEnt = document.getElementById('btnPlanEnt');
+        if (btnFree) btnFree.textContent = st.tier === 'free' ? '✓ Current Plan' : 'Downgrade to Free';
+        if (btnPro) btnPro.textContent = st.tier === 'pro' ? '✓ Active Plan (Pro Guardian)' : 'Subscribe — Pro Guardian';
+        if (btnEnt) btnEnt.textContent = st.tier === 'enterprise' ? '✓ Active Plan (Sovereign Enterprise)' : 'Subscribe — Sovereign Enterprise';
+
+        // Load admin minted keys ledger
+        const kRes = await fetch('/api/subscription/admin/keys');
+        const kData = await kRes.json();
+        const tbody = document.getElementById('mintedKeysBody');
+        if (tbody && kData.keys) {
+          tbody.innerHTML = kData.keys.slice(0, 12).map(k => `
+            <tr>
+              <td class="mono">${k.jti}</td>
+              <td><span class="tag ${k.tier==='enterprise'?'tag-online':'tag-blue'}">${k.tier.toUpperCase()}</span></td>
+              <td class="mono">${k.plan}</td>
+              <td>${k.email}</td>
+              <td class="mono">${k.expires_human}</td>
+              <td class="mono" style="font-size:10.5px;max-width:240px;overflow:hidden;text-overflow:ellipsis;" title="${k.license_key}">${k.license_key}</td>
+              <td>
+                ${k.revoked ? '<span class="tag tag-offline">REVOKED</span>' : `
+                  <button class="btn btn-sm btn-primary" onclick="activateSpecificKey('${k.license_key}')">Activate</button>
+                  <button class="btn btn-sm btn-danger" onclick="revokeMintedKey('${k.jti}')">Revoke</button>
+                `}
+              </td>
+            </tr>
+          `).join('') || '<tr><td colspan="7" style="color:var(--text-muted);">No keys minted yet.</td></tr>';
+        }
+      } catch (e) {}
+    }
+
+    async function startStripeCheckout(tier) {
+      const email = (document.getElementById('subEmailInput')?.value || 'subscriber@netpulse.io').trim();
+      const statusMsg = document.getElementById('subActionStatus');
+      if (statusMsg) statusMsg.textContent = `Creating Stripe Checkout Session for ${tier.toUpperCase()} (${billingCycle})…`;
+      const res = await fetch('/api/subscription/checkout', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tier, plan: billingCycle, email, origin_url: location.origin})
+      }).then(r => r.json());
+
+      if (res.ok && res.checkout_url) {
+        window.open(res.checkout_url, '_blank');
+        if (statusMsg) statusMsg.textContent = `Opened Stripe Checkout in browser (${res.session_id}).`;
+      } else {
+        if (statusMsg) statusMsg.textContent = res.error || 'Stripe Checkout unavailable — configure Stripe key below or mint/activate an NP1 license key.';
+        const adm = document.getElementById('adminMintDetails');
+        if (adm) adm.open = true;
+      }
+    }
+
+    async function submitActivateLicense() {
+      const key = (document.getElementById('licenseKeyInput')?.value || '').trim();
+      if (!key) return;
+      await activateSpecificKey(key);
+    }
+
+    async function activateSpecificKey(key) {
+      const statusMsg = document.getElementById('subActionStatus');
+      const res = await fetch('/api/subscription/activate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({license_key: key})
+      }).then(r => r.json());
+      if (statusMsg) {
+        statusMsg.style.color = res.ok ? '#34d399' : '#f87171';
+        statusMsg.textContent = res.ok ? `✓ ${res.message}` : `✕ ${res.error}`;
+      }
+      if (res.ok) {
+        const inp = document.getElementById('licenseKeyInput');
+        if (inp) inp.value = key;
+        await refreshSubscriptionModal();
+      }
+    }
+
+    async function deactivateCurrentLicense() {
+      await fetch('/api/subscription/deactivate', {method: 'POST'});
+      const statusMsg = document.getElementById('subActionStatus');
+      if (statusMsg) {
+        statusMsg.style.color = '#fbbf24';
+        statusMsg.textContent = 'Node reverted to Community Edition (Free Tier).';
+      }
+      await refreshSubscriptionModal();
+    }
+
+    async function adminMintAndActivate(tier, plan) {
+      const email = (document.getElementById('mintEmailInput')?.value || 'founder@netpulse.local').trim();
+      const admin_token = (document.getElementById('adminTokenInput')?.value || '').trim();
+      const res = await fetch('/api/subscription/admin/mint', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tier, plan, email, auto_activate: true, admin_token})
+      }).then(r => r.json());
+      const statusMsg = document.getElementById('subActionStatus');
+      if (res.ok && statusMsg) {
+        statusMsg.style.color = '#34d399';
+        statusMsg.textContent = `✓ Minted & Activated ${res.tier_name} (${res.plan.toUpperCase()}): ${res.license_key}`;
+        const inp = document.getElementById('licenseKeyInput');
+        if (inp) inp.value = res.license_key;
+      } else if (statusMsg) {
+        statusMsg.style.color = '#f87171';
+        statusMsg.textContent = `✕ ${res.error || 'Admin Master Token required'}`;
+      }
+      await refreshSubscriptionModal();
+    }
+
+    async function startFreeTrial() {
+      const email = (document.getElementById('subEmailInput')?.value || 'trial@netpulse.io').trim();
+      const res = await fetch('/api/subscription/trial', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email})
+      }).then(r => r.json());
+      const statusMsg = document.getElementById('subActionStatus');
+      if (statusMsg) {
+        statusMsg.style.color = res.ok ? '#34d399' : '#f87171';
+        statusMsg.textContent = res.ok ? `✓ ${res.message}` : `✕ ${res.error}`;
+      }
+      await refreshSubscriptionModal();
+    }
+
+    function downloadLicenseCertificate() {
+      const sub = (appState && appState.subscription) || {};
+      const keyVal = (document.getElementById('licenseKeyInput')?.value || sub.license_key_masked || '').trim();
+      const cert = {
+        product: "NetPulse // OmniSight v4.5.0 Sovereign Network & RF Intelligence Suite",
+        tier: sub.tier_name || "Community Edition",
+        plan: sub.plan || "free",
+        subscriber_email: sub.email || "",
+        license_id: sub.jti || "",
+        license_key: keyVal,
+        max_nodes: sub.max_nodes || 1,
+        expires: sub.expires_human || "Never",
+        generated_at: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(cert, null, 2)], {type: 'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `NetPulse-License-${sub.jti || 'certificate'}.json`;
+      a.click();
+    }
+
+    async function revokeMintedKey(jti) {
+      const admin_token = (document.getElementById('adminTokenInput')?.value || '').trim();
+      await fetch('/api/subscription/admin/revoke', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({jti, admin_token})
+      });
+      await refreshSubscriptionModal();
+    }
+
+    async function saveStripeConfig() {
+      const secret_key = (document.getElementById('stripeSkInput')?.value || '').trim();
+      const publishable_key = (document.getElementById('stripePkInput')?.value || '').trim();
+      const webhook_secret = (document.getElementById('stripeWhInput')?.value || '').trim();
+      const admin_token = (document.getElementById('adminTokenInput')?.value || '').trim();
+      const res = await fetch('/api/subscription/stripe-config', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({secret_key, publishable_key, webhook_secret, admin_token})
+      }).then(r => r.json());
+      const statusMsg = document.getElementById('subActionStatus');
+      if (statusMsg) {
+        statusMsg.style.color = '#38bdf8';
+        statusMsg.textContent = res.message || 'Saved Stripe keys.';
+      }
+      await refreshSubscriptionModal();
+    }
+
+    function openAllAroundToolkitModal(initialDomain) {
+      document.getElementById('allAroundToolkitModal').style.display = 'flex';
+      if (initialDomain) {
+        document.getElementById('toolkitDomainInput').value = initialDomain;
+      }
+      runDomainRecon();
+      refreshLocalSockets();
+      runSubnetCalculator();
+    }
+
+    function closeAllAroundToolkitModal() {
+      document.getElementById('allAroundToolkitModal').style.display = 'none';
+    }
+
+    async function runDomainRecon(presetTarget) {
+      const inp = document.getElementById('toolkitDomainInput');
+      if (presetTarget && inp) inp.value = presetTarget;
+      const target = (inp ? inp.value : 'cloudflare.com').trim() || 'cloudflare.com';
+      const box = document.getElementById('toolkitDomainOutput');
+      const badge = document.getElementById('toolkitDomainGradeBadge');
+      if (box) box.innerHTML = `<div class="mono" style="color:#38bdf8;font-size:12px;">Probing DNS (A/AAAA/MX/NS/TXT/SPF/DMARC), TLS :443 X.509 Certificate &amp; HTTPS/HTTP3 headers for <strong>${target}</strong>…</div>`;
+      try {
+        const res = await fetch('/api/action/domain-intel', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({target})
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          if (box) box.innerHTML = `<div style="color:#f87171;">Error: ${data.error || 'Reconnaissance failed'}</div>`;
+          return;
+        }
+        if (badge) {
+          badge.textContent = `Grade ${data.security_grade} (${data.security_score}/100)`;
+          badge.className = `tag ${String(data.security_grade).startsWith('A') ? 'tag-online' : (data.security_grade === 'B' ? 'tag-blue' : 'tag-standby')}`;
+        }
+        const tls = data.tls || {};
+        const http = data.http || {};
+        const hdrs = http.security_headers || {};
+        if (box) {
+          box.innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:11.5px;line-height:1.65;">
+              <div style="background:#070a10;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+                <div style="font-weight:700;color:#38bdf8;margin-bottom:4px;">DNS &amp; Email Anti-Spoofing (SPF / DMARC)</div>
+                <div><strong>Domain:</strong> <span class="mono">${data.domain}</span> ${data.reverse_ptr ? `(&rarr; <span class="mono">${data.reverse_ptr}</span>)` : ''}</div>
+                <div><strong>IPv4 (A):</strong> <span class="mono">${(data.ipv4_addresses || []).join(', ') || '—'}</span></div>
+                <div><strong>IPv6 (AAAA):</strong> <span class="mono">${(data.ipv6_addresses || []).join(', ') || '—'}</span></div>
+                <div><strong>MX Servers:</strong> <span class="mono">${(data.mx_records || []).slice(0, 4).join(', ') || '—'}</span></div>
+                <div><strong>NS Servers:</strong> <span class="mono">${(data.ns_records || []).slice(0, 4).join(', ') || '—'}</span></div>
+                <div><strong>SPF Policy:</strong> <span class="mono" style="color:${data.spf_present ? '#34d399' : '#f87171'};">${data.spf_record || 'Missing SPF TXT'}</span></div>
+                <div><strong>DMARC Policy:</strong> <span class="mono" style="color:${data.dmarc_present ? '#34d399' : '#fbbf24'};">${data.dmarc_record || 'Missing _dmarc TXT'}</span></div>
+              </div>
+              <div style="background:#070a10;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+                <div style="font-weight:700;color:#34d399;margin-bottom:4px;">Live X.509 TLS (:443) &amp; HTTPS/HTTP3 Posture</div>
+                <div><strong>TLS Handshake:</strong> <span class="mono">${tls.protocol || 'Closed'} &bull; ${tls.cipher_suite || '—'} (${tls.cipher_bits || 0}-bit)</span></div>
+                <div><strong>Subject CN / Issuer:</strong> <span class="mono">${tls.subject_cn || '—'}</span> (by <strong>${tls.issuer_org || tls.issuer_cn || '—'}</strong>)</div>
+                <div><strong>Validity:</strong> <span class="mono">${tls.not_before || '—'} &rarr; ${tls.not_after || '—'}</span></div>
+                <div><strong>SAN Count:</strong> <span class="mono">${tls.san_count || 0} DNS SANs (${(tls.san_domains || []).slice(0, 4).join(', ')})</span></div>
+                <div><strong>HTTP Status / Server:</strong> <span class="mono">${http.status_code || '—'} (${http.latency_ms || '—'} ms) &bull; ${http.server || 'Hidden'}</span></div>
+                <div><strong>HTTP/3 (QUIC) / HSTS:</strong> <span class="mono">HTTP/3: ${http.http3_supported ? 'YES' : 'No'} &bull; HSTS: ${hdrs['strict-transport-security'] ? 'Enforced' : 'None'} &bull; CSP: ${hdrs['content-security-policy'] ? 'Active' : 'None'}</span></div>
+                ${(data.findings || []).length ? `<div style="margin-top:4px;color:#fbbf24;"><strong>Findings:</strong> ${data.findings.join(' • ')}</div>` : `<div style="margin-top:4px;color:#34d399;"><strong>Posture:</strong> Hardened TLS, SPF &amp; DMARC verified</div>`}
+              </div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        if (box) box.innerHTML = `<div style="color:#f87171;">Request failed: ${e}</div>`;
+      }
+    }
+
+    async function refreshLocalSockets() {
+      const tbody = document.getElementById('toolkitSocketsBody');
+      const meta = document.getElementById('toolkitSocketsMeta');
+      try {
+        const res = await fetch('/api/local/sockets');
+        const data = await res.json();
+        if (meta) {
+          const rxTx = (data.interface_counters || []).map(c => `${c.interface}: ↓${c.rx_mb}MB ↑${c.tx_mb}MB`).join(' • ');
+          meta.innerHTML = `Listening Daemons: <strong>${data.listening_count || 0}</strong> &bull; LAN-Exposed: <strong style="color:#fbbf24;">${data.lan_exposed_count || 0}</strong> &bull; Established Outbound: <strong>${data.established_count || 0}</strong> &bull; ${rxTx}`;
+        }
+        if (tbody) {
+          tbody.innerHTML = (data.listening_sockets || []).slice(0, 40).map(s => `
+            <tr class="mono">
+              <td><span class="tag tag-blue">${s.proto}</span></td>
+              <td style="font-weight:600;color:#fff;">${s.bind_address}:${s.port}</td>
+              <td style="color:#34d399;">${s.process || 'kernel'} ${s.pid ? `(PID ${s.pid})` : ''}</td>
+              <td><span class="tag ${s.lan_exposed ? 'tag-standby' : 'tag-neutral'}">${s.scope}</span></td>
+            </tr>
+          `).join('');
+        }
+      } catch (e) {
+        if (meta) meta.textContent = `Socket audit error: ${e}`;
+      }
+    }
+
+    async function runSubnetCalculator() {
+      const cidr = (document.getElementById('toolkitCidrInput').value || '192.168.12.0/24').trim();
+      const out = document.getElementById('toolkitCidrOutput');
+      try {
+        const res = await fetch(`/api/subnet/calc?cidr=${encodeURIComponent(cidr)}`);
+        const d = await res.json();
+        if (!d.ok) {
+          if (out) out.innerHTML = `<span style="color:#f87171;">${d.error}</span>`;
+          return;
+        }
+        if (out) {
+          out.innerHTML = `
+            <div><strong>CIDR Block:</strong> <span class="mono" style="color:#38bdf8;">${d.cidr}</span> (IPv${d.ip_version} &bull; ${d.ip_class} &bull; ${d.scope})</div>
+            <div><strong>Network / Broadcast:</strong> <span class="mono">${d.network_address}</span> &rarr; <span class="mono">${d.broadcast_address}</span></div>
+            <div><strong>Netmask / Wildcard:</strong> <span class="mono">${d.netmask}</span> (Wildcard <span class="mono">${d.hostmask}</span>)</div>
+            <div><strong>Usable Host Range:</strong> <span class="mono" style="color:#34d399;">${d.first_usable} &rarr; ${d.last_usable}</span> (<strong>${Number(d.usable_hosts).toLocaleString()}</strong> usable hosts)</div>
+          `;
+        }
+      } catch (e) {
+        if (out) out.textContent = `Error: ${e}`;
+      }
+    }
+
+    async function triggerWakeAllLan() {
+      const st = document.getElementById('toolkitWakeAllStatus');
+      if (st) st.textContent = 'Transmitting IEEE 802.3 Magic Packets to all LAN hosts…';
+      try {
+        const res = await fetch('/api/action/wake-all', {method: 'POST'});
+        const d = await res.json();
+        if (st) st.textContent = `✓ Woke ${d.woken_count}/${d.total_targets} LAN endpoints via UDP :9 Broadcast`;
+      } catch (e) {
+        if (st) st.textContent = `Wake-All failed: ${e}`;
+      }
+    }
+
+    // Automatically verify Stripe Checkout return session if present in URL
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(location.search);
+      const sessId = params.get('stripe_session_id');
+      if (sessId) {
+        fetch('/api/subscription/verify-session', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({session_id: sessId})
+        }).then(r => r.json()).then(res => {
+          history.replaceState({}, document.title, location.pathname);
+          openSubscriptionModal();
+          const statusMsg = document.getElementById('subActionStatus');
+          if (statusMsg) {
+            statusMsg.style.color = res.ok ? '#34d399' : '#f87171';
+            statusMsg.textContent = res.ok ? `✓ Stripe Checkout Verified: ${res.message}` : `✕ ${res.error}`;
+          }
+        });
+      }
+    });
+  </script>
+
+  <!-- SUBSCRIPTION, STRIPE CHECKOUT & CRYPTOGRAPHIC LICENSE MODAL -->
+  <div id="subscriptionModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(5,8,15,0.86);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:18px;overflow-y:auto;">
+    <div style="background:#111622;border:1px solid #2e405c;border-radius:12px;max-width:980px;width:100%;max-height:92vh;overflow-y:auto;padding:22px;box-shadow:0 24px 60px rgba(0,0,0,0.85);color:#f1f5f9;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #1f2838;padding-bottom:12px;margin-bottom:14px;">
+        <div>
+          <div style="font-size:18px;font-weight:800;color:#fff;display:flex;align-items:center;gap:10px;">
+            <span>💎 NetPulse Sovereign Subscription &amp; Cryptographic License Engine</span>
+            <span id="subActiveTierName" class="tag tag-blue">Community Edition</span>
+          </div>
+          <div id="subActiveMeta" class="mono" style="font-size:11.5px;color:#94a3b8;margin-top:4px;">Loading active node license…</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <a href="/pricing" target="_blank" class="btn btn-sm" style="text-decoration:none;">↗ Storefront (/pricing)</a>
+          <button class="btn btn-sm" onclick="downloadLicenseCertificate()">⬇ License Certificate</button>
+          <button id="btnDeactivateLic" class="btn btn-sm btn-danger" style="display:none;" onclick="deactivateCurrentLicense()">Revert to Free Tier</button>
+          <button class="btn" onclick="closeSubscriptionModal()">✕ Close</button>
+        </div>
+      </div>
+
+      <div id="subGateBanner" style="display:none;background:rgba(245,158,11,0.14);border:1px solid rgba(245,158,11,0.45);border-left:4px solid #f59e0b;color:#fde68a;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:12.5px;"></div>
+
+      <!-- Billing Cycle Toggle + Email -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:12px;color:#94a3b8;font-weight:600;">Billing Cycle:</span>
+          <button id="cycleMonthlyBtn" class="btn btn-primary btn-sm" onclick="setBillingCycle('monthly')">Monthly</button>
+          <button id="cycleAnnualBtn" class="btn btn-sm" onclick="setBillingCycle('annual')">Annual (Save 17%)</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:12px;color:#94a3b8;">Subscriber Email:</span>
+          <input type="email" id="subEmailInput" class="input-field" style="min-width:210px;height:30px;" placeholder="operator@domain.com" value="founder@netpulse.io" />
+        </div>
+      </div>
+
+      <!-- 3-Tier Pricing Grid -->
+      <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:14px;margin-bottom:16px;">
+        <!-- Tier 1: Community Free -->
+        <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:10px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;">
+          <div>
+            <span class="tag tag-neutral">COMMUNITY</span>
+            <div style="font-size:16px;font-weight:800;color:#fff;margin-top:6px;">Community Edition</div>
+            <div class="mono" style="font-size:22px;font-weight:800;color:#94a3b8;margin:6px 0;">$0 / mo</div>
+            <div style="font-size:11.5px;color:#94a3b8;margin-bottom:10px;">Essential LAN discovery, OUI lookup, Ping Burst &amp; Wake-on-LAN.</div>
+            <ul style="padding-left:16px;margin:0;font-size:11.5px;color:#cbd5e1;line-height:1.65;">
+              <li>Real-time ARP / IPv6 Neighbor Discovery</li>
+              <li>47,000+ IEEE OUI Vendor Database</li>
+              <li>ICMP / TCP Latency Sparklines &amp; Ping Burst</li>
+              <li>IEEE 802 Wake-on-LAN Magic Packet</li>
+              <li>1 Node • Basic 802.11 Spectrum View</li>
+            </ul>
+          </div>
+          <button id="btnPlanFree" class="btn" style="width:100%;justify-content:center;margin-top:14px;" onclick="deactivateCurrentLicense()">Current Plan</button>
+        </div>
+
+        <!-- Tier 2: Pro Guardian -->
+        <div style="background:#0b0f17;border:1px solid #0284c7;border-radius:10px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 0 24px rgba(14,165,233,0.12);">
+          <div>
+            <span class="tag tag-blue">MOST POPULAR</span>
+            <div style="font-size:16px;font-weight:800;color:#38bdf8;margin-top:6px;">Pro Guardian</div>
+            <div id="priceProLabel" class="mono" style="font-size:22px;font-weight:800;color:#fff;margin:6px 0;">$9.99 / mo</div>
+            <div style="font-size:11.5px;color:#94a3b8;margin-bottom:10px;">Unlocks 8-Stage Hidden De-Cloaker, RF Geiger Finder &amp; Smart Home/TV Control.</div>
+            <ul style="padding-left:16px;margin:0;font-size:11.5px;color:#cbd5e1;line-height:1.65;">
+              <li><strong>8-Stage Hidden BSSID &amp; Privacy MAC De-Cloaker</strong></li>
+              <li><strong>Walk-Around RF Geiger Counter &amp; Triangulation</strong></li>
+              <li><strong>24-Hour Host Presence &amp; Availability Heatmap</strong></li>
+              <li><strong>Roku, DIAL, PlayStation DDP, Spotify &amp; Kasa/Shelly/Cast Controls</strong></li>
+              <li><strong>4-Ring Deep &amp; Wide Area Scan (Up to 3 Nodes)</strong></li>
+            </ul>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:14px;">
+            <button id="btnPlanPro" class="btn btn-primary" style="width:100%;justify-content:center;" onclick="startStripeCheckout('pro')">Subscribe — Pro Guardian</button>
+            <button class="btn btn-sm" style="width:100%;justify-content:center;" onclick="startFreeTrial()">Start 7-Day Free Trial</button>
+          </div>
+        </div>
+
+        <!-- Tier 3: Sovereign Enterprise -->
+        <div style="background:#0b0f17;border:1px solid #10b981;border-radius:10px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 0 28px rgba(16,185,129,0.15);">
+          <div>
+            <span class="tag tag-online">FULL SPECTRUM</span>
+            <div style="font-size:16px;font-weight:800;color:#34d399;margin-top:6px;">Sovereign Enterprise</div>
+            <div id="priceEntLabel" class="mono" style="font-size:22px;font-weight:800;color:#fff;margin:6px 0;">$29.99 / mo</div>
+            <div style="font-size:11.5px;color:#94a3b8;margin-bottom:10px;">Autonomous Host Quarantine, Wire DPI/JA3, Camera Sweep &amp; Forensic Exports.</div>
+            <ul style="padding-left:16px;margin:0;font-size:11.5px;color:#cbd5e1;line-height:1.65;">
+              <li><strong>Guardian Shield Active Host Quarantine &amp; TCP RST Teardown</strong></li>
+              <li><strong>Live Wire DPI: KB/s Rate, DNS/TLS SNI, JA3 &amp; p0f Signatures</strong></li>
+              <li><strong>Counter-Surveillance ONVIF &amp; Hidden Camera RF Sweep</strong></li>
+              <li><strong>5G NR Cellular Gateway Control, Nmap (-sV) &amp; MTR Trace</strong></li>
+              <li><strong>Forensic Intelligence Dossier Export (Up to 25 Nodes)</strong></li>
+            </ul>
+          </div>
+          <button id="btnPlanEnt" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:14px;background:#059669;border-color:#10b981;" onclick="startStripeCheckout('enterprise')">Subscribe — Sovereign Enterprise</button>
+        </div>
+      </div>
+
+      <!-- License Key Activation Bar -->
+      <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:10px;padding:14px;margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:700;color:#e2e8f0;margin-bottom:6px;">Activate Cryptographic License Key (`NP1-PRO-...` or `NP1-ENTERPRISE-...`)</div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="licenseKeyInput" class="input-field mono" style="flex:1;" placeholder="Paste NP1-ENTERPRISE-... or NP1-PRO-... signed license key" />
+          <button class="btn btn-primary" onclick="submitActivateLicense()">Activate License Key</button>
+        </div>
+        <div id="subActionStatus" class="mono" style="font-size:11.5px;color:#38bdf8;margin-top:6px;"></div>
+      </div>
+
+      <!-- Sovereign Operator Key Generator & Stripe API Settings -->
+      <details id="adminMintDetails" style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:10px;padding:12px 14px;">
+        <summary style="cursor:pointer;font-weight:700;font-size:12.5px;color:#a78bfa;">⚙ Sovereign Admin Key Generator (Mint Keys) &amp; Stripe Billing Configuration</summary>
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+          <span style="font-size:11.5px;color:#94a3b8;white-space:nowrap;">Admin Master Token (`~/.config/netpulse/admin.token`):</span>
+          <input type="password" id="adminTokenInput" class="input-field mono" style="flex:1;height:28px;" placeholder="Auto-authenticated on 127.0.0.1 loopback (required for remote LAN/WAN admin)" />
+        </div>
+        <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div style="border:1px solid #1f2838;border-radius:8px;padding:12px;">
+            <div style="font-weight:700;font-size:12px;color:#34d399;margin-bottom:6px;">1. Instant Cryptographic Key Minter (HMAC-SHA256)</div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">Mint and activate signed keys for customers, field handsets, or founder lifetime access:</div>
+            <input type="text" id="mintEmailInput" class="input-field" style="width:100%;margin-bottom:8px;" placeholder="Recipient email (e.g. customer@company.com)" value="founder@netpulse.io" />
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn btn-sm btn-primary" onclick="adminMintAndActivate('pro', 'monthly')">Mint Pro (Monthly)</button>
+              <button class="btn btn-sm btn-primary" onclick="adminMintAndActivate('pro', 'annual')">Mint Pro (Annual)</button>
+              <button class="btn btn-sm btn-primary" style="background:#059669;border-color:#10b981;" onclick="adminMintAndActivate('enterprise', 'annual')">Mint Enterprise (Annual)</button>
+              <button class="btn btn-sm btn-primary" style="background:#7c3aed;border-color:#8b5cf6;" onclick="adminMintAndActivate('enterprise', 'lifetime')">👑 Mint Founder Lifetime</button>
+            </div>
+          </div>
+
+          <div style="border:1px solid #1f2838;border-radius:8px;padding:12px;">
+            <div style="font-weight:700;font-size:12px;color:#38bdf8;margin-bottom:6px;">2. Stripe Checkout API Credentials</div>
+            <div style="display:grid;gap:6px;">
+              <input type="password" id="stripeSkInput" class="input-field mono" style="width:100%;height:28px;" placeholder="STRIPE_SECRET_KEY (sk_live_... or sk_test_...)" />
+              <input type="text" id="stripePkInput" class="input-field mono" style="width:100%;height:28px;" placeholder="STRIPE_PUBLISHABLE_KEY (pk_live_... or pk_test_...)" />
+              <div style="display:flex;gap:6px;">
+                <input type="password" id="stripeWhInput" class="input-field mono" style="flex:1;height:28px;" placeholder="STRIPE_WEBHOOK_SECRET (whsec_...)" />
+                <button class="btn btn-sm btn-primary" onclick="saveStripeConfig()">Save Stripe Keys</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <div style="font-size:11.5px;font-weight:700;color:#cbd5e1;margin-bottom:6px;">Minted License Audit Ledger (`minted_licenses` SQLite Table)</div>
+          <div class="table-wrap" style="max-height:170px;overflow-y:auto;">
+            <table class="ent-table">
+              <thead>
+                <tr>
+                  <th>JTI</th>
+                  <th>Tier</th>
+                  <th>Plan</th>
+                  <th>Subscriber</th>
+                  <th>Expires</th>
+                  <th>Signed Key</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="mintedKeysBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- MOBILE APP & NATIVE ANDROID APK PAIRING MODAL -->
+  <div id="mobileQrModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(5,8,15,0.82);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;">
+    <div style="background:#111622;border:1px solid #2e405c;border-radius:12px;max-width:760px;width:100%;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,0.75);color:#f1f5f9;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #1f2838;padding-bottom:12px;margin-bottom:16px;">
+        <div>
+          <div style="font-size:17px;font-weight:800;color:#fff;display:flex;align-items:center;gap:10px;">
+            <span>📱 NetPulse Mobile Field App &amp; Native Android APK</span>
+            <span id="qrSsidBadge" class="badge badge-emerald">Wi-Fi: 192.168.12.225:8765</span>
+          </div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:4px;">
+            Scan with your phone camera on the same Wi-Fi network for Walk-Around RF Geiger Triangulation, Universal Hidden BSSID De-Cloaking, and Smart TV / LAN Touch Control.
+          </div>
+        </div>
+        <button class="btn" onclick="closeMobileQrModal()">✕ Close</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <!-- QR 1: Instant Mobile PWA -->
+        <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:10px;padding:16px;text-align:center;">
+          <div style="font-weight:700;font-size:13.5px;color:#38bdf8;margin-bottom:4px;">1. Instant Mobile App (iOS &amp; Android PWA)</div>
+          <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Zero-install touch interface with live Web Audio RF Geiger Counter &amp; TV Remote</div>
+          <div id="qrMobileSvgWrap" style="width:176px;height:176px;margin:0 auto 10px auto;"></div>
+          <div id="qrMobileUrlText" style="font-family:var(--font-mono);font-size:11.5px;color:#e2e8f0;margin-bottom:10px;">http://192.168.12.225:8765/mobile</div>
+          <a href="/mobile" target="_blank" class="btn btn-primary" style="width:100%;justify-content:center;text-decoration:none;">↗ Open Mobile UI Preview</a>
+        </div>
+
+        <!-- QR 2: Signed Native Android APK -->
+        <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:10px;padding:16px;text-align:center;">
+          <div style="font-weight:700;font-size:13.5px;color:#34d399;margin-bottom:4px;">2. Native Android App (NetPulse-Mobile.apk)</div>
+          <div id="qrApkSizeBadge" style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Direct On-Phone Wi-Fi TSF Hardware + Magnetometer (µT) + 48-Thread Subnet Sweeper</div>
+          <div id="qrApkSvgWrap" style="width:176px;height:176px;margin:0 auto 10px auto;"></div>
+          <div id="qrApkUrlText" style="font-family:var(--font-mono);font-size:11.5px;color:#e2e8f0;margin-bottom:10px;">http://192.168.12.225:8765/download/NetPulse-Mobile.apk</div>
+          <a href="/download/NetPulse-Mobile.apk" download class="btn btn-primary" style="width:100%;justify-content:center;text-decoration:none;background:#059669;border-color:#10b981;">⬇ Download NetPulse-Mobile.apk</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IEEE OUI & SLAAC EUI-64 HARDWARE INTELLIGENCE SEARCH MODAL -->
+  <div id="ouiSearchModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(5,8,15,0.84);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;">
+    <div style="background:#111622;border:1px solid #2e405c;border-radius:12px;max-width:860px;width:100%;max-height:88vh;overflow-y:auto;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,0.8);color:#f1f5f9;">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1f2838;padding-bottom:10px;margin-bottom:14px;">
+        <div>
+          <div style="font-size:16px;font-weight:800;color:#fff;">🔍 47,000+ IEEE OUI Hardware &amp; IPv6 SLAAC EUI-64 Unmasking Engine</div>
+          <div style="font-size:11.5px;color:#94a3b8;margin-top:2px;">Search by MAC address, 24-bit OUI hex prefix, manufacturer name, LAA Virtual BSSID, or IPv6 SLAAC EUI-64 address</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span id="ouiModeBadge" class="tag tag-blue">Ready</span>
+          <button class="btn" onclick="closeOuiModal()">✕ Close</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input type="text" id="ouiQueryInput" class="input-field mono" style="flex:1;" value="Sonos" placeholder="Enter MAC (18:A5:1D:13:62:3D), Vendor (Ubiquiti, Sonos, Apple), or EUI-64 IPv6 (fe80::56af:97ff:fe2a:9e48)…" oninput="runOuiSearch()" />
+        <button class="btn btn-primary" onclick="runOuiSearch()">Search IEEE OUI Registry</button>
+      </div>
+      <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
+        <table class="ent-table">
+          <thead>
+            <tr>
+              <th>OUI Prefix / Unmasked MAC</th>
+              <th>IEEE Registered Manufacturer</th>
+              <th>Registry Class</th>
+              <th>Corporate Headquarters / Notes</th>
+            </tr>
+          </thead>
+          <tbody id="ouiResultsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5-PILLAR SECURITY POSTURE, IPV6 DUAL-STACK & 24H SQLITE ANALYTICS MODAL -->
+  <div id="securityPostureModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(5,8,15,0.84);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;">
+    <div style="background:#111622;border:1px solid #2e405c;border-radius:12px;max-width:820px;width:100%;max-height:88vh;overflow-y:auto;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,0.8);color:#f1f5f9;">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1f2838;padding-bottom:12px;margin-bottom:16px;">
+        <div>
+          <div style="font-size:16px;font-weight:800;color:#fff;">🛡 5-Pillar Network Security Posture, IPv6 Dual-Stack &amp; 24h Telemetry</div>
+          <div style="font-size:11.5px;color:#94a3b8;margin-top:2px;">Real-time cryptographic hygiene, RF spectrum defense, ICMPv6 Router Advertisement audit &amp; SQLite analytics</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span id="secModalGradeBadge" class="tag tag-online">Loading…</span>
+          <button class="btn" onclick="closeSecurityPostureModal()">✕ Close</button>
+        </div>
+      </div>
+      <div id="secModalPillars" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;"></div>
+      <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;line-height:1.7;" id="secModalIpv6Box"></div>
+      <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:8px;padding:12px;font-size:12px;line-height:1.7;" id="secModalDbBox"></div>
+    </div>
+  </div>
+
+  <!-- ALL-AROUND NETWORK ENGINEERING, DOMAIN/TLS OSINT, LOCAL SOCKETS & CIDR TOOLKIT MODAL -->
+  <div id="allAroundToolkitModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(5,8,15,0.86);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:18px;">
+    <div style="background:#111622;border:1px solid #2e405c;border-radius:12px;max-width:980px;width:100%;max-height:90vh;overflow-y:auto;padding:22px;box-shadow:0 24px 60px rgba(0,0,0,0.85);color:#f1f5f9;">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1f2838;padding-bottom:12px;margin-bottom:14px;">
+        <div>
+          <div style="font-size:17px;font-weight:800;color:#fff;">🛠 All-Around Network Engineering, Domain/TLS OSINT, Local Sockets &amp; Subnet Toolkit</div>
+          <div style="font-size:11.5px;color:#94a3b8;margin-top:2px;">Live Domain/DNS/SPF/DMARC &amp; X.509 TLS Inspector &bull; Local Workstation Listening Daemons (`ss -tulnp`) &bull; IPv4/IPv6 CIDR Calculator &amp; Batch Wake-on-LAN</div>
+        </div>
+        <button class="btn" onclick="closeAllAroundToolkitModal()">✕ Close</button>
+      </div>
+
+      <!-- 1. Domain, DNS, SPF/DMARC & Live TLS 443 Reconnaissance -->
+      <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:10px;padding:14px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-weight:700;font-size:13px;color:#38bdf8;">🌐 1. Domain, DNS Records, Email Security (SPF/DMARC) &amp; Live X.509 TLS Inspector</div>
+          <span id="toolkitDomainGradeBadge" class="tag tag-online">Ready</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+          <input type="text" id="toolkitDomainInput" class="input-field mono" style="flex:1;min-width:220px;" value="cloudflare.com" placeholder="Enter domain, hostname, URL, or IP (e.g. cloudflare.com, google.com, 1.1.1.1)…" />
+          <button class="btn btn-primary" onclick="runDomainRecon()">Inspect Target</button>
+          <button class="btn btn-sm" onclick="runDomainRecon('cloudflare.com')">cloudflare.com</button>
+          <button class="btn btn-sm" onclick="runDomainRecon('google.com')">google.com</button>
+          <button class="btn btn-sm" onclick="runDomainRecon('github.com')">github.com</button>
+        </div>
+        <div id="toolkitDomainOutput"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:14px;">
+        <!-- 2. Local Workstation Listening Ports & Process Audit -->
+        <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:10px;padding:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-weight:700;font-size:13px;color:#34d399;">💻 2. Local Workstation Listening Daemons &amp; Sockets</div>
+            <button class="btn btn-sm" onclick="refreshLocalSockets()">↻ Refresh Sockets</button>
+          </div>
+          <div id="toolkitSocketsMeta" class="mono" style="font-size:11px;color:#94a3b8;margin-bottom:8px;">Loading local kernel socket table…</div>
+          <div class="table-wrap" style="max-height:240px;overflow-y:auto;">
+            <table class="ent-table">
+              <thead>
+                <tr>
+                  <th>Proto</th>
+                  <th>Bind : Port</th>
+                  <th>Daemon / PID</th>
+                  <th>Exposure</th>
+                </tr>
+              </thead>
+              <tbody id="toolkitSocketsBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 3. IPv4/IPv6 CIDR Subnet Calculator & Batch Wake-All LAN -->
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:10px;padding:14px;">
+            <div style="font-weight:700;font-size:13px;color:#a78bfa;margin-bottom:8px;">🧮 3. IPv4 / IPv6 Subnet &amp; CIDR Calculator</div>
+            <div style="display:flex;gap:6px;margin-bottom:8px;">
+              <input type="text" id="toolkitCidrInput" class="input-field mono" style="flex:1;" value="192.168.12.0/24" placeholder="192.168.12.0/24 or 10.0.0.0/16 or fe80::/64" oninput="runSubnetCalculator()" />
+              <button class="btn btn-primary btn-sm" onclick="runSubnetCalculator()">Calculate</button>
+            </div>
+            <div id="toolkitCidrOutput" style="font-size:11.5px;line-height:1.7;color:#cbd5e1;"></div>
+          </div>
+
+          <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:10px;padding:14px;">
+            <div style="font-weight:700;font-size:13px;color:#fbbf24;margin-bottom:4px;">⚡ 4. Fleet-Wide Wake-on-LAN Broadcast</div>
+            <div style="font-size:11.5px;color:#94a3b8;margin-bottom:8px;">Transmit IEEE 802.3 Magic Packets simultaneously to all discovered non-gateway LAN hosts in the SQLite inventory:</div>
+            <button class="btn btn-primary" style="width:100%;justify-content:center;background:#059669;border-color:#10b981;" onclick="triggerWakeAllLan()">⚡ Wake All Discovered LAN Endpoints</button>
+            <div id="toolkitWakeAllStatus" class="mono" style="font-size:11px;color:#34d399;margin-top:6px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
