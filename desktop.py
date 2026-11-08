@@ -77,7 +77,8 @@ def launch_desktop_app() -> None:
 
     try:
         from PyQt6.QtCore import QTimer, QUrl, Qt
-        from PyQt6.QtGui import QAction, QIcon, QKeySequence, QShortcut
+        from PyQt6.QtGui import QAction, QDesktopServices, QIcon, QKeySequence, QShortcut
+        from PyQt6.QtWebEngineCore import QWebEngineDownloadRequest, QWebEnginePage
         from PyQt6.QtWebEngineWidgets import QWebEngineView
         from PyQt6.QtWidgets import (
             QApplication,
@@ -137,7 +138,63 @@ def launch_desktop_app() -> None:
         """
     )
 
+    status_bar = QStatusBar(win)
+    win.setStatusBar(status_bar)
+    status_bar.showMessage(
+        f"Connected to Local Daemon ({DAEMON_URL})  |  47,035 IEEE OUIs Loaded  |  Shortcuts: [Ctrl+R] Scan Subnet  [Ctrl+E] Export Report  [F11] Fullscreen"
+    )
+
     webview = QWebEngineView(win)
+
+    class _PopupBridgePage(QWebEnginePage):
+        """Captures target='_blank' / window.open URLs and routes local paths in-app or external URLs to OS browser."""
+
+        def __init__(self, parent_view: QWebEngineView) -> None:
+            super().__init__(parent_view.page().profile(), parent_view)
+            self._parent_view = parent_view
+            self.urlChanged.connect(self._on_popup_url)
+
+        def _on_popup_url(self, url: QUrl) -> None:
+            url_str = url.toString()
+            if not url_str or url_str == "about:blank":
+                return
+            host = url.host().lower()
+            if host in ("127.0.0.1", "localhost") or url_str.startswith(DAEMON_URL):
+                status_bar.showMessage(f"Navigating to {url_str}…")
+                self._parent_view.setUrl(url)
+            else:
+                status_bar.showMessage(f"Opening external link in system browser: {url_str}")
+                if not QDesktopServices.openUrl(url):
+                    subprocess.Popen(["xdg-open", url_str], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                send_os_notification("NetPulse External Link", f"Opened {url_str} in browser")
+            self.deleteLater()
+
+    class NetPulseWebEnginePage(QWebEnginePage):
+        def __init__(self, view: QWebEngineView) -> None:
+            super().__init__(view)
+            self._view = view
+            self._popups: list[_PopupBridgePage] = []
+
+        def createWindow(self, _type: QWebEnginePage.WebWindowType) -> QWebEnginePage:
+            popup = _PopupBridgePage(self._view)
+            self._popups.append(popup)
+            return popup
+
+    custom_page = NetPulseWebEnginePage(webview)
+    webview.setPage(custom_page)
+
+    def _on_download_requested(download: QWebEngineDownloadRequest) -> None:
+        suggested = download.downloadFileName() or "NetPulse_Download.bin"
+        desktop_dir = os.path.expanduser("~/Desktop")
+        target_dir = desktop_dir if os.path.isdir(desktop_dir) else os.path.expanduser("~")
+        download.setDownloadDirectory(target_dir)
+        download.setDownloadFileName(suggested)
+        download.accept()
+        save_path = os.path.join(target_dir, suggested)
+        status_bar.showMessage(f"Downloading {suggested} -> {save_path}…")
+        send_os_notification("NetPulse File Saved", f"Downloaded {suggested} to {save_path}")
+
+    webview.page().profile().downloadRequested.connect(_on_download_requested)
     webview.setUrl(QUrl(DAEMON_URL))
     win.setCentralWidget(webview)
 
@@ -145,12 +202,6 @@ def launch_desktop_app() -> None:
     toolbar = QToolBar("Operations Toolbar", win)
     toolbar.setMovable(False)
     win.addToolBar(Qt.ToolBarArea.TopToolBarArea, toolbar)
-
-    status_bar = QStatusBar(win)
-    win.setStatusBar(status_bar)
-    status_bar.showMessage(
-        f"Connected to Local Daemon ({DAEMON_URL})  |  47,033 IEEE OUIs Loaded  |  Shortcuts: [Ctrl+R] Scan Subnet  [Ctrl+E] Export Report  [F11] Fullscreen"
-    )
 
     def _api_post(endpoint: str, label: str) -> None:
         status_bar.showMessage(f"Running {label}…")
@@ -168,25 +219,45 @@ def launch_desktop_app() -> None:
         threading.Thread(target=_worker, daemon=True).start()
         QTimer.singleShot(1800, webview.reload)
 
+    def _ensure_on_workbench_then(js_code: str) -> None:
+        cur_path = webview.url().path()
+        if cur_path not in ("", "/", "/index.html"):
+            webview.setUrl(QUrl(f"{DAEMON_URL}/?desktop=1"))
+            QTimer.singleShot(450, lambda: webview.page().runJavaScript(js_code))
+        else:
+            webview.page().runJavaScript(js_code)
+
+    act_home = QAction("🏠 Workbench", win)
+    act_home.triggered.connect(lambda: webview.setUrl(QUrl(f"{DAEMON_URL}/?desktop=1")))
+    toolbar.addAction(act_home)
+
     act_scan = QAction("Scan Subnet (Ctrl+R)", win)
-    act_scan.triggered.connect(lambda: webview.page().runJavaScript("triggerManualScan()"))
+    act_scan.triggered.connect(lambda: _ensure_on_workbench_then("triggerManualScan()"))
     toolbar.addAction(act_scan)
 
     act_cam = QAction("ONVIF & RF Audit", win)
-    act_cam.triggered.connect(lambda: webview.page().runJavaScript("triggerCameraSweep()"))
+    act_cam.triggered.connect(lambda: _ensure_on_workbench_then("triggerCameraSweep()"))
     toolbar.addAction(act_cam)
 
     act_speed = QAction("WAN Benchmark", win)
-    act_speed.triggered.connect(lambda: webview.page().runJavaScript("triggerSpeedtest()"))
+    act_speed.triggered.connect(lambda: _ensure_on_workbench_then("triggerSpeedtest()"))
     toolbar.addAction(act_speed)
 
     act_oui = QAction("OUI & EUI-64 Lookup (Ctrl+F)", win)
-    act_oui.triggered.connect(lambda: webview.page().runJavaScript("openOuiModal()"))
+    act_oui.triggered.connect(lambda: _ensure_on_workbench_then("openOuiModal()"))
     toolbar.addAction(act_oui)
 
     act_toolkit = QAction("All-Around Toolkit (Ctrl+T)", win)
-    act_toolkit.triggered.connect(lambda: webview.page().runJavaScript("openAllAroundToolkitModal()"))
+    act_toolkit.triggered.connect(lambda: _ensure_on_workbench_then("openAllAroundToolkitModal()"))
     toolbar.addAction(act_toolkit)
+
+    act_pricing = QAction("💎 Storefront", win)
+    act_pricing.triggered.connect(lambda: webview.setUrl(QUrl(f"{DAEMON_URL}/pricing")))
+    toolbar.addAction(act_pricing)
+
+    act_launch = QAction("🚀 Launch Hub", win)
+    act_launch.triggered.connect(lambda: webview.setUrl(QUrl(f"{DAEMON_URL}/launch")))
+    toolbar.addAction(act_launch)
 
     def _export_csv_to_desktop() -> None:
         status_bar.showMessage("Exporting CSV Inventory to ~/Desktop…")

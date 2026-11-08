@@ -18,6 +18,9 @@ admin.token
 
 # Android signing keystore & intermediate build outputs (published via GitHub Releases)
 android/keystore.jks
+*.jks
+*.keystore
+*.class
 android/build/
 dist/
 *.egg-info/

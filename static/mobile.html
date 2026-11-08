@@ -692,6 +692,11 @@
         <a href="/download/NetPulse-Mobile.apk" download class="btn btn-emerald" style="flex:1;padding:10px;">⬇ Download NetPulse-Mobile.apk</a>
         <button class="btn btn-primary" onclick="exportDesktopReport()">📄 Export Forensic Report</button>
       </div>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <a href="/pricing" class="btn" style="flex:1;text-decoration:none;text-align:center;">💎 Commercial Storefront</a>
+        <a href="/launch" class="btn" style="flex:1;text-decoration:none;text-align:center;">🚀 Play Store &amp; Launch Hub</a>
+        <a href="/?desktop=1" class="btn" style="flex:1;text-decoration:none;text-align:center;">🖥 Desktop Workbench</a>
+      </div>
     </div>
 
     <div class="m-card highlight-sky">
@@ -1276,8 +1281,12 @@
 
   async function sendMobileRokuText() {
     const inp = document.getElementById('rokuMobileTextInput');
-    const text = inp.value;
-    if (!text) return;
+    const text = inp.value.trim();
+    if (!text) {
+      showToast('Type text into the TV input box first');
+      inp.focus();
+      return;
+    }
     try {
       await apiFetch('/api/action/roku-text', {
         method: 'POST',
@@ -1986,7 +1995,8 @@
       if (res.ok && res.checkout_url) {
         window.open(res.checkout_url, '_blank');
       } else {
-        showToast(res.error || 'Configure Stripe key on node or tap Instant Mint below');
+        showToast('Local node mode: minting & activating ' + tier.toUpperCase() + ' key...');
+        await mobileAdminMint(tier, plan);
       }
     } catch (e) {
       showToast('Node unreachable for Stripe Checkout');
@@ -1996,7 +2006,11 @@
   async function mobileActivateLicenseFromInput(inputId) {
     const inp = document.getElementById(inputId);
     const key = (inp ? inp.value : '').trim();
-    if (!key) return;
+    if (!key) {
+      showToast('Paste an NP1-* license key first, or tap 7-Day Free Trial / Mint Key');
+      if (inp) inp.focus();
+      return;
+    }
     try {
       const res = await fetch(API_BASE + '/api/subscription/activate', {
         method: 'POST',

@@ -320,6 +320,60 @@ def test_all_registered_endpoints_and_websocket_functional():
         assert pong_msg["type"] == "pong"
 
 
+def test_every_html_button_and_link_leads_to_valid_action() -> None:
+    """Verify every <button> and <a href> across all 6 UI & Storefront HTML files resolves to a defined JS function or live HTTP 200 route."""
+    import os
+    import re
+
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    html_files = [
+        os.path.join(root_dir, "static", "index.html"),
+        os.path.join(root_dir, "static", "mobile.html"),
+        os.path.join(root_dir, "static", "pricing.html"),
+        os.path.join(root_dir, "static", "launch.html"),
+        os.path.join(root_dir, "static", "privacy.html"),
+        os.path.join(root_dir, "docs", "index.html"),
+    ]
+
+    for fpath in html_files:
+        assert os.path.exists(fpath), f"Missing HTML file: {fpath}"
+        with open(fpath, "r", encoding="utf-8") as f:
+            html = f.read()
+
+        # Extract all JS function definitions in this file
+        defined_funcs = set(re.findall(r"function\s+([a-zA-Z0-9_]+)\s*\(", html))
+
+        # 1. Audit every static <button ...> tag outside JS template strings
+        # Check onclick handlers call a defined JS function or inline DOM expression
+        for match in re.finditer(r"<button\b([^>]*)>", html):
+            attrs = match.group(1)
+            onclick_m = re.search(r'onclick="([^"]+)"', attrs)
+            assert onclick_m is not None, f"Button without onclick in {os.path.basename(fpath)}: <button{attrs}>"
+            expr = onclick_m.group(1).strip()
+            assert len(expr) > 0, f"Empty onclick in {os.path.basename(fpath)}"
+            if not expr.startswith("document.") and not expr.startswith("${"):
+                fn_m = re.match(r"^([a-zA-Z0-9_]+)\s*\(", expr)
+                if fn_m:
+                    fn_name = fn_m.group(1)
+                    assert fn_name in defined_funcs, (
+                        f"Button in {os.path.basename(fpath)} calls undefined function '{fn_name}()': {expr}"
+                    )
+
+        # 2. Audit every <a ... href="..."> tag
+        for match in re.finditer(r'<a\b[^>]*\bhref="([^"]*)"', html):
+            href = match.group(1).strip()
+            if "${" in href:
+                continue
+            assert href != "" and href != "#", f"Dead <a href='{href}'> in {os.path.basename(fpath)}"
+            assert " " not in href, f"Whitespace typo in <a href='{href}'> in {os.path.basename(fpath)}"
+            assert "github.com/sponsors" not in href, f"Unactivated sponsors link in {os.path.basename(fpath)}: {href}"
+            if href.startswith("/"):
+                resp = client.get(href)
+                assert resp.status_code == 200, (
+                    f"Broken internal link <a href='{href}'> in {os.path.basename(fpath)}: HTTP {resp.status_code}"
+                )
+
+
 
 
 

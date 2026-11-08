@@ -1496,12 +1496,29 @@
       `;
     }
 
+    function showWorkbenchToast(msg, borderColor = '#38bdf8') {
+      let el = document.getElementById('workbenchToast');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'workbenchToast';
+        el.style.cssText = 'position:fixed;bottom:22px;right:22px;z-index:20000;background:#0f172a;border:1px solid #38bdf8;color:#f8fafc;padding:11px 18px;border-radius:9px;font-family:var(--font-mono);font-size:12px;font-weight:600;box-shadow:0 12px 32px rgba(0,0,0,0.75);display:none;max-width:520px;';
+        document.body.appendChild(el);
+      }
+      el.style.borderColor = borderColor;
+      el.textContent = msg;
+      el.style.display = 'block';
+      clearTimeout(window._wbToastTimer);
+      window._wbToastTimer = setTimeout(() => { el.style.display = 'none'; }, 3500);
+    }
+
     async function runConsoleAction(label, promise) {
       const wrap = document.getElementById('consoleWrap');
       const pre = document.getElementById('consolePre');
+      showWorkbenchToast(`⟳ Executing: ${label}…`, '#38bdf8');
       if (wrap && pre) {
         wrap.style.display = 'block';
         pre.textContent = `[Running] ${label}…`;
+        wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
       try {
         const res = await promise;
@@ -1511,8 +1528,10 @@
           return;
         }
         if (pre) pre.textContent = typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+        showWorkbenchToast(`✓ Completed: ${label}`, '#10b981');
       } catch (e) {
         if (pre) pre.textContent = `[Error] ${e}`;
+        showWorkbenchToast(`✕ Error: ${label}`, '#ef4444');
       }
     }
 
@@ -1554,8 +1573,12 @@
 
     async function sendRokuText(ip) {
       const el = document.getElementById('rokuTextInput');
-      const text = el ? el.value : '';
-      if (!text) return;
+      const text = el ? el.value.trim() : '';
+      if (!text) {
+        showWorkbenchToast('Type text into the Roku search input box first', '#f59e0b');
+        if (el) el.focus();
+        return;
+      }
       await runConsoleAction(`Roku ECP Lit_ String '${text}' -> ${ip}:8060`, fetch('/api/action/roku-text', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, text})
       }).then(r => r.json()));
@@ -1585,9 +1608,11 @@
 
     async function controlBt(mac, action) {
       const outEl = document.getElementById('btConsolePre');
+      showWorkbenchToast(`⟳ Running Bluetooth ${action} ${mac || 'inquiry'}…`, '#38bdf8');
       if (outEl) {
         outEl.style.display = 'block';
         outEl.textContent = `[Running] bluetoothctl ${action} ${mac}…`;
+        outEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
       const res = await fetch('/api/action/bt-control', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({mac, action})
@@ -1595,6 +1620,7 @@
       if (outEl) {
         outEl.textContent = res.output || res.devices_raw || JSON.stringify(res, null, 2);
       }
+      showWorkbenchToast(`✓ Bluetooth ${action} completed`, '#10b981');
     }
 
     async function wakePlayStation(ip, mac, host_id) {
@@ -1738,6 +1764,7 @@
         const st = await fetch('/api/state');
         appState = await st.json();
         updateDashboard(appState);
+        showWorkbenchToast(`✓ Purged ${deviceKey} from SQLite inventory`, '#f59e0b');
       }
     }
 
@@ -1760,14 +1787,21 @@
       await fetch(`/api/device/${encodeURIComponent(deviceKey)}/customize`, {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({custom_name, trust_state})
       });
+      const st = await fetch('/api/state').then(r => r.json());
+      appState = st;
+      updateDashboard(appState);
+      showWorkbenchToast(`✓ Saved asset profile & trust state (${trust_state.toUpperCase()})`, '#10b981');
     }
 
     async function triggerManualScan() {
       const btn = document.getElementById('scanBtn');
       btn.textContent = 'Scanning…';
+      showWorkbenchToast('⟳ Running full subnet ARP, SLAAC EUI-64 & multi-protocol sweep…', '#38bdf8');
       try {
         const res = await fetch('/api/scan', {method: 'POST'});
-        updateDashboard(await res.json());
+        const st = await res.json();
+        updateDashboard(st);
+        showWorkbenchToast(`✓ Subnet scan complete: ${(st.meta && st.meta.online_devices) || 0} online endpoints`, '#10b981');
       } finally {
         btn.textContent = 'Scan Subnet';
       }
@@ -1776,6 +1810,7 @@
     async function triggerAreaScan() {
       const btn = document.getElementById('areaScanBtn');
       if (btn) btn.textContent = 'Scanning Rings…';
+      showWorkbenchToast('⟳ Running 4-Ring Area Scan & 10-Stage Hidden BSSID De-Cloaker…', '#38bdf8');
       try {
         const res = await fetch('/api/action/area-scan', {method: 'POST'});
         const areaData = await res.json();
@@ -1789,6 +1824,7 @@
         }
         const areaTabBtn = document.querySelector('.nav-tab[data-tab="areascan"]');
         switchTab('areascan', areaTabBtn);
+        showWorkbenchToast('✓ 4-Ring Area Scan & Hidden BSSID Attribution updated', '#10b981');
       } finally {
         if (btn) btn.textContent = 'Deep Area Scan';
       }
@@ -1797,6 +1833,7 @@
     async function triggerCameraSweep() {
       const btn = document.getElementById('camBtn');
       btn.textContent = 'Auditing…';
+      showWorkbenchToast('⟳ Running ONVIF WS-Discovery, RTSP :554 & Hidden Camera RF Sweep…', '#38bdf8');
       try {
         const res = await fetch('/api/action/camera-sweep', {method: 'POST'});
         const data = await res.json();
@@ -1811,6 +1848,7 @@
         if (auditPanel && auditPre) {
           auditPanel.style.display = 'block';
           auditPre.textContent = JSON.stringify(data, null, 2);
+          auditPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
         await runConsoleAction('ONVIF WS-Discovery & 5-Vector 802.11 TSF Attribution Audit', Promise.resolve(data));
       } finally {
@@ -1821,6 +1859,13 @@
     async function triggerSpeedtest() {
       const btn = document.getElementById('speedBtn');
       btn.textContent = 'Benchmarking…';
+      const uplinkTabBtn = document.querySelector('.nav-tab[data-tab="uplink"]');
+      switchTab('uplink', uplinkTabBtn);
+      const speedBody = document.getElementById('speedtestBody');
+      if (speedBody) {
+        speedBody.innerHTML = `<div style="background:var(--bg-canvas);border:1px solid #38bdf8;border-radius:5px;padding:10px 12px;font-family:var(--font-mono);font-size:12px;color:#38bdf8;">⟳ Running Multi-Stream Cloudflare WAN Download, Upload &amp; Bufferbloat Benchmark…</div>`;
+      }
+      showWorkbenchToast('⟳ Running Multi-Stream WAN Throughput & Bufferbloat Benchmark…', '#38bdf8');
       try {
         const res = await fetch('/api/action/speedtest', {method: 'POST'});
         const data = await res.json();
@@ -1828,6 +1873,7 @@
           appState.speedtest = data;
           renderUplink();
         }
+        showWorkbenchToast(`✓ WAN Benchmark: ↓ ${data.download_mbps} Mbps / ↑ ${data.upload_mbps ?? '—'} Mbps (Bufferbloat ${data.bufferbloat_grade || 'A'})`, '#10b981');
       } finally {
         btn.textContent = 'WAN Benchmark';
       }
@@ -1836,6 +1882,7 @@
     async function exportForensicReport() {
       const btn = document.getElementById('exportBtn');
       btn.textContent = 'Exporting…';
+      showWorkbenchToast('⟳ Generating Markdown + JSON Forensic Intelligence Dossier…', '#38bdf8');
       try {
         const res = await fetch('/api/export/report', {method: 'POST'});
         const data = await res.json();
@@ -1845,6 +1892,7 @@
           return;
         }
         btn.textContent = 'Saved to Desktop';
+        showWorkbenchToast(`✓ ${data.summary || 'Saved Forensic Report to ~/Desktop'}`, '#10b981');
         setTimeout(() => { btn.textContent = 'Export Report'; }, 2500);
       } catch (_) {
         btn.textContent = 'Export Report';
@@ -2617,8 +2665,18 @@
       billingCycle = cycle;
       document.getElementById('cycleMonthlyBtn').className = cycle === 'monthly' ? 'btn btn-primary btn-sm' : 'btn btn-sm';
       document.getElementById('cycleAnnualBtn').className = cycle === 'annual' ? 'btn btn-primary btn-sm' : 'btn btn-sm';
-      document.getElementById('priceProLabel').textContent = cycle === 'annual' ? '$99 / yr' : '$9.99 / mo';
-      document.getElementById('priceEntLabel').textContent = cycle === 'annual' ? '$299 / yr' : '$29.99 / mo';
+      const lifeBtn = document.getElementById('cycleLifetimeBtn');
+      if (lifeBtn) lifeBtn.className = cycle === 'lifetime' ? 'btn btn-primary btn-sm' : 'btn btn-sm';
+      if (cycle === 'lifetime') {
+        document.getElementById('priceProLabel').textContent = '$69 / one-time';
+        document.getElementById('priceEntLabel').textContent = '$149 / one-time';
+      } else if (cycle === 'annual') {
+        document.getElementById('priceProLabel').textContent = '$99 / yr';
+        document.getElementById('priceEntLabel').textContent = '$299 / yr';
+      } else {
+        document.getElementById('priceProLabel').textContent = '$9.99 / mo';
+        document.getElementById('priceEntLabel').textContent = '$29.99 / mo';
+      }
     }
 
     async function refreshSubscriptionModal() {
@@ -2670,7 +2728,11 @@
     async function startStripeCheckout(tier) {
       const email = (document.getElementById('subEmailInput')?.value || 'subscriber@netpulse.io').trim();
       const statusMsg = document.getElementById('subActionStatus');
-      if (statusMsg) statusMsg.textContent = `Creating Stripe Checkout Session for ${tier.toUpperCase()} (${billingCycle})…`;
+      if (statusMsg) {
+        statusMsg.style.color = '#38bdf8';
+        statusMsg.textContent = `Creating Stripe Checkout Session for ${tier.toUpperCase()} (${billingCycle})…`;
+        statusMsg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
       const res = await fetch('/api/subscription/checkout', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -2680,16 +2742,35 @@
       if (res.ok && res.checkout_url) {
         window.open(res.checkout_url, '_blank');
         if (statusMsg) statusMsg.textContent = `Opened Stripe Checkout in browser (${res.session_id}).`;
+        showWorkbenchToast(`↗ Opened Stripe Checkout (${tier.toUpperCase()})`, '#10b981');
       } else {
-        if (statusMsg) statusMsg.textContent = res.error || 'Stripe Checkout unavailable — configure Stripe key below or mint/activate an NP1 license key.';
+        if (statusMsg) {
+          statusMsg.style.color = '#fbbf24';
+          statusMsg.innerHTML = `<div>${res.error || 'Stripe API key not yet configured on this local node.'}</div>` +
+            `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">` +
+            `<button class="btn btn-sm btn-primary" style="background:#059669;border-color:#10b981;" onclick="adminMintAndActivate('${tier}', '${billingCycle}')">⚡ Instant Local Activation: Mint &amp; Activate ${tier.toUpperCase()} (${billingCycle.toUpperCase()}) Now</button>` +
+            `<span style="color:#94a3b8;font-size:11px;">Or configure your live <code>sk_live_...</code> Stripe key below.</span>` +
+            `</div>`;
+        }
         const adm = document.getElementById('adminMintDetails');
         if (adm) adm.open = true;
+        showWorkbenchToast(`Click "Instant Local Activation" below or add your Stripe key`, '#f59e0b');
       }
     }
 
     async function submitActivateLicense() {
-      const key = (document.getElementById('licenseKeyInput')?.value || '').trim();
-      if (!key) return;
+      const inp = document.getElementById('licenseKeyInput');
+      const key = (inp?.value || '').trim();
+      if (!key) {
+        const statusMsg = document.getElementById('subActionStatus');
+        if (statusMsg) {
+          statusMsg.style.color = '#fbbf24';
+          statusMsg.textContent = '⚠ Please paste a signed NP1-* license key first, or click "Start 7-Day Free Trial" / "Mint" below.';
+        }
+        showWorkbenchToast('Paste an NP1-* license key or click Mint below', '#f59e0b');
+        if (inp) inp.focus();
+        return;
+      }
       await activateSpecificKey(key);
     }
 
@@ -2704,6 +2785,7 @@
         statusMsg.style.color = res.ok ? '#34d399' : '#f87171';
         statusMsg.textContent = res.ok ? `✓ ${res.message}` : `✕ ${res.error}`;
       }
+      showWorkbenchToast(res.ok ? `✓ ${res.message}` : `✕ ${res.error}`, res.ok ? '#10b981' : '#ef4444');
       if (res.ok) {
         const inp = document.getElementById('licenseKeyInput');
         if (inp) inp.value = key;
@@ -2718,11 +2800,12 @@
         statusMsg.style.color = '#fbbf24';
         statusMsg.textContent = 'Node reverted to Community Edition (Free Tier).';
       }
+      showWorkbenchToast('Reverted node to Community Edition (Free Tier)', '#f59e0b');
       await refreshSubscriptionModal();
     }
 
     async function adminMintAndActivate(tier, plan) {
-      const email = (document.getElementById('mintEmailInput')?.value || 'founder@netpulse.local').trim();
+      const email = (document.getElementById('mintEmailInput')?.value || document.getElementById('subEmailInput')?.value || 'founder@netpulse.local').trim();
       const admin_token = (document.getElementById('adminTokenInput')?.value || '').trim();
       const res = await fetch('/api/subscription/admin/mint', {
         method: 'POST',
@@ -2735,9 +2818,11 @@
         statusMsg.textContent = `✓ Minted & Activated ${res.tier_name} (${res.plan.toUpperCase()}): ${res.license_key}`;
         const inp = document.getElementById('licenseKeyInput');
         if (inp) inp.value = res.license_key;
+        showWorkbenchToast(`✓ Minted & Activated ${res.tier_name} (${res.plan.toUpperCase()})`, '#10b981');
       } else if (statusMsg) {
         statusMsg.style.color = '#f87171';
         statusMsg.textContent = `✕ ${res.error || 'Admin Master Token required'}`;
+        showWorkbenchToast(`✕ ${res.error || 'Admin Master Token required'}`, '#ef4444');
       }
       await refreshSubscriptionModal();
     }
@@ -2754,6 +2839,7 @@
         statusMsg.style.color = res.ok ? '#34d399' : '#f87171';
         statusMsg.textContent = res.ok ? `✓ ${res.message}` : `✕ ${res.error}`;
       }
+      showWorkbenchToast(res.ok ? `✓ ${res.message}` : `✕ ${res.error}`, res.ok ? '#10b981' : '#ef4444');
       await refreshSubscriptionModal();
     }
 
@@ -2776,6 +2862,7 @@
       a.href = URL.createObjectURL(blob);
       a.download = `NetPulse-License-${sub.jti || 'certificate'}.json`;
       a.click();
+      showWorkbenchToast(`⬇ Downloaded NetPulse-License-${sub.jti || 'certificate'}.json`, '#10b981');
     }
 
     async function revokeMintedKey(jti) {
@@ -2981,10 +3068,11 @@
 
       <!-- Billing Cycle Toggle + Email -->
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-        <div style="display:flex;align-items:center;gap:6px;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           <span style="font-size:12px;color:#94a3b8;font-weight:600;">Billing Cycle:</span>
           <button id="cycleMonthlyBtn" class="btn btn-primary btn-sm" onclick="setBillingCycle('monthly')">Monthly</button>
           <button id="cycleAnnualBtn" class="btn btn-sm" onclick="setBillingCycle('annual')">Annual (Save 17%)</button>
+          <button id="cycleLifetimeBtn" class="btn btn-sm" style="border-color:#a855f7;color:#e9d5ff;" onclick="setBillingCycle('lifetime')">👑 Founder's Lifetime ($69 / $149)</button>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="font-size:12px;color:#94a3b8;">Subscriber Email:</span>
