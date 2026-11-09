@@ -555,13 +555,24 @@ def synthesize_device_profile(
     # 5f. Sonos ZonePlayer Multi-Room Smart Speaker (:1400)
     elif ext_iot.get("sonos"):
         sonos = ext_iot["sonos"]
-        room = sonos.get("room_name") or sonos.get("friendly_name") or "Sonos Speaker"
-        s_mod = sonos.get("model", "Sonos ZonePlayer")
+        # Accept both camelCase (UPnP XML tags as produced by probers.py:2284) and snake_case
+        room = (
+            sonos.get("roomName")
+            or sonos.get("displayName")
+            or sonos.get("room_name")
+            or sonos.get("friendly_name")
+            or "Sonos Speaker"
+        )
+        s_mod = sonos.get("modelName") or sonos.get("model") or "Sonos ZonePlayer"
+        model_number = sonos.get("modelNumber") or sonos.get("model_number") or ""
+        serial = sonos.get("serialNum") or sonos.get("serial_num") or ""
+        software = sonos.get("softwareVersion") or sonos.get("software_version") or ""
+        hardware = sonos.get("hardwareVersion") or sonos.get("hardware_version") or ""
         profile.brand = "Sonos"
-        profile.model = f"Sonos {s_mod} ({sonos.get('model_number', '')})".strip()
-        profile.model_number = sonos.get("model_number", "")
-        profile.serial_number = sonos.get("serial_num", "")
-        profile.firmware_version = f"Sonos OS {sonos.get('software_version', '')} (HW {sonos.get('hardware_version', '')})"
+        profile.model = f"Sonos {s_mod} ({model_number})".strip()
+        profile.model_number = model_number
+        profile.serial_number = serial
+        profile.firmware_version = f"Sonos OS {software} (HW {hardware})"
         profile.display_name = f"{room} ({s_mod})"
         profile.category = "Smart Speaker / Multi-Room Audio"
         profile.icon_type = "speaker"
@@ -571,12 +582,13 @@ def synthesize_device_profile(
     # 5g. Philips Hue / Signify Zigbee Smart Lighting Bridge (:80/api/config)
     elif ext_iot.get("philips_hue"):
         hue = ext_iot["philips_hue"]
-        h_name = hue.get("bridge_name", "Philips Hue Bridge")
-        h_mod = hue.get("model_id", "BSB002")
+        h_name = hue.get("name") or hue.get("bridge_name") or "Philips Hue Bridge"
+        h_mod = hue.get("modelid") or hue.get("model_id") or "BSB002"
+        h_bridge = hue.get("bridgeid") or hue.get("bridge_id") or ""
         profile.brand = "Signify / Philips Hue"
         profile.model = f"Philips Hue Zigbee Bridge ({h_mod})"
         profile.model_number = h_mod
-        profile.serial_number = hue.get("bridge_id", "")
+        profile.serial_number = h_bridge
         profile.firmware_version = f"SW {hue.get('swversion', '')} (API v{hue.get('apiversion', '')})"
         profile.display_name = f"{h_name} ({h_mod})"
         profile.category = "Zigbee Smart Lighting Bridge"
@@ -585,9 +597,9 @@ def synthesize_device_profile(
         confidence = 99
 
     # 5h. Ollama Local AI / LLM Inference Server (:11434)
-    elif ext_iot.get("ollama"):
-        oll = ext_iot["ollama"]
-        models = oll.get("installed_models", [])
+    elif ext_iot.get("ollama_ai") or ext_iot.get("ollama"):
+        oll = ext_iot.get("ollama_ai") or ext_iot.get("ollama")
+        models = oll.get("models") or oll.get("installed_models") or []
         profile.brand = profile.vendor if "Unknown" not in profile.vendor else "Ollama AI Node"
         profile.model = f"Ollama LLM Inference Host ({oll.get('model_count', 0)} Models)"
         profile.display_name = f"Ollama AI Server ({ip}) — {', '.join(models[:2]) or 'Ready'}"
@@ -835,8 +847,9 @@ def synthesize_device_profile(
                 severity="HIGH",
                 title=f"SMB Packet Signing Not Required ({smb_info.get('dialect', 'SMB2/3')})",
                 description=(
-                    f"Host {ip}:445 negotiated {smb_info.get('dialect')} with SecurityMode=0x{smb_info.get('security_mode', 0):02x} "
-                    "(Signing Enabled but NOT Required), making it vulnerable to Responder / NTLM Relay MITM attacks."
+                    f"Host {ip}:445 negotiated {smb_info.get('dialect')} with Packet Signing "
+                    f"{'Enabled' if smb_info.get('signing_enabled') else 'Disabled'} but Not Required, "
+                    "making it vulnerable to Responder / NTLM Relay MITM attacks."
                 ),
                 remediation="Enable 'Microsoft network server: Digitally sign communications (always)' via GPO or set 'server signing = mandatory' in smb.conf.",
             )
@@ -1072,22 +1085,27 @@ def synthesize_device_profile(
 
     if ext_iot.get("sonos"):
         sn = ext_iot["sonos"]
-        specs["Sonos Room & ZonePlayer"] = f"{sn.get('room_name', '')} • {sn.get('model', '')} ({sn.get('model_number', '')})"
+        specs["Sonos Room & ZonePlayer"] = f"{sn.get('roomName') or sn.get('room_name', '')} • {sn.get('modelName') or sn.get('model', '')} ({sn.get('modelNumber') or sn.get('model_number', '')})"
         specs["Sonos Software & Serial"] = f"SW {sn.get('software_version', '')} • SN {sn.get('serial_num', '')}"
         controls.insert(0, "Sonos UPnP AVTransport & Volume Controller (:1400)")
 
     if ext_iot.get("philips_hue"):
         hu = ext_iot["philips_hue"]
-        specs["Philips Hue Bridge ID"] = f"{hu.get('bridge_id', '')} ({hu.get('model_id', '')})"
+        specs["Philips Hue Bridge ID"] = f"{hu.get('bridgeid') or hu.get('bridge_id', '')} ({hu.get('modelid') or hu.get('model_id', '')})"
         specs["Hue Zigbee Firmware"] = f"SW {hu.get('swversion', '')} • API {hu.get('apiversion', '')}"
 
-    if ext_iot.get("ollama"):
-        ol = ext_iot["ollama"]
-        specs["Ollama Local LLMs (:11434)"] = ", ".join(ol.get("installed_models", [])[:6]) or "0 models installed"
+    if ext_iot.get("ollama_ai") or ext_iot.get("ollama"):
+        ol = ext_iot.get("ollama_ai") or ext_iot.get("ollama")
+        specs["Ollama Local LLMs (:11434)"] = ", ".join((ol.get("models") or ol.get("installed_models") or [])[:6]) or "0 models installed"
 
     if ext_iot.get("mqtt"):
         mq = ext_iot["mqtt"]
-        specs["MQTT Broker (:1883)"] = f"{mq.get('auth_status', '')} (CONNACK 0x{mq.get('connack_code', 0):02x})"
+        mq_status = (
+            "OPEN (Anonymous Unauthenticated Access)"
+            if mq.get("anonymous_allowed")
+            else f"Authenticated Broker (CONNACK 0x{mq.get('connack_code', 0):02x})"
+        )
+        specs["MQTT Broker (:1883)"] = f"{mq_status} (CONNACK 0x{mq.get('connack_code', 0):02x})"
 
     if profile.is_gateway:
         controls.insert(0, "UPnP IGD External NAT Port-Forwarding Audit")

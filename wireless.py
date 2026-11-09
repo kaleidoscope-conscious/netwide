@@ -32,6 +32,32 @@ def _freq_to_channel(freq_mhz: int) -> int:
     return 0
 
 
+def parse_signal_value(signal_raw: str) -> Tuple[int, float]:
+    """
+    Normalize a signal string from nmcli/iw into (percent 0-100, dBm).
+
+    Handles BOTH scales seen in the wild:
+      - dBm readings ("Si-42", "-42 dBm", "-42"): values <= 0 treated as dBm.
+      - Quality percentages ("75"): values > 0 treated as percent, converted via
+        the standard GetSignalQuality calibration curve (pct/2) - 100.
+    """
+    s = (signal_raw or "").strip()
+    if not s:
+        return (0, -100.0)
+    m = re.search(r"-?\d+(?:\.\d+)?", s)
+    if not m:
+        return (0, -100.0)
+    try:
+        val = float(m.group(0))
+    except ValueError:
+        return (0, -100.0)
+    if -100.0 <= val <= 0.0:
+        pct = max(5, min(100, int(round((val + 100.0) * 2.0))))
+        return (pct, round(val, 1))
+    pct = int(max(0, min(100, val)))
+    return (pct, round((pct / 2.0) - 100.0, 1))
+
+
 def parse_iw_scan_dump(interface: str = "wlo1") -> Dict[str, Dict[str, Any]]:
     """
     Parse raw nl80211 kernel beacon & probe-response Information Elements (IEs) via
@@ -59,9 +85,12 @@ def parse_iw_scan_dump(interface: str = "wlo1") -> Dict[str, Dict[str, Any]]:
         if not block.strip():
             continue
         first_line = block.splitlines()[0]
-        bssid = first_line.split("(")[0].strip().upper()
-        if len(bssid) != 17:
+        # Real iw output: "BSS 22:EF:BD:5B:09:A8(on wlo1)" / "... (not associated)".
+        # Capture the 17-char MAC strictly; previous split("(") logic could never match.
+        m_bssid = re.match(r"BSS\s+([0-9A-Fa-f:]{17})", first_line)
+        if not m_bssid:
             continue
+        bssid = m_bssid.group(1).upper()
 
         info: Dict[str, Any] = {"bssid": bssid}
         m_ssid = re.search(r"(?m)^\tSSID:\s*(.*)$", block)
@@ -202,6 +231,8 @@ class WirelessSpectrumEngine:
         BSSID from a burned-in IEEE OUI (e.g., F2:ED:51 -> F0:ED:51 Hisense).
         """
         mac_intel = oui_db.lookup(bssid)
+        if len(bssid) != 17 or len(bssid.split(":")) != 6:
+            return (mac_intel.vendor, False, f"Unparseable BSSID ({bssid})")
         first_byte = int(bssid[:2], 16)
         is_laa = bool(first_byte & 0x02)
         if not is_laa:
@@ -262,7 +293,7 @@ class WirelessSpectrumEngine:
                 bssid_u = bssid.strip().upper()
                 if not bssid_u:
                     continue
-                sig_pct = int(sig_s) if sig_s.isdigit() else 0
+                sig_pct, sig_dbm = parse_signal_value(sig_s)
                 nm_chan = int(chan_s) if chan_s.isdigit() else 0
                 freq_m = re.search(r"(\d+)", freq_s)
                 nm_freq = int(freq_m.group(1)) if freq_m else (5180 if nm_chan > 14 else 2412)
@@ -289,7 +320,7 @@ class WirelessSpectrumEngine:
                 # Prefer true hardware dBm from iw scan dump; fallback to calibrated conversion
                 true_dbm = iw_entry.get("signal_dbm")
                 if true_dbm is None:
-                    true_dbm = round((sig_pct / 2.0) - 100.0, 1)
+                    true_dbm = sig_dbm
                 ledger["signal_dbm"] = float(true_dbm)
 
                 samples: List[float] = ledger.setdefault("rssi_samples", [])
@@ -733,7 +764,11 @@ class WirelessSpectrumEngine:
                 ap["de_cloaked_parent"] = f"{wps_name}" + (f" [Connected to {parent_router}]" if parent_router else "")
                 ap["de_cloaked_ssid"] = f"{wps_name} [Wi-Fi Direct Soft-AP]"
                 ap["hidden_role"] = f"Client Wi-Fi Direct Remote Soft-AP ({wps_name})"
-                ap["attribution_verdict"] = f"VERIFIED_WPS_SOFTAP ({wps_name}" + (f" on '{parent_router}')" if parent_router else ")")
+                ap["attribution_verdict"] = (
+                    f"VERIFIED_WPS_SOFTAP ({wps_name} on '{parent_router}')"
+                    if parent_router
+                    else f"VERIFIED_WPS_SOFTAP ({wps_name})"
+                )
                 evidence.insert(
                     0,
                     f"Raw 802.11 Beacon WPS IE directly unmasks hidden BSSID as '{wps_name}'"
@@ -745,30 +780,33 @@ class WirelessSpectrumEngine:
             # Stage 4, 5 & 6: Multi-VAP Silicon Correlation (First-5-Octet, Last-5-Octet, Middle-4-Octet, Unmasked Tail, 88-Bit HE PHY + 64-Bit TSF)
             matched_parent: Optional[Dict[str, Any]] = None
             match_reason = ""
-            b0_unmasked = int(bssid[:2], 16) & 0xFD
-            tail_int = int(bssid[12:].replace(":", ""), 16)
-            last_byte = int(bssid[15:17], 16)
+            # Octet-tuple comparisons (colon-safe) replace fragile character-offset slicing
+            b_oct = bssid.split(":")
+            b0_unmasked = int(b_oct[0], 16) & 0xFD
+            tail_int = int("".join(b_oct[4:6]), 16)
+            last_byte = int(b_oct[5], 16)
 
             for vis in visible_aps:
                 if vis["bssid"] == bssid:
                     continue
                 vb = vis["bssid"]
-                vb0_unmasked = int(vb[:2], 16) & 0xFD
-                v_last_byte = int(vb[15:17], 16)
-                same_unmasked_oui = (b0_unmasked == vb0_unmasked) and (bssid[3:8] == vb[3:8])
+                v_oct = vb.split(":")
+                vb0_unmasked = int(v_oct[0], 16) & 0xFD
+                v_last_byte = int(v_oct[5], 16)
+                same_unmasked_oui = (b0_unmasked == vb0_unmasked) and (b_oct[1:3] == v_oct[1:3])
                 same_chan = vis["channel"] == ap["channel"]
                 tsf_a = ap.get("tsf_usec")
                 tsf_b = vis.get("tsf_usec")
                 tsf_sync = (tsf_a is not None and tsf_b is not None and abs(tsf_a - tsf_b) < 90_000_000)
 
                 # First 5 octets match (e.g. FA:D0:0E:99:33:8A / :8E <-> FA:D0:0E:99:33:89 Chiricowifi)
-                same_prefix5 = (vb[:14] == bssid[:14]) and abs(v_last_byte - last_byte) <= 15
+                same_prefix5 = (b_oct[:5] == v_oct[:5]) and abs(v_last_byte - last_byte) <= 15
                 # Last 5 octets match (e.g. 16:93:7C:5A:0F:26 <-> 1C:93:7C:5A:0F:26 maple)
-                same_suffix5 = vb[3:] == bssid[3:]
+                same_suffix5 = b_oct[1:] == v_oct[1:]
                 # Middle 4 octets match across dual-band or sequential VAPs (e.g. B2:4F:B8:94:C5:45 <-> 70:4F:B8:94:C5:46 HOME-EB61)
-                same_mid4 = (vb[3:14] == bssid[3:14]) and abs(v_last_byte - last_byte) <= 4
-                same_suffix4 = vb[6:] == bssid[6:]
-                same_tail2 = (vb[12:] == bssid[12:]) and (same_unmasked_oui or bssid[:5] == vb[:5])
+                same_mid4 = (b_oct[1:5] == v_oct[1:5]) and abs(v_last_byte - last_byte) <= 4
+                same_suffix4 = b_oct[2:] == v_oct[2:]
+                same_tail2 = (b_oct[4:] == v_oct[4:]) and (same_unmasked_oui or b_oct[:2] == v_oct[:2])
                 same_he_phy = bool(ap.get("he_phy_cap") and ap.get("he_phy_cap") == vis.get("he_phy_cap"))
 
                 if same_prefix5:
@@ -842,14 +880,46 @@ class WirelessSpectrumEngine:
             # Stage 7 & 8: Co-Located Hidden Twin Clustering & Unmasked Vendor OUI Protocol Signature
             if ap["is_hidden"]:
                 vap_role = _classify_vap_role(ap)
-                unmasked_prefix = f"{b0_unmasked:02X}:{bssid[3:8]}"
+
+                # Stage 12: Personal Hotspot / Mobile Hidden-Tether Probability.
+                # Runs for EVERY hidden AP (independent of the vendor branches below);
+                # the resulting hint enriches attribution and feeds the hypothesis engine.
+                hotspot_score = 0.10
+                hotspot_reasons: List[str] = []
+                if ap.get("is_locally_admin"):
+                    hotspot_score += 0.30
+                    hotspot_reasons.append("locally-administered (LAA) BSSID")
+                rate_m12 = re.search(r"(\d+)", str(ap.get("rate", "")))
+                if rate_m12 and int(rate_m12.group(1)) <= 130:
+                    hotspot_score += 0.15
+                    hotspot_reasons.append(f"basic-rate beacon [{ap.get('rate')}]")
+                if float(ap.get("signal_dbm") or -100.0) >= -60.0:
+                    hotspot_score += 0.15
+                    hotspot_reasons.append("strong proximity (>= -60 dBm)")
+                sec12 = str(ap.get("security", "")).upper()
+                if "OPEN" in sec12:
+                    hotspot_score += 0.10
+                    hotspot_reasons.append("open network (typical of personal hotspots)")
+                elif "WPA2-PSK" in sec12 and "SAE" not in sec12:
+                    hotspot_score += 0.05
+                ap["hotspot_probability"] = round(min(0.95, hotspot_score), 2)
+                if hotspot_reasons:
+                    ap["tether_role_hint"] = (
+                        f"Mobile Personal Hotspot / Hidden Tether (p={ap['hotspot_probability']:.2f}: "
+                        + "; ".join(hotspot_reasons) + ")"
+                    )
+
+                b0_unmasked = int(b_oct[0], 16) & 0xFD
+                # Colon-safe OUI construction: first octet unmasked (b0 & 0xFD) + octets 2 and 3
+                unmasked_prefix = f"{b0_unmasked:02X}:{b_oct[1]}:{b_oct[2]}"
                 unmasked_intel = oui_db.lookup(f"{unmasked_prefix}:00:00:00")
                 u_vendor = unmasked_intel.vendor
 
                 # Check if another hidden BSSID shares the first 5 octets (e.g. FA:D0:0E:99:33:8A + :8E)
                 twin_bssids = [
                     x["bssid"] for x in aps
-                    if x["bssid"] != bssid and (x["bssid"][:14] == bssid[:14] or x["bssid"][3:14] == bssid[3:14])
+                    if x["bssid"] != bssid and x["bssid"].count(":") == 5
+                    and (x["bssid"].split(":")[:5] == b_oct[:5] or x["bssid"].split(":")[1:5] == b_oct[1:5])
                 ]
 
                 if "amazon" in u_vendor.lower():

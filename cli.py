@@ -40,6 +40,7 @@ from netpulse.probers import (
     send_roku_keypress,
     send_wake_on_lan,
 )
+from netpulse import __version__
 from netpulse.wireless import fetch_wan_intelligence, run_wan_speedtest, scan_bluetooth_radar, wireless_engine
 
 console = Console(width=145 if not sys.stdout.isatty() else None)
@@ -79,7 +80,7 @@ def cmd_scan() -> None:
     net = detect_active_interface()
     console.print(
         Panel(
-            f"[bold cyan]NETPULSE // OMNISIGHT v2.0[/bold cyan] — Active Interface [bold green]{net.interface}[/bold green] "
+            f"[bold cyan]NETPULSE // OMNISIGHT v{__version__}[/bold cyan] — Active Interface [bold green]{net.interface}[/bold green] "
             f"([bold]{net.ip}[/bold] on [bold]{net.cidr}[/bold] • Gateway [bold]{net.gateway_ip}[/bold] • "
             f"SSID [bold yellow]{net.ssid}[/bold yellow] Ch {net.channel}) • "
             f"IEEE OUI Database: [bold]{oui_db.loaded_count:,}[/bold] prefixes",
@@ -339,6 +340,10 @@ def main(argv: List[str] | None = None) -> None:
         prog="netpulse",
         description="NetPulse (OmniSight) — Sovereign Network Intelligence & Deep Fingerprinting Suite",
     )
+    parser.add_argument(
+        "--version", action="version",
+        version=f"NetPulse (OmniSight) v{__version__}",
+    )
     sub = parser.add_subparsers(dest="command")
 
     sub.add_parser("scan", help="Run an instant deep multi-vector subnet scan")
@@ -410,9 +415,13 @@ def main(argv: List[str] | None = None) -> None:
     elif cmd == "wol":
         ok, msg = send_wake_on_lan(args.mac)
         console.print(f"[{'green' if ok else 'red'}]{msg}[/{'green' if ok else 'red'}]")
+        if not ok:
+            raise SystemExit(1)  # semantic failure must surface in exit code
     elif cmd == "roku":
         ok, msg = send_roku_keypress(args.ip, args.key)
         console.print(f"[{'green' if ok else 'red'}]{msg}[/{'green' if ok else 'red'}]")
+        if not ok:
+            raise SystemExit(1)  # semantic failure must surface in exit code
     elif cmd == "desktop":
         from netpulse.desktop import launch_desktop_app
         launch_desktop_app()

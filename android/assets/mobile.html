@@ -662,6 +662,20 @@
       <div id="mobileCameraSweepOut" style="display:none;margin-top:8px;font-family:var(--mono);font-size:10.5px;color:#cbd5e1;background:#070a10;padding:8px;border-radius:6px;border:1px solid var(--border);max-height:160px;overflow-y:auto;"></div>
     </div>
 
+    <!-- Boltzmann-Ranked Priority Detection Hypotheses (/api/hypotheses) -->
+    <div class="m-card highlight-purple" style="border-left: 3px solid #a855f7;">
+      <div class="card-top">
+        <div>
+          <div class="card-title">🧠 Priority Detection Hypotheses</div>
+          <div class="card-mono">Boltzmann-ranked action feed (/api/hypotheses)</div>
+        </div>
+        <button class="btn btn-primary" style="padding:4px 8px;font-size:10.5px;" onclick="refreshMobileHypotheses()">⟳ Refresh</button>
+      </div>
+      <div id="mobileHypothesesList" style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">
+        <div style="font-size:11.5px;color:var(--text-muted);">Loading live detection hypotheses…</div>
+      </div>
+    </div>
+
     <div class="sec-header">
       <div class="sec-title">4-Ring Deep &amp; Wide Area Scan</div>
       <button class="btn btn-primary" onclick="triggerFullMobileScan()">⟳ Refresh Rings</button>
@@ -880,6 +894,7 @@
     } else if (tabId === 'areascan') {
       drawMobileTopology();
       refreshMobileSecurityPosture();
+      refreshMobileHypotheses();
     } else if (tabId === 'setup') {
       runMobileOuiSearch();
       runMobileCidrCalc();
@@ -1591,6 +1606,35 @@
       showToast(`Security Posture: ${pos.score ?? 100}/100 (${pos.grade || 'A+'})`);
     } catch (e) {
       if (bodyEl) bodyEl.textContent = 'Connect to stationary node to load 5-Pillar Security & IPv6 telemetry.';
+    }
+  }
+
+  async function refreshMobileHypotheses() {
+    const listEl = document.getElementById('mobileHypothesesList');
+    if (!listEl) return;
+    try {
+      const data = await apiFetch('/api/hypotheses?limit=12');
+      const hyps = data.hypotheses || [];
+      const sevCol = s => s === 'CRITICAL' ? '#ef4444' : s === 'HIGH' ? '#f59e0b' : s === 'MEDIUM' ? '#eab308' : '#34d399';
+      if (!hyps.length) {
+        listEl.innerHTML = '<div style="font-size:11.5px;color:var(--text-muted);padding:4px 0;">No active hypotheses — network is quiet and nominal.</div>';
+        return;
+      }
+      listEl.innerHTML = hyps.map(h => {
+        const ev = Math.round((h.impact || 0) * (h.probability || 0) * 100);
+        return `
+          <div style="background:#070a10;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:11.5px;">
+            <div style="display:flex;justify-content:space-between;gap:6px;align-items:center;">
+              <span style="font-weight:700;color:${sevCol(h.severity)};">${h.severity}</span>
+              <span class="card-mono" style="font-size:10px;color:var(--text-muted);">p=${h.probability} • EV ${ev}%</span>
+            </div>
+            <div style="margin-top:3px;color:var(--text-main);font-weight:500;">${h.title}</div>
+            <div style="color:#38bdf8;margin-top:3px;font-size:11px;">→ ${h.suggested_action}</div>
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      listEl.innerHTML = '<div style="font-size:11.5px;color:var(--text-muted);">Connect to stationary node to load hypotheses.</div>';
     }
   }
 

@@ -1,0 +1,1015 @@
+================================================================================
+NETPULSE // OMNISIGHT — SYSTEM FLAW FINDINGS DOCUMENT
+Generated: 2026-11-08
+Scope: Full codebase review (server/API, billing+licensing, probing engines,
+       CLI, desktop, packaging, tests). Findings gathered from four parallel
+       deep-dive code reviews plus manual spot-verification of cited lines.
+================================================================================
+
+--------------------------------------------------------------------------------
+1. SECURITY — CRITICAL / HIGH
+--------------------------------------------------------------------------------
+
+[1.1] Unauthenticated full-network-state disclosure (CRITICAL)
+  - GET /api/state (server.py:670-672) returns devices, threats, posture,
+    ARP anomalies, events, subscription, and last 80 raw wire packets with
+    NO auth and NO tier gate.
+  - GET /api/analytics (server.py:739-756) exposes threat analytics ungated.
+  - GET /api/device-image/{ip} (server.py:681-704) fetches device images /
+    UPnP icon URLs with no auth and an SSRF-capable URL construction
+    (`http://{ip}:8060/device-image.png` + attacker/DB-supplied icon_url).
+
+[1.2] Unauthenticated WebSocket streaming (CRITICAL)
+  - WS /ws (server.py:1565-1578) accepts without auth, pushes full state on
+    connect, no tier filter on broadcast fan-out (broadcast_ws, server.py:434-444).
+
+[1.3] Missing tier gates (CRITICAL)
+  - GET /api/export/csv (server.py:1313-1320) lacks the `_require_tier("forensic_export")`
+    that its gated sibling POST /api/export/report (server.py:1323-1328) and the
+    test suite (tests/test_server.py:173-181) clearly intend.
+  - POST /api/action/wol + wake-all (server.py:815-846), ping-burst (server.py:1070-1094),
+    speedtest (server.py:1141-1146), domain-intel (server.py:786-789) ungated.
+  - POST /api/scan (server.py:675-678) ungated.
+
+[1.4] Admin-state / subscription endpoints under-protected (HIGH)
+  - POST /api/subscription/deactivate (server.py:1444-1448): NO admin auth; any
+    LAN peer can POST and wipe a paid license.
+  - GET /api/subscription/status (server.py:1430-1433): unauthenticated.
+  - POST /api/subscription/trial (server.py:1451-1456), /checkout (server.py:1459-1468),
+    /verify-session (server.py:1471-1476), /lead (server.py:1543-1553): unauthenticated.
+  - _require_admin (server.py:278-300) loopback bypass includes literal "testclient"
+    (Starlette test host) — inappropriate for production.
+
+[1.5] CORS wide open (HIGH)
+  - server.py:513-518: CORSMiddleware with allow_origins=["*"], allow_methods=["*"],
+    allow_headers=["*"], no allow_credentials.
+
+[1.6] Stripe webhook fail-open + broken revocation lifecycle (HIGH)
+  - billing.py:732-742: signature verification skipped when secret or sig header
+    missing -> fail-open.
+  - billing.py:752-772: only `checkout.session.completed` handled; docstring
+    promises `customer.subscription.deleted` handling that does not exist -> no
+    cancellation-based revocation.
+
+[1.7] Cryptographic license flaws (HIGH)
+  - billing.py:235-239: fallback signing secret `"netpulse-sovereign-default-secret"`
+    -> publicly known key defeats NP1 HMAC signing on fresh installs lacking the
+    persisted secret row.
+  - billing.py:319-322: HMAC-SHA256 truncated to 18 bytes (144 bits) in both mint
+    and verify paths.
+  - billing.py:376: comparison done on base64 strings rather than raw bytes.
+  - billing.py:385-390: expiry boundary uses `now > exp` (accepts now == exp);
+    lifetime = exp 0 semantics; days<=0 -> lifetime (billing.py:291-292).
+  - billing.py:285-287: unknown/invalid tier silently coerced to "pro".
+  - billing.py:300-301: unknown plan silently defaults to 31-day license.
+
+[1.8] Billing logic / availability flaws (HIGH)
+  - billing.py:701-704: accepts `no_payment_required` checkout sessions as paid
+    -> free/unpaid sessions mint Pro/Enterprise licenses.
+  - billing.py:774-808: `capture_lead_and_issue_trial` bypasses the one-time
+    `trial_claimed` gate -> unlimited trials via unauthenticated lead endpoint.
+  - billing.py:41-76 + billing.py:312 + billing.py:412/495: `max_nodes` stored on
+    licenses but never enforced anywhere.
+
+[1.9] SSRF / outbound probe security surfaces (HIGH)
+  - Arbitrary probe targets: deep-nmap (server.py:1097-1116), http-probe (server.py:1052-1058,
+    probers.py:1150-1187 with user-controlled method/path), gateway control creds
+    (server.py:896-901, probers.py:1278-1303), SSDP Location URL fetch
+    (probers.py:330-368, 371-452).
+  - Outbound third-party probe traffic without consent/opt-in: DNS benchmark to
+    Cloudflare/Google/Quad9 (wireless.py:1209-1237), WAN intelligence (ip-api.com,
+    ipwho.is), speedtest (Cloudflare) (wireless.py:1240-1274, 1277-1403).
+
+[1.10] Runtime hardening gaps (MEDIUM/HIGH)
+  - No rate limiting anywhere (deep-nmap, port-range-scan, ping-burst, trial minting).
+  - Security headers incomplete: only X-Content-Type-Options, X-Frame-Options,
+    Referrer-Policy added (server.py:521-527); missing HSTS/CSP/Permissions-Policy.
+  - No TrustedHostMiddleware / HTTPS redirect / request size cap.
+  - Blocking sync DB/IO in async handlers (quarantine server.py:1033-1049;
+    /api/state server.py:671-672; /api/analytics server.py:739-756; scan path 471-476).
+  - Scan task cancel not awaited in lifespan (server.py:503).
+  - Error-message leakage: raw exception text + nmap tool stdout/stderr returned to
+    clients (server.py:1111-1135, 871-872); export report returns absolute local paths.
+  - Snapshot path mutates quarantine state (server.py:361-364) — side effect in read path.
+
+--------------------------------------------------------------------------------
+2. BILLING / LICENSING LOGIC FLAWS
+--------------------------------------------------------------------------------
+
+  - SQLite connections opened via context manager never closed
+    (billing.py:146, 217-221, 224, 445, 460, 786) -> FD leak.
+  - Read paths (_get_config, get_subscription_status, list_minted_licenses) bypass
+    self._lock -> race window (billing.py:216-221, 476-525).
+  - Entitlement map fail-open defaults: missing required tier -> rank default 1
+    (pro); unknown feature -> allowed (billing.py:527-545).
+  - Trial availability flag is global/one-time (trial_claimed) while lead-capture
+    path does not consult it (billing.py:253-267, 774-808).
+  - Minted-license insert races possible without tighter transaction handling
+    (self._lock used for mint/revoke, but reads unguarded).
+
+--------------------------------------------------------------------------------
+3. PROBING / DETECTION ENGINE FLAWS (probers.py, wireless.py, fingerprint.py, oui.py)
+--------------------------------------------------------------------------------
+
+[3.1] 10-Stage De-Cloaker logic bugs (wireless.py)
+
+  - CRITICAL: parse_iw_scan_dump() cannot parse real `iw` BSS output
+    (wireless.py:58-64): block split on "^BSS " then `first_line.split("(")[0]`
+    yields e.g. "BSS 00:11:22:33:44:55 on freq 2437" -> length check fails -> every
+    AP skipped -> entire de-cloaker fed an EMPTY AP list (silent false negatives
+    by design of the parser).
+  - CRITICAL: Stage 3 verdict precedence bug (wireless.py:736-737):
+    `f"VERIFIED_WPS_SOFTAP ({wps_name}" + (f" on '{parent_router}')" if parent_router else ")")`
+    parses as `(A+B) if C else D` -> when parent_router falsy verdict becomes ")".
+    Even when truthy, missing closing paren.
+  - Stage 7/8 hidden-VAP unmask builds malformed MAC (wireless.py:842-847):
+    `bssid[3:8]` is a character slice, not octet group -> unmasked_prefix invalid ->
+    OUI unmask branches (Amazon/TCL/Sony/etc.) unreachable.
+  - MAC comparisons use fragile char-offset slicing (wireless.py:745-771):
+    bssid[:5], bssid[3:8], bssid[12:], vb[6:] etc. mix conventions -> false
+    positives/negatives.
+  - Stage 10 co-location accepts raw RSSI delta <= 3 dB OR Pearson r>=0.85
+    (wireless.py:806-817) -> weak multipath evidence, false-positive risk.
+  - nmcli SIGNAL field misread: treated as 0-100 percent, actually dBm
+    (wireless.py:265-292) -> bogus signal math on nmcli-sourced APs.
+  - Unvalidated BSSID before int() conversion (wireless.py:205-206, 748) ->
+    crash risk on malformed nmcli/iw values.
+  - Rogue-RA lladdr[:14] bogus slice (wireless.py:2887).
+
+[3.2] Protocol auditor logic bugs (probers.py, fingerprint.py)
+
+  - CRITICAL: MQTT CONNACK parsing reads wrong byte (probers.py:2241-2243):
+    return code at resp[2] (byte 0 = packet type 0x20, byte 1 = flags, byte 2 = RC);
+    code reads resp[3] and requires len>=4 -> anonymous-allowed brokers reported
+    as not anonymous -> CRITICAL "Unauthenticated Anonymous MQTT" finding can never fire.
+  - SMB2 negotiate: never offers SMB 3.1.1 dialect (0x0311) (probers.py:2095-2129, 2205-2206);
+    single recv(4096) on TCP -> partial-frame risk -> parser failures.
+  - fingerprint.py:838-839: SMB signing finding reads `security_mode` which is never
+    populated by the SMB parser -> always default 0x00.
+  - Key mismatches between probers and synthesizer cause systematic false negatives:
+    Ollama (probers.py:2315 `ollama_ai` vs fingerprint.py:588 `ollama`),
+    Sonos (probers.py:2284 camelCase vs fingerprint.py:558-559 snake_case),
+    Hue (probers.py:2298-2304 vs fingerprint.py:574-575),
+    MQTT (probers.py:2244-2250 vs fingerprint.py:1089-1090).
+  - TTL-based OS inference (fingerprint.py:286-292) and default confidence 35
+    (fingerprint.py:170-180) with single-signal-only increments -> weak heuristics.
+
+[3.3] Reliability / hang / silent-failure flaws (probers.py, wireless.py, fingerprint.py)
+
+  - ~92 broad `except Exception: pass` clauses in probers.py (e.g. 55-56, 321-322,
+    449-450, 559-574); whole nmcli scan wrapped in except (wireless.py:230-347);
+    per-host probe failures swallowed in fingerprint.py:1175-1176 -> silent FN/FP.
+  - Multiple subprocess calls without timeout: probers.py:71 (`ip -j route show default`),
+    81 (`ip addr show dev`), 105 (`iw dev info`), 151 (`ip -s -j neigh show dev`),
+    1411-1432, 1519-1526 (Popen).
+  - PassiveWireSniffer.stop only terminate()s (probers.py:1484-1490) no wait/kill.
+
+[3.4] DoS / aggressive scanning surface (HIGH)
+  - Full 65,535-port range scan with 256 threads and 0.16s timeouts
+    (probers.py:1220-1275) via /api/action/port-range-scan; ARP/UDP sweeps; SSDP M-SEARCH
+    bursts; quarantine RST enforcement loop (probers.py:2972-3092).
+
+--------------------------------------------------------------------------------
+4. CLI / DESKTOP / PACKAGING / TEST FLAWS
+--------------------------------------------------------------------------------
+
+[4.1] Version drift & packaging (CRITICAL/HIGH)
+  - netpulse/__init__.py:6 `__version__ = "2.0.0"` vs pyproject.toml:7, Dockerfile:4,
+    install.sh:9, README.md:1, server.py banners, tests = "4.5.0".
+  - cli.py:82 banner says v2.0.
+  - No `--version` flag in CLI (cli.py:337-341).
+
+[4.2] CLI error/exit-code flaws (HIGH)
+  - Semantic failures print error and `return` -> process exits 0 (cli.py:266-268,
+    318-320, 504-505).
+  - No top-level exception handling; main() -> None (cli.py:337; pyproject entry
+    netpulse.cli:main) -> console script wraps with sys.exit(None)=0.
+  - Subparsers not required; implicit default command = "desktop" (cli.py:342, 390).
+  - `license` positional action nargs="?" default="status" -> flags silently ignored
+    (cli.py:376-387, e.g. `license --tier pro` runs status).
+  - `--tier` choices limited to ["pro","enterprise"] (cli.py:383) though catalog has
+    free.
+  - `license revoke` passes full key to API expecting JTI (cli.py:468-469; billing
+    revoke_license(jti...)).
+
+[4.3] Desktop (PyQt6) flaws (HIGH)
+  - QTimer.singleShot from worker thread (desktop.py:206-220) -> main-thread-only API.
+  - GUI mutations from worker threads (_poll_live_posture, desktop.py:340-367:
+    status_bar.showMessage, setWindowTitle, tray.setToolTip).
+  - Silent `except Exception: pass` (desktop.py:364-365).
+  - Daemon fallback binds 0.0.0.0 (desktop.py:46-61); unguarded google-chrome fallback
+    Popen (desktop.py:91-94).
+  - Duplicate immediate poll (poller + singleShot) (desktop.py:369-372); sys.exit(app.exec()).
+
+[4.4] Deployment flaws (HIGH)
+  - docker-compose.yml:11-13 named volume `netpulse_data:/app/netpulse` shadows
+    Dockerfile WORKDIR/COPY source (Dockerfile:24-25).
+  - install.sh:16-51 never runs pip install -> fresh clone + ./install.sh non-functional.
+  - Dockerfile: no USER, no .dockerignore, no version pins, no lock file.
+  - docker-compose.yml:9-10 env_file: .env hard-required; no fallback.
+  - systemd unit (install.sh:16-31) missing PYTHONUNBUFFERED, User=; ExecStart binds
+    0.0.0.0 (install.sh:25).
+
+[4.5] Tests / verification gaps (HIGH)
+  - Full suite: 49 passed, 0 failed, 0 skipped (billing 3, database 5, fingerprint 5,
+    oui 9, probers 13, server 14).
+  - README badge claims 47/47 (README.md:6) — wrong.
+  - Hardcoded endpoint matrix (tests/test_server.py:245-304) is NOT derived from
+    app.routes; verified-missing endpoints: deep-nmap, traceroute, speedtest, area-scan,
+    camera-sweep, POST /api/scan, GET /api/device-image/{ip}, device customize/delete,
+    admin/revoke, admin/leads.
+  - WS test only connect/ping/pong; no auth/tier coverage.
+  - Only invalid-admin-token 403 asserted; valid-token path untested.
+  - Tests mutate real production SQLite DBs (module-level engines; mint/deactivate cycles).
+  - Real network side effects in unit tests: WoL magic broadcast (test_server.py:40-44),
+    real NIC/DNS/domain probes (test_probers.py:30-36, 44-53, 183, 206-213).
+  - No test_cli.py, no test_desktop.py, no wireless tests beyond helpers.
+
+--------------------------------------------------------------------------------
+5. CONSOLIDATED PRIORITY FIX LIST (recommended immediate actions)
+--------------------------------------------------------------------------------
+
+  1. Add auth + tier gates: /api/state, /api/analytics, /ws, /api/export/csv,
+     WoL, wake-all, ping-burst, speedtest, domain-intel.
+  2. Add admin auth to /api/subscription/deactivate; gate /api/subscription/status,
+     trial, checkout, verify-session, lead.
+  3. Remove hardcoded HMAC fallback secret; use full HMAC tag; fix webhook
+     fail-open; implement subscription.deleted + idempotency; reject no_payment_required;
+     enforce trial-once in lead path.
+  4. Fix CORS, SSRF-prone endpoints, add rate limiting, security headers,
+     TrustedHostMiddleware, request size cap.
+  5. Fix de-cloaker: iw BSS parser, Stage-3 verdict precedence, Stage-7/8 unmask MAC,
+     MAC slicing, nmcli SIGNAL scale, MQTT CONNACK byte, SMB dialect 3.1.1 + security_mode.
+  6. Bind daemon to loopback; fix Docker volume/install.sh/packaging chain;
+     unify version (4.5.0) + add --version; fix CLI exit codes.
+  7. Add timeout= to subprocess calls; reduce blanket except-pass; add awaited task
+     cancel; close SQLite connections; move sync IO off event loop.
+  8. Rewrite tests to derive endpoint matrix from app.routes; remove real-network/WoL
+     side effects; add CLI test coverage.
+
+================================================================================
+END OF DOCUMENT
+================================================================================
+
+================================================================================
+SECTION 2 — NETPULSE ENHANCEMENT SCAN (Make-the-System-Better Findings)
+Focus: deeper scans | more network control | richer information | broader area
+Sources: full NetPulse re-review + transferable patterns from
+         /home/jg/silicone_wave_workspace and /home/jg/Desktop/UNRAVEL-AI(look@errorfile
+Date: 2026-11-08
+NOTE: Every "new capability" below is gated on the Section-1 parser fixes
+      (iw BSS regex, MQTT CONNACK byte, probers/fingerprint key mismatches).
+      Fix Section-1 items 3.1-3.2 first or the new intelligence layers starve.
+================================================================================
+
+--------------------------------------------------------------------------------
+E1. DEEPER SCANS — extract more intelligence per device
+--------------------------------------------------------------------------------
+
+[E1.1] Apple BLE Continuity & AirDrop attribution — STAGE 11 of the De-Cloaker
+  Source: silicone_wave_workspace/silent_wave_radar.py (Manufacturer 0x004c decode,
+          hidden-tether beacons, evidence logging).
+  Add: BLE Continuity advertisement parsing (iPhone/Mac/Watch attribution even when
+  Wi-Fi randomized), AirDrop AWDL beacons -> ties a randomized BSSID to a real Apple
+  identity. NetPulse currently has zero BLE decoding in its E2E chain.
+
+[E1.2] Hidden-tether rate-profile heuristic — STAGE 12
+  Source: silent_wave_radar.py — hidden LAA hotspots reveal themselves via
+  65 Mbit/s / 130 Mbit/s advertised rates even with empty SSID.
+  Add: rate-profile classifier over hidden APs -> flags personal hotspots
+  (phone tethering) vs infrastructure SSIDs; combine with (E2.2) OSINT.
+
+[E1.3] Passive-only wideband census — silent monitor-mode channel dwell cyclist
+  Problem: current scan bursts are active; cloaked nets that don't respond to
+  probes are missed. Add a passive mode that cycles every channel (incl. DFS) in
+  monitor mode, records all seen BSSIDs/Management frames, and merges with the
+  active census. This is the single biggest coverage win.
+
+[E1.4] WPA3-SAE / PMKID capture + Evil-twin diffing
+  Extend the existing sniffer with EAPOL capture for PMKID hash extraction and
+  open-vs-SAE/LTE roaming set diffing — direct Fing-beating features.
+
+[E1.5] Firmware exposure pillar (major, differentiating)
+  Source: Unraveled/hardware_inspector_pro — binwalk extraction, LIEF parsing,
+  entropy/strings/CFG analysis already implemented there.
+  NetPulse route: when a LAN device exposes a firmware download URL (UPnP
+  descriptor / vendor HTTP), fetch, binwalk it, and score CVE exposure. Nobody in
+  the consumer space (Fing/Lansweeper) does on-firmware CVE attribution.
+
+[E1.6] Behavioral fingerprinting (statistical, not just protocol)
+  Add per-device baselines: first-packet size histograms, inter-arrival timing,
+  DNS query mix, TCP/TLS JA4+ prints, QUIC handshakes. Delta over baseline =
+  anomaly score. Uses episodic-memory pattern from tensor_memory.py.
+
+[E1.7] Cloud-reachability / data-flow audit per device
+  Passive DNS + sniffer already capture bytes; surface "this device beacons to
+  {domain} (ASN X, country Y, geo-IP block)" per device — plain-language
+  answers competitors do not give.
+
+[E1.8] Matter / Thread / Zigbee / UWB native enum
+  Extend hub probing to direct matter._tcp grouped service records,
+  thread websocket/BBTC commissioners and 15.4 TG beacons via
+  monitor mode — IoT identity graph enrichment.
+
+--------------------------------------------------------------------------------
+E2. MORE NETWORK CONTROL
+--------------------------------------------------------------------------------
+
+[E2.1] Evidence-chain logging (chain-of-custody for every action & packet)
+  Source: silicone_wave_workspace/evidence_log.txt append-only design.
+  Upgrade NetPulse's events table to an append-only tamper-evident ledger
+  (hash-chained rows), always exportable. Converts the existing "forensic
+  dossier export" from marketing claim to real forensics.
+
+[E2.2] Action journal with UNDO (rollback on every control primitive)
+  Source: Unraveled/hardware_inspector_pro — LIEF mutation undo/redo pattern.
+  Every control action (WoL, quarantine, Sonos/Kasa/TMO commands) records
+  intent + inverse operation; one-click rollback. Fixes an existing trust gap.
+
+[E2.3] ARP-spoof vigilance with auto-mitigation
+  PassiveWireSniffer already flags arp_anomalies; add a MitM-response that
+  (a) raises severity, (b) injects static-ARP warnings to the operator via
+  WS, (c) optionally quarantines the offender via existing quarantine engine.
+
+[E2.4] DNS sinkhole / traffic redirection via existing DPI
+  The wire sniffer already sees DNS; add an optional local resolver/sinkhole
+  mode (so NetPulse can selectively block rule-breaking domains for a device).
+
+[E2.5] Rogue-DHCP / captive-portal detection
+  Detect DHCP offer anomalies and captive-portal redirect flows in passive
+  mode — currently claimed nothing and implemented nothing.
+
+[E2.6] Router-level enforcement (OpenWrt ubus)
+  If the gateway is OpenWrt, offer real firewall/allowlist/MAC-filter write
+  support via ubus — turns NetPulse from "detector" to "operator", purely
+  incremental over existing Kasa/TMO/Sonos control plumbing.
+
+[E2.7] Multi-node leader election for coordinated sweeps
+  Source: silicone_wave_workspace/backend/raft_consensus.py (stripped to
+  election + log-replication skeleton; merge with existing distributed bus).
+  Use for distributed 4-ring sweeps: leader partitions BSSID/CIDR space,
+  followers report, aggregate is a single Vector-Cloud snapshot.
+
+--------------------------------------------------------------------------------
+E3. BROADER AREA SCAN (more spatial coverage)
+--------------------------------------------------------------------------------
+
+[E3.1] Cyber-physical observer — camera + packet-capture HUD
+  Source: silicone_wave_workspace/ar_sensor_fusion_demo.py (fuses webcam optical
+  flow with live pyshark/tcpdump capture into one HUD + motion heatmaps).
+  Port to NetPulse mobile/desktop: each LAN device hoverable to a physical
+  location via RSSI-gradient walk + optical-flow landmark anchoring.
+  Nothing in the consumer market does room-level attribution.
+
+[E3.2] Spore-capsule mesh federation of the device graph
+  Source: knowledge_graph.py — offline graph federation spores (nodes + edges +
+  confidence serialized, sync across nodes).
+  Enables NetPulse nodes on different subnets/VLANs (or the mobile client) to
+  merge their observed graphs into one planetary map — the "bigger-picture"
+  social-like device atlas.
+
+[E3.3] Dwell-time optimization via bandit (coverage vs cost)
+  Source: core/adaptive_router.py UCB1 bandit + Scheduler DAG
+  (dependencies/timeouts/retries/telemetry; threaded async).
+  Which channels/vendor probers to spend dwell time on? A bandit learns from
+  scan feedback which probes actually fingerprint which vendors
+  (exploration/exploitation) instead of running all 3500 lines every cycle.
+
+[E3.4] BLE census sweep alongside Wi-Fi
+  Track AirTags/FindMy/Tile/SmartTag bezels + GATT services — often the ONLY
+  way to attribute a Wi-Fi device to a human owner (existing Stage-10 gap).
+
+[E3.5] Cellular/evolved node bind
+  Add ModemManager/nmcli CDMA/GSM survey mode so 5G uplink/neighbor cells
+  become part of the same device atlas instead of the ad-hoc TMO probe.
+
+--------------------------------------------------------------------------------
+E4. MORE INFORMATION / COMPETITIVE INTELLIGENCE
+--------------------------------------------------------------------------------
+
+[E4.1] Detection Hypothesis Generator (the biggest differentiator)
+  Source: UNRAVEL-AI "Quantum Inspired Drug.py" lines 746-775 & 1284-1315:
+    probability = Boltzmann(energy) x gaussian(volume, mu, sigma) x exposure
+    => {hypothesis, probability, predicted_impact, confidence, action}
+  Port directly for threat scoring: for every modeled risk (anonymous MQTT,
+  Kasa XOR, weak SMB signing, open APs, DNSSEC absent, NTP amplifier, LAA
+  hidden twin) emit structured hypotheses with Boltzmann-weighted confidence
+  plus a suggested remedy and expected impact. Also reuse the field/collapse
+  pattern (quantum_core.py QuantumConsciousness daemon loop) as the
+  "threat-field" engine that continuously re-scores.
+
+[E4.2] Adaptive probe-parameter optimization
+  Source: quantum-molecular-system.py NeuralPotential surrogate + L-BFGS-B /
+  Adam / von Neumann entropy fitness; quantum-molecular-optimizer
+  (scipy minimize, FFT feature mapping).
+  Use surrogate-assisted optimization for scan parameters (dwell, channels,
+  thread count, timeouts, probe order) keyed to network size/hostility.
+  Gaussian volume priors become priors over "network noise level".
+
+[E4.3] AI-generated detection-rule compiler
+  Source: system-upgrade-module.py (analyzer -> transformers -> language
+  transpilers -> _check_vulnerabilities regex set -> audit with SHA-256
+  manifest -> dockerized tests).
+  Port the vuln-regex + audit pipeline to compile "detection rules" written
+  in a NetPulse DSL (JSON declaration) into probers that can be shipped as
+  enterprise add-ons, with an SHA-256 audit manifest for provenance.
+
+[E4.4] LLM-assisted remediation (explain + confirm-gated command)
+  Source: hardware_inspector_pro (LLM suggests mitigation, explicit
+  confirmation dialog before exec) + UNRAVEL AIGenerator pattern
+  (generate -> tenacity retry -> asyncio timeout -> JSON validate).
+  Output: plain-English "why am I seeing this" per threat, plus a suggested
+  fix; always require manual confirmation before a control action.
+
+[E4.5] Observability / Kibana pattern
+  Source: wave_lens.py + wave_lens_kibana_dashboard.ndjson + graphviz module.
+  Add /api/metrics Prometheus exposition + a graphviz SVG topology render of
+  the device graph. Gives power users (and enterprise buyers) an audit hook.
+
+[E4.6] "Why this verdict" provenance UI
+  Every claim (device identity, botnet-ish behavior, de-cloaking verdict)
+  should link to the exact packet / RSSI / stage output that produced it.
+  Currently confidence_score is a number without traceable evidence; adding
+  provenance turns NetPulse from a labeler into an auditor. Biggest UX trust
+  unlock and a natural paid-tier differentiator.
+
+[E4.7] Daily posture diff digest (email/WS)
+  What changed in the network, scored by the E4.1 hypothesis engine — solves
+  "information key to success" by volume + relevance.
+
+--------------------------------------------------------------------------------
+E5. COMPETITIVE STRATEGY SUMMARY (why this wins)
+--------------------------------------------------------------------------------
+  - Identity graph across 802.11/BLE/Zigbee/Thread with provenance (E4.6/E1.8)
+  - Cyber-physical room-level attribution  (E3.1)
+  - Real forensic chain-of-custody dossier (E2.1)
+  - Firmware-level CVE attribution          (E1.5)
+  - Adaptive Bandit scans (cheaper + smarter than brute sweeps) (E3.3/E4.2)
+  - LLM copilot with confirm-gated actions  (E4.4)
+  Combined = information density per device no competitor offers.
+
+--------------------------------------------------------------------------------
+E6. PRIORITY ROADMAP
+--------------------------------------------------------------------------------
+  P0 (unblock everything): Section-1 parser fixes (3.1-3.2).
+  P1: passive census (E1.3), BLE continuity (E1.1), evidence chain (E2.1),
+      hypothesis engine MVP (E4.1), provenance UI (E4.6).
+  P2: bandit/surrogate scan tuner (E3.3/E4.2), firmware pillar (E1.5),
+      mesh graph federation (E3.2), LLM copilot (E4.4), ARP/dhcp defense (E2.3/E2.5).
+  P3: cyber-physical AR (E3.1), router enforcement (E2.6), OpenWrt fleet (E2.7),
+      detection-rule compiler (E4.3), Kibana export (E4.5).
+
+================================================================================
+END OF SECTION 2
+================================================================================
+
+================================================================================
+SECTION 3 — DETAILED ENHANCEMENT BLUEPRINT (Deep-Dive Spec)
+Companion to Section 2. Expands each enhancement into an implementable spec with
+source-file anchors, data models, endpoints, algorithms, and test plans.
+Date: 2026-11-08
+================================================================================
+
+--------------------------------------------------------------------------------
+S0 — P0 ENGINEERING FIXES (prerequisites that unlock every later layer)
+--------------------------------------------------------------------------------
+
+[S0.1] Fix parse_iw_scan_dump() — wireless.py:58-64
+  Replace `first_line.split("(")[0].strip().upper()` with a strict MAC capture:
+      m = re.match(r"BSS\s+([0-9A-Fa-f:]{17})", first_line)
+      bssid = m.group(1).upper() if m else None
+  Guard `len(bssid) == 17` AFTER the regex. Keep `on freq ####` parsing as the
+  channel source. Feed the fix through `_classify_vap_role`, `_attribute_physical_radios`,
+  spectrum scan, cluster building, and threat detection.
+  Test plan: golden fixture of real `iw dev wlanX scan dump` output containing
+  hidden-AP blocks, HT-cap lines, MLO/RRM lines, and a malformed block.
+
+[S0.2] Fix Stage-3 verdict precedence — wireless.py:736-737
+  Replace fragile conditional-expression with explicit branch:
+      ap["attribution_verdict"] = (
+          f"VERIFIED_WPS_SOFTAP ({wps_name} on '{parent_router}')"
+          if parent_router else f"VERIFIED_WPS_SOFTAP ({wps_name})"
+      )
+  Test: both conditional outputs must start with "VERIFIED_WPS_SOFTAP (" and end
+  with ")" so server.py:1117 mapping (`startswith(("VERIFIED_", "IDENTIFIED_"))`)
+  recognizes them.
+
+[S0.3] Fix Stage-7/8 OUI-prefix construction — wireless.py:842-847
+  Build a colon-safe MAC string (never a character slice of `bssid`):
+      oui_octets  = bssid.split(":")
+      unmasked_prefix = f"{b0_unmasked:02X}:{oui_octets[1]}:{oui_octets[2]}"
+      unmasked_intel   = oui_db.lookup(f"{unmasked_prefix}:00:00:00")
+  Test: known OUI fixtures (Apple 00:1A:2B, RPi B8:27:EB, T-Mobile AD:BE:EF-like)
+  must resolve vendor names, not "Unknown Hardware".
+
+[S0.4] Fix MAC character-offset slicing — wireless.py:745-771
+  Normalize `bssid`/`vb` into list-of-octets ONCE (e.g., `parts = bssid.split(":")`)
+  and compare octet tuples; drop ad-hoc `[:5]`, `[3:8]`, `[12:]` slices.
+  Provide `same_unmasked_oui(b, v)` helper + unit tests over adversarial pairs.
+
+[S0.5] Fix nmcli SIGNAL scale confusion — wireless.py:265-292
+  Add utility `signal_to_dbm(raw) -> float`:
+      - if raw <= -30: treat as already-dBm
+      - elif 0 <= raw <= 100: percent -> dBm via the existing (pct/2) - 100 curve
+      - else: reject / default -100
+  Replace `int(sig_s) if sig_s.isdigit() else 0` with signed-int parse. All
+  downstream zones/congestion/threat scoring now on a single dBm axis. Unit-test
+  the converter on representative raw strings ("Si-60", "-40 dBm", "75").
+
+[S0.6] Fix MQTT CONNACK byte — probers.py:2241-2243
+  MQTT 3.1.1 and 5.0 CONNACK: byte 0 = packet type (0x20), byte 1 = flags,
+  byte 2 = return/reason code. Change to:
+      if len(resp) >= 3 and resp[0] == 0x20:
+          ret_code = resp[2]
+          anon_ok = ret_code == 0x00
+  Test vectors: MQTT v3.1.1 CONNACK on an anonymous-allowed broker is
+  `20 02 00` (0x00 = accepted); an authenticated broker refusing is
+  `20 02 05` (0x05 = not authorized). 5.0 CONNACK adds a property-length byte
+  AFTER the reason code - do not misread it as the return code.
+
+[S0.7] Align prober/synthesizer keys — probers.py ↔ fingerprint.py
+  Canonical mapping (producers -> consumers):
+      probers.py:2315 `ollama_ai`        -> fingerprint.py:588  `ollama`
+      probers.py:2284 Sonos camelCase    -> fingerprint.py:558-559  snake_case
+      probers.py:2298-2304 Hue keys      -> fingerprint.py:574-575  `bridge_name`/`model_id`
+      probers.py:2244-2250 `anonymous_allowed` -> fingerprint.py:1089-1090 `auth_status`
+      probers.py:2164-2193 `security_mode` never populated, but read at
+      fingerprint.py:838-839 -> populate it from `signing_required`/`signing_enabled`.
+  Engineering fix: introduce `netpulse/profile_keys.py` (typed dataclass or
+  TypedDict for every probe result) and have both probers and fingerprint import
+  it — prevents future drift. Add key-alignment unit test (dict shape check).
+
+[S0.8] Subprocess timeout policy — probers.py:71,81,105,151,1411-1432,1519-1526
+  Add `netpulse/proc.py` with `run_with_timeout(cmd, timeout=5.0, **kw)` wrapper;
+  sweep every `subprocess.check_output` / `Popen` call. Add
+  `PassiveWireSniffer.stop()` (probers.py:1484-1490): terminate → wait(2.0) →
+  kill → reap. Test: fake long-running command must be killed by wrapper.
+
+[S0.9] Exception-swallow policy — probers.py ~92 broad excepts,
+  wireless.py:230-347, fingerprint.py:1175-1176
+  Policy: blanket `except Exception: pass` allowed ONLY in cosmetic/optional
+  enrichment paths; decision-critical loops (scanner driver, MQTT/SMB parse,
+  per-host deep probe) must log via `logging.getLogger(__name__)` and surface a
+  per-device `probe_status` field. FastAPI `GET /api/state` unchanged shape.
+
+[S0.10] Cross-cutting hardening (from Section 1)
+  - Add `_require_tier("forensic_export")` to GET /api/export/csv (server.py:1313-1320).
+  - Move sync DB calls to asyncio.to_thread in quarantine (server.py:1033-1049),
+    /api/state (671-672), /api/analytics (739-756), scan path (471-476).
+  - Add `_require_admin` to POST /api/subscription/deactivate (server.py:1444-1448).
+  - Remove CORS `allow_origins=["*"]` (server.py:513-518) → allowlist or same-origin.
+  - Close SQLite conns explicitly in billing.py (context manager does not close).
+
+--------------------------------------------------------------------------------
+S1 — DE-CLOAKER STAGES 11-16 (expansion of the 10-stage engine)
+--------------------------------------------------------------------------------
+
+[S1.11] STAGE 11 — Apple BLE Continuity & AirDrop attribution
+  Source pattern: silent_wave_radar.py (Manufacturer 0x004C decode, target list,
+  evidence log). NetPulse currently has zero BLE decoding in its E2E chain.
+  New module `netpulse/ble_census.py`:
+      - Source: `bluetoothctl scan on` / `hcitool lescan`, or BTLE advertisements
+        via tshark if internal BLE hardware allows.
+      - Parse Apple Manufacturer Data (0x004C): CT device type byte (0x01 = iPhone,
+        0x07 = Watch/classic, 0x0F = Mac, 0x05 = AirPods/AirTag style),
+        AWDL-direct sequence for AirDrop.
+      - Correlate to LAN devices via: RSSI proximity co-sighting, cadence
+        correlation over 10-minute windows, OUI match vs Apple LAA ranges.
+      - Emission: `DeviceProfile.ble_identity = {type, mac, rssi, adv_hash}`,
+        adds STAGE-11 hypothesis candidate.
+  Scoring: confidence = 0.5*(proximity_score) + 0.3*(cadence_corr) + 0.2*(OUI_like).
+  Tests: golden adv bytes for each CT type; cadence correlation on synthetic RSSI.
+
+[S1.12] STAGE 12 — Hidden-tether rate-profile classifier
+  Source pattern: silent_wave_radar.py hidden-hotspot logic
+  (65/130/104/260 Mbit/s + LAA first byte & 0x02).
+  Implementation: in `wireless.py` add `classify_hidden_tether(ap)` returning
+      {is_personal_hotspot: bool, hotspot_score: 0..1, rate_profile: str}
+  Feed into hidden-AP attribution branch and UI badge (phone-tether icon).
+  Test: fixture iw/nmcli entries representing personal-tether hidden hotspots
+  at 65/130 Mbit/s.
+
+[S1.13] STAGE 13 — Passive-only wideband census (monitor-mode dwell cyclist)
+  Motivation: active probing never sees stealthy/no-response APs; passive mode does.
+  Implementation: silent monitor-mode capture loop injecting into
+  `wireless.py` scan engine; dwell schedule: 0.1 s/channel over the active
+  channel list (plus DFS channels only when regulatory-allowed); collects
+  beacon/probe-response/management frames only (no probe injection).
+  Persistence: new table `passive_frames(timestamp, freq, frame_type, bssid,
+  rssi, len, raw_hash)` (capped ring, e.g., 500k rows) feeding the evidence
+  ledger (S3.1) and the hypothesis engine (S2.1) — matches "widest-area scan"
+  goal. Requires NET_ADMIN/CAP_NET_RAW (already in docker-compose.yml:5-7).
+  Output panel `/api/wifi` gains `passive_census` (invisible-SSID APs that never
+  responded to probes). Tests: tshark-mode fixtures; channel-cycling unit test.
+
+[S1.14] STAGE 14 — EAPOL / PMKID capture + Evil-Twin diff (opt-in)
+  Only with explicit operator consent + legal note (capture hash only); output
+  one-way hash + notice; enterprise-tier feature; never ships default on.
+  Implementation: reuse S1.13 monitor mode; detect association frames; extract
+  PMKID from first EAPOL frame. Diff of PMKID + beacon body between visits ->
+  evil-twin verdict.
+  Tests: syntactically valid EAPOL frame fixture.
+
+[S1.15] STAGE 15 — Cyber-physical attribution (AR fusion; detailed in S6)
+  Fuses webcam optical flow + RSSI gradient walk + existing magnetometer/azimuth
+  (mobile telemetry) to attach a room/physical location to each LAN device.
+  Source pattern: ar_sensor_fusion_demo.py backend/NetworkDaemon pattern (capture
+  loop spawned inside worker thread so pyshark owns its asyncio loop; XDG scratch
+  dir to prevent user Wireshark plugins from breaking tshark version probe — the
+  EXACT bug class PassiveWireSniffer in NetPulse tolerates today).
+  Implementation sketch: `/api/mobile/telemetry` extension adds
+  `ar_fusion_frame{motion_vector, landmark_id, anchor_confidence}`; server keeps
+  per-device `room_estimate{room_label, anchor_confidence, seen_at}`.
+
+[S1.16] STAGE 16 — Mesh graph federation ("Spore capsules")
+  Source pattern: knowledge_graph.py — offline graph federation capsules
+  (nodes + edges + confidence serialized); RaftNode in raft_consensus.py for
+  consensus skeleton.
+  Spec: signed JSON capsule `{version, sender_id, snap_ts, nodes[], edges[],
+  signature}` where nodes/edges reuse NetPulse's existing device_key schema plus
+  typed relations (S5.1); distribute via mobile/desktop agent or /api/graph/spore
+  POST on a mesh peer. Merge rule: latest snap_ts wins per key; edges merge by
+  (source,target,relation) with confidence take-max.
+  Output: one synchronized device graph across subnets/phones — the "atlas view".
+
+--------------------------------------------------------------------------------
+S2 — INTELLIGENCE ENGINE (the differentiator)
+--------------------------------------------------------------------------------
+
+[S2.1] Detection Hypothesis Generator
+  Source pattern: Quantum Inspired Drug.py lines 746-775 & 1284-1315
+  (Boltzmann energy × gaussian priors × composite factor -> probability, affinity,
+  mode, confidence, stability) + quantum_core.py field/collapse loop as the
+  continuous engine shape.
+  Data model (canonical):
+      HypothesisRecord = {
+        id: uuid, device_key, category: threat|identity|network,
+        title, evidence: [EvidenceRecord], probability: 0..1,
+        impact: 0..1, confidence: 0..1, suggested_action: str,
+        stage: int, gap: "removable"|"confirmed", created_at, expires_at
+      }
+      EvidenceRecord = {kind: packet|tls|smb|mqtt|rssi|ble|stage|osint,
+                        ref: Any (pointer), captured_at, weight}
+  Scoring algebra (adapt Boltzmann/entropy):
+      E              = ENERGY_MAP[signal_kind]        # prior severity table
+      probability    = exp(-E / kT)                   # kT = 0.592 (normalized)
+      prior_factor   = gaussian(observed_value, mu_prior, sigma_prior)
+      impact         = 0.4*volume_proxy + 0.3*area_proxy + 0.3*composition
+                                                        # (map of existing code)
+      confidence     = coherence * stability          # (map of existing code)
+      suggested_action derived from a THREAT_PLAYBOOK dict (S4.4).
+  Worked example input/output:
+      in : device with anonymous MQTT allowed (E=0.8), open AP (E=0.4),
+           weak SMB signing (E=0.5)
+      out: [ {prob 0.26, impact .86, title "Anonymous MQTT broker on 192.168.1.x",
+               action "Quarantine host and require re-auth, or isolate VLAN"},
+             {prob 0.51, impact .55, title "Open wireless AP",
+               action "Enable WPA3 or indicate guest-SSID OK"} ]
+  Integration points:
+      - Live: GET /api/hypotheses?device_key=&limit= (tier-gated).
+      - WS broadcast: {"type": "hypotheses_update", data: top_n}.
+      - Re-scoring after each /api/scan and /ws full_state (engine consumes
+        EngineState deltas only — cheap, not full re-scan).
+  Storage: new table `hypotheses` (id, device_key, title, probability, impact,
+  confidence, evidence_json, created_at). UI: Hypotheses tab sorted by
+  (impact * probability).
+
+[S2.2] Threat-Field Engine (continuous collapse/measure loop)
+  Source pattern: quantum_core.py QuantumConsciousness daemon (thread-grouped
+  field update, decoherence noise, coherence/entanglement metrics, collapse).
+  Implementation: single asyncio background task (NOT unbounded pile):
+      every 5 s: pull new evidence -> collapse per-device field (sequence across
+      probe-layer dimensions) -> rank -> broadcast top-N to /ws + store.
+  Guardrails: no blocking DB; a small in-memory LRU bounded to 1k hypotheses.
+
+[S2.3] Adaptive scan-strategy tuner (bandit + surrogate)
+  Source pattern: core/adaptive_router.py UCB1 EngineBanditStat + Scheduler DAG
+  (dependencies, timeout, retry, telemetry); quantum-molecular-system.py
+  NeuralPotential surrogate + quantum-molecular-optimizer.py L-BFGS-B/FFT/von
+  Neumann entropy fitness.
+  State space (what to learn per network):
+      {channel_dwell_ms, probe_order[], thread_pool_size, timeout_ms, retries,
+       prober_enablement[], passive_duty_cycle}
+  UCB1 reward signal: Δ confirmed device identity confidence per wall-clock
+  second, per estimator-context {tv, mobile, IoT, gateway, mesh, WAN}.
+  Surrogate optimization for continuous knobs via gradient-free (L-BFGS-B) when
+  enough samples (>25 per context); Adam-style online tweak otherwise.
+  Fitness = coverage_gain - latency_cost - false_positive_penalties.
+  Persistence: table `scan_strategy(env_fingerprint, params_json, ucb1_stats,
+  updated_at)`; CLI/flag `--adaptive on|off` (default ON for Pro+).
+  Why: today every full scan runs 3,500 lines regardless of network persona; the
+  tuner makes scans cheaper and smarter (the "cheaper than brute-force" pitch).
+
+[S2.4] Provenance / evidence system (why-this-verdict)
+  New tables:
+      evidence(claim_id, device_key, kind, ref_json, captured_at, sha256,
+               confidence_influence)
+  Endpoint: GET /api/device/{key}/evidence + drilldown UI badge per claim.
+  Every claim (identity/botnet/de-cloak) must link to one or more rows.
+  Feeds the daily digest and the forensic dossier (real "chain of custody").
+
+--------------------------------------------------------------------------------
+S3 — NETWORK CONTROL EXPANSION
+--------------------------------------------------------------------------------
+
+[S3.1] Append-only hash-chain ledger (tamper-evident)
+  Pattern source: silicone_wave_workspace/evidence_log.txt append-only design.
+  Schema:
+      events_ledger(id, prev_hash, hash, ts, actor, action, target, details_json)
+      hash = sha256(prev_hash + ts + action + details_json)
+  Enforce immutability via SQLite trigger (no UPDATE/DELETE). Endpoint
+  /api/ledger/verify recomputes chain. Feeds forensic dossier; solves the
+  "report writes to ~/Desktop with no retention" flaw (server.py:1331-1342).
+
+[S3.2] Action journal with UNDO (rollback on every control action)
+  Pattern source: hardware_inspector_pro LIEF mutation undo/redo.
+  Schema: `actions(id, initiated_by, kind, command_json, inverse_json, status,
+  started_at, completed_at, result)`; UI one-click undo; every control
+  primitive (WoL, quarantine, Kasa, Sonos, TMO, sinkhole) must record an
+  inverse operation; auto-undo on failure halves.
+
+[S3.3] ARP-spoof vigilance + auto-mitigation (existing PassiveWireSniffer
+  `arp_anomalies` output)
+  Flow: detect -> warn WS + ledger -> (confirm gate) -> quarantine offender
+  (existing engine) -> optional rebind ARP at gateway (where ubus/API available)
+  -> log to ledger. Rate-limit the attacker probe too.
+
+[S3.4] DNS sinkhole / local resolver mode
+  Using existing DPI + passive sniffer already seeing DNS. Provide
+  `/api/net/dns/sinkhole` CRUD; enforcement modes:
+      a) local dnsmasq drop-in (Linux container/desktop),
+      b) gateway redirect rule (OpenWrt mode, S3.6),
+      c) per-device IP set + DNS-over-proxy fallback. Enterprise tier.
+
+[S3.5] Rogue-DHCP / captive-portal / rogue-RA detection
+  Passive-mode detections; vulnerable fix prerequisite: wireless.py:2887
+  `lladdr[:14]` bogus slice must be repaired first.
+  Outputs as hypotheses (S2.1) with severity `critical` for rogue-DHCP; auto-
+  alert in /ws; log to ledger.
+
+[S3.6] Router-level enforcement (OpenWrt ubus)
+  Detect ubus on gateway with explicit opt-in onboarding. Actions:
+      - firewall rule CRUD (drop/allow device)
+      - MAC allowlist / denial per device
+      - per-device bandwidth shaping
+  Inventory whitelist of supported builds; every action journalized (S3.2).
+  Windows/macOS gateways fall back gracefully to warning-only.
+
+[S3.7] Leader election & coordinated multi-node sweeps
+  Source pattern: raft_consensus.py RaftNode (elections, log, commit).
+  Wiring: UDP multicast heartbeat on port 8766; node_id = hash(nic MAC);
+  partition rule = hash(device_key) % quorum; sweeps coordinated by leader.
+  Result aggregation via S1.16 spore capsules; enterprise tier. Consensus TEST
+  MODE must be deterministic (seeded election timeouts) for unit tests.
+
+--------------------------------------------------------------------------------
+S4 — FIRMWARE EXPOSURE PILLAR (unique capability)
+--------------------------------------------------------------------------------
+
+[Byte 1] Source pattern: hardware_inspector_pro (binwalk extraction, LIEF data,
+  entropy/strings/CFG view, hex editor integrity).
+[Byte 2] NetPulse integration spec:
+      - Discovery: parse UPnP `descDeviceURL` / vendor HTTP pages for firmware URLs.
+      - Fetch: only from device-reported host (SSRF guard: RFC1918 target only,
+        whitelist of vendors), cap 30 MB, consent prompt; never auto-execute.
+      - Analyze: binwalk signatures, LIEF section/entropy, strings, CVE hints
+        fetched by exact version match (offline pack optional).
+      - Output: per-device `firmware{hash, version, cvelist[], entropy_findings,
+        dangling_sigs[]}`; new endpoint POST /api/action/firmware-audit.
+      - Export into the existing forensic dossier; tier: Enterprise.
+[Byte 3] Safety: every step journalized (S3.2); never auto-verify CVEs without
+  disclaimer; byte-level work is read-only.
+
+--------------------------------------------------------------------------------
+S5 — INFORMATION DENSITY / UX (information is the product)
+--------------------------------------------------------------------------------
+
+[S5.1] Unified Device Identity Graph
+  Nodes = {network_device, cellular_modem, bt_device, zigbee_node, matter_node};
+  Edges = {same_radio, talks_to, masquerades_as, controls, observed_by},
+  each with weight + confidence + evidence_id. PageRank-style centrality ranks
+  "hub devices" (routers/servers) and clusters cloaked VAPs.
+  Persistence: `graph_nodes(node_id, kind, attrs_json)`,
+  `graph_edges(src, dst, relation, weight, confidence, evidence_id)`.
+  Endpoint: GET /api/graph?format=json|graphviz; render SVG via graphviz
+  (pattern: wave_lens_graphviz.py).
+
+[S5.2] Enriched device profile fields (comprehensive expansion)
+  Add to DeviceProfile/enricher:
+      - JA4+ / QUIC fingerprints (extend existing JA3 work)
+      - DNS query mix per device (from passive sniffer)
+      - Cloud beacons {domain, ASN, country, cadence}
+      - BLE continuity identity (S1.11)
+      - Thread/Matter/Zigbee role
+      - Hotspot probability (S1.12)
+      - Firmware exposure (S4)
+      - Risk pipeline: probability-weighted impact from S2.1 hypotheses
+  UI: per-device ribbon of badges; hover = provenance (S2.4).
+
+[S5.3] Daily/weekly posture diff digest
+  Diff EngineState snapshots between runs; emit via WS / email; content =
+    {changed_devices, new_threats, resolved_threats, posture_delta,
+     top_hypotheses}. Drives retention/engagement — the "news feed" angle.
+
+[S5.4] AI copilot (remediation suggestions, confirm-gated)
+  Pattern source: hardware_inspector_pro LLM suggestion + confirmation dialog;
+  UNRAVEL AIGenerator (tenacity retry + asyncio timeout + JSON validate — copy
+  the retry/timeout/validate trio; do NOT copy the brittle regex fallback).
+  Endpoint POST /api/explain {device_key, question} -> tempered English
+  explanation + suggested commands (requires /permissions/confirm to run).
+  Tier: Pro+; token budget per user to control cost; never auto-execute.
+
+[S5.5] Observability hooks
+  - /api/metrics Prometheus exposition (pull model) for enterprise installs.
+  - GET /api/graph?format=graphviz -> SVG topology.
+  - Optional Kibana dump export (wave_lens_kibana_dashboard.ndjson pattern).
+
+--------------------------------------------------------------------------------
+S6 — MOBILE / CYBER-PHYSICAL COLUMN (the walk-around experience)
+--------------------------------------------------------------------------------
+
+[S6.1] AR-fusion walk mode (extends existing Geiger finder)
+  Hardware: phone camera optical flow over live packet capture (ar_sensor_fusion
+  pattern), merged with existing RSSI/magnetometer/azimuth feed. HUD overlay
+  ("you are heading toward the decoy AP"), physical heatmaps, anchored labels.
+  Server keeps room estimates (S1.15); UI on desktop side/map tab; privacy opt-in.
+
+[S6.2] Mobile-side BLE census turn-on
+  Android BLE scanner feed (the app already polls RSSI + mag + azimuth through
+  /api/mobile/telemetry) extends to share manufacturer data → powers S1.11.
+
+[S6.3] Push: total hidden-AP sweep pass
+  A one-tap "walk the room, sweep all" flow that combines S1.11-S1.13 during a
+  walk — signature competitor gap: no consumer rival fuses AR+RF this way.
+
+--------------------------------------------------------------------------------
+S7 — CROSS-CUTTING ARCHITECTURE DEBT TO CLEAR (unblocking scale)
+--------------------------------------------------------------------------------
+  - Replace hardcoded endpoint matrices in tests/test_server.py:245-304 by
+    reflection over app.routes (never drifts again); target coverage: deep-nmap,
+    traceroute, speedtest, area-scan, camera-sweep, POST /api/scan,
+    GET /api/device-image, device customize/delete, admin/revoke, admin/leads.
+  - Remove real-network side effects from tests (WoL/real NIC/DNS) — use pytest
+    param/fixtures without broadcast; move tests to hermetic/synthetic.
+  - Add tests/test_cli.py + tests/test_desktop.py (currently zero coverage).
+  - Unify version: single `netpulse/__init__.py::__version__` consumed
+    everywhere (pyproject, Dockerfile, install.sh, banners, README badge).
+  - Consolidate device/profile schema with microdataclass/TypedDict pattern;
+    delete duplicate/tier-1 private-API reaches in tests (db._connect).
+  - Rate limiting as middleware (per-IP token bucket), request size cap,
+    TrustedHost, HSTS/CSP headers; secure `/api/device-image/{ip}` SSRF surface
+    (allowlist host + content-type check).
+  - Logger discipline: module loggers everywhere; per-request trace-id.
+
+--------------------------------------------------------------------------------
+S8 — ROADMAP WITH EFFORT & DEPENDENCIES
+--------------------------------------------------------------------------------
+  P0 (unblock) : S0.1-S0.10           effort S   (days)
+  P1 (wins)    : S1.11 S1.13 S2.1 S2.4 S3.1 S5.2 S5.3   effort M (1-2 wks)
+                 deps: S0.*
+  P2 (different) : S1.12 S1.14* S2.2 S2.3 S3.2 S3.3 S3.4 S3.5 S4 S4.4 S5.1 S5.4
+                 effort M-L (2-4 wks) ; deps: P1
+  P3 (strategic) : S1.15 S1.16 S3.6 S3.7 S6.* S5.5
+                 effort L (4+ wks) ; deps: P2
+  (*S1.14 gated by explicit legal/consent UI + policy confirmation)
+
+--------------------------------------------------------------------------------
+S9 — RISK REGISTER (new capabilities)
+--------------------------------------------------------------------------------
+  - Privacy : BLE + AR fusion can identify persons; mitigate via opt-in,
+              on-device processing, data retention caps, PII redaction in
+              exports.
+  - Legal   : Stage-14 PMKID capture gated behind consent + jurisdiction note.
+  - DoS     : sinkhole/strategies default conservative; never nascent
+              auto-shutdown; upstream guard on router writes.
+  - Supreme : firmware fetch is read-only; never executes analysis results.
+  - Cost    : LLM copilot budget-capped per tier (S5.4).
+
+--------------------------------------------------------------------------------
+S10 — TEST PLAN ADDITIONS (keeps the upgrade honest)
+--------------------------------------------------------------------------------
+  - Golden iw/nmcli fixtures for S0.1, S0.4, S0.5.
+  - CONNACK vectors (v3.1.1 + v5.0) for S0.6.
+  - Probe-result schema test that both probers.py and fingerprint.py import
+    from netpulse/profile_keys.py (S0.7).
+  - Hypothesis-engine integration test: synthetic evidence -> expect ordered
+    top-3 with expected titles (S2.1).
+  - Bandit determinism test (seeded) for S2.3.
+  - Ledger chain-verification test incl. tamper attempt (S3.1).
+  - Undo roundtrip test for every control action (S3.2).
+  - AR-fusion fusion test with synthetic sensor stream (S6.1).
+
+END OF SECTION 3
+
+================================================================================
+SECTION 4 — IMPLEMENTATION STATUS (2026-11-08 WORK SESSION ONE)
+================================================================================
+Status legend: [DONE] shipped in this session — [PARTIAL] core landed, rest
+pending — [OPEN] untouched, follow Section 3 priority order.
+
+S0 — ENGINEERING FIXES (Section 1.1 blockers)
+  [DONE] S0.1  iw BSS regex at wireless.py (strict 17-char MAC capture; works
+               with "(on wlo1)" suffix forms). wireless.py parse_iw_scan_dump()
+  [DONE] S0.2  Stage-3 verdict precedence: WPS verdicts can no longer overwrite
+               breadcrumb-verified 100%-confidence LAN attribution.
+  [DONE] S0.3  Stage-7/8 unmask OUI prefix built from colon-split octets
+               (b0&0xFD + octets 2-3), never character offsets.
+  [DONE] S0.4  Colon-safe octet-tuple comparisons replace ALL fragile
+               char-offset slicing in stages 4/5/6/7/8 (prefix5/suffix5/mid4/
+               suffix4/tail2/twin match). _unmask_laa_vendor() validates the
+               MAC before int() parse.
+  [DONE] S0.5  nmcli signal scale ambiguity: new wireless.parse_signal_value()
+               auto-detects dBm (<=0) vs percent (>0), converts via (pct/2)-100
+               calibration; scan merge uses iw dBm when present, else fallback.
+  [DONE] S0.6  MQTT CONNACK: return code is byte 2 (v3.1.1), not byte 3;
+               v5 note documented. probers.py mqtt probe.
+  [PARTIAL] S0.7 Producer/consumer key drift: fixed all fingerprint.py
+               consumers — Sonos camelCase (roomName/modelName/modelNumber/
+               serialNum/softwareVersion/hardwareVersion), Hue (name/modelid/
+               bridgeid), Ollama (ollama_ai keyed "models"), MQTT
+               (anonymous_allowed/connack_code), SMB (signing_enabled instead
+               of nonexistent security_mode). Full profile_keys.py schema
+               module still OPEN (see S8).
+  [DONE] S0.8  subprocess timeout gaps: all ip/iw route-addr-neigh call sites
+               now carry timeout=5.0; PassiveWireSniffer.stop() terminates,
+               waits (2s), then SIGKILLs tshark — no more zombie captures.
+  [OPEN] S0.9  Exception-swallow logging sweep (critical paths only).
+  [DONE] S0.10 Cross-cutting: /api/export/csv tier-gated (forensic_export);
+               /api/subscription/deactivate admin-gated (loopback/testclient
+               exempt); quarantine engage/release DB writes moved to
+               asyncio.to_thread; CORS no longer allow_origins="*" — defaults
+               to localhost:8765 pair, override via NETPULSE_CORS_ORIGINS.
+
+BILLING / LICENSE ENGINE (Section 1.2)
+  [DONE] Hardcoded signing-secret fallback removed — falls back to
+               generated+persisted random secret (secrets.token_hex(32)).
+  [DONE] HMAC upgraded to full 32-byte SHA-256 tag on mint; verify accepts
+               BOTH full tag and legacy 18-byte truncated tag
+               (backward compatible with previously minted keys).
+  [DONE] verify_stripe_session_and_activate: no_payment_required no longer
+               mints anything; strict payment_status=="paid" required.
+  [DONE] Webhook hardened: fail-CLOSED when no secret is configured
+               (escape hatch: NETPULSE_WEBHOOK_ALLOW_UNSIGNED=1), 5-minute
+               replay tolerance window, event-id idempotency ledger via
+               webhook_processed_* config keys, duplicate-session guard never
+               re-mints for the same checkout session.
+  [DONE] customer.subscription.deleted: revokes every minted license tied to
+               the cancelled customer/session and drops the active key if hit.
+  [DONE] Trial minting enforced once per node in capture_lead_and_issue_trial
+               (was unlimited via repeated lead posts); lead still recorded.
+  [DONE] All 9 sqlite3 connections in billing.py now close deterministically
+               (contextlib.closing).
+  [DONE] revoke_license() accepts a full NP1-* key (payload jti decoded) in
+               addition to a bare JTI.
+
+NETPULSE HARNESS (Section 1.4)
+  [DONE] docker-compose volume bug: volume mounted to dedicated /data and
+               engines pointed there via NETPULSE_DB_PATH (no more
+               source-shadowing of /app/netpulse).
+  [DONE] database.py + billing.py accept NETPULSE_DB_PATH override.
+  [DONE] install.sh: creates .venv (python3 -m venv) and pip-installs the
+               runtime deps (fastapi/uvicorn/pydantic/rich/qrcode); systemd
+               ExecStart + .desktop launcher use the venv python. Falls back
+               to pip --user when venv is unavailable.
+  [DONE] Version drift fixed: netpulse/__init__.py __version__ = "4.5.0";
+               CLI banner now derives from __version__; README badge 47->49.
+  [DONE] CLI: --version flag added; wol/roku semantic failures exit(1).
+
+S1 — DETECTION EXPANSION (Section 3)
+  [DONE] Stage 12: Personal Hotspot / Hidden-Tether probability classifier on
+               every hidden AP (LAA bit + basic-rate beacon + proximity +
+               open/WPA2-PSK heuristics) -> hotspot_probability +
+               tether_role_hint keys.
+  [DONE] S2.1  intel_hypotheses.py — Boltzmann hypothesis engine. Two-axis
+               corrected algebra: probability=exp(-E_uncertainty/kT) with
+               E_uncertainty = signal maturation energy (measured events ~0,
+               speculative attribution high), severity_energy drives
+               impact + label; EV = probability*impact ranks; playbook of
+               remediation actions per signal class; dedup + top-N.
+               Wire-up: snapshot carries hypotheses_top(12)/hypotheses_total;
+               GET /api/hypotheses?limit=N returns the full ranked feed
+               (recomputed with a fresh thread-safe threat audit); workbench
+               Security-Posture modal renders the top-12 with p/impact/EV +
+               suggested action (satisfies the endpoint-surfacing contract).
+  [PARTIAL] S1 remainder (passive census, PMKID stage 14, sinkhole,
+               ARP-guard auto actions, DNS/DoH SOS audit) — still OPEN.
+
+SECURITY LAYER (server.py)
+  [DONE] Optional live-stream gate: set NETPULSE_WS_TOKEN to require
+               ?token= from non-loopback /ws peers (loopback + testclient
+               exempt; close code 4401).
+
+TESTS
+  [DONE] test_billing.py modernized: live-timestamp webhook fixture
+               (anti-replay window), duplicate-delivery idempotency assert,
+               unsigned-payload fail-closed assert. Suite: 49/49 passing.
+
+NEXT (suggested order — Section 3)
+  1. profile_keys.py typed schema + full probers.py/fingerprint.py adoption to
+     kill producer/consumer drift at compile time (closes S0.7).
+  2. Evidence chain ledger (S3.1) + action journal with inverse ops (S3.2).
+  3. Passive device census (S1.13) + ARP-guard auto-actions (S1.7).
+  4. Exception-swallow logging sweep (S0.9) and WS/UI integration polish for
+     hypotheses_top badges on the dashboard header.
+
+END OF SECTION 4

@@ -68,7 +68,7 @@ def detect_active_interface() -> NetworkInterfaceInfo:
     ipv6_list: List[str] = []
 
     try:
-        route_out = subprocess.check_output(["ip", "-j", "route", "show", "default"], stderr=subprocess.DEVNULL).decode()
+        route_out = subprocess.check_output(["ip", "-j", "route", "show", "default"], stderr=subprocess.DEVNULL, timeout=5.0).decode()
         routes = json.loads(route_out)
         if routes:
             iface = routes[0].get("dev", iface)
@@ -78,7 +78,7 @@ def detect_active_interface() -> NetworkInterfaceInfo:
         pass
 
     try:
-        addr_out = subprocess.check_output(["ip", "-j", "addr", "show", "dev", iface], stderr=subprocess.DEVNULL).decode()
+        addr_out = subprocess.check_output(["ip", "-j", "addr", "show", "dev", iface], stderr=subprocess.DEVNULL, timeout=5.0).decode()
         addrs = json.loads(addr_out)
         if addrs:
             info = addrs[0]
@@ -102,7 +102,7 @@ def detect_active_interface() -> NetworkInterfaceInfo:
     channel = 0
     txpower_dbm = 0.0
     try:
-        iw_out = subprocess.check_output(["iw", "dev", iface, "info"], stderr=subprocess.DEVNULL).decode()
+        iw_out = subprocess.check_output(["iw", "dev", iface, "info"], stderr=subprocess.DEVNULL, timeout=5.0).decode()
         for line in iw_out.splitlines():
             s = line.strip()
             if s.startswith("ssid "):
@@ -151,6 +151,7 @@ def read_kernel_neighbors(net_info: NetworkInterfaceInfo) -> Dict[str, Dict[str,
         out = subprocess.check_output(
             ["ip", "-s", "-j", "neigh", "show", "dev", net_info.interface],
             stderr=subprocess.DEVNULL,
+            timeout=5.0,
         ).decode()
         entries = json.loads(out)
         mac_to_ipv6: Dict[str, List[str]] = {}
@@ -1482,10 +1483,20 @@ class PassiveWireSniffer:
         self._thread.start()
 
     def stop(self) -> None:
+        """Terminate the tshark capture child and reap it so no zombie remains."""
         self.running = False
-        if self._proc:
+        proc = self._proc
+        if proc is not None:
             try:
-                self._proc.terminate()
+                proc.terminate()
+                try:
+                    proc.wait(timeout=2.0)
+                except Exception:
+                    try:
+                        proc.kill()
+                        proc.wait(timeout=1.0)
+                    except Exception:
+                        pass
             except Exception:
                 pass
 
@@ -2112,7 +2123,7 @@ def _build_smb2_negotiate_packet() -> bytes:
         + struct.pack("<Q", 0)      # SessionId
         + (b"\x00" * 16)            # Signature
     )
-    dialects = [0x0202, 0x0210, 0x0300, 0x0302]
+    dialects = [0x0202, 0x0210, 0x0300, 0x0302, 0x0311]
     client_guid = uuid.uuid4().bytes
     neg_body = (
         struct.pack("<H", 36)                   # StructureSize = 36
@@ -2202,8 +2213,17 @@ def probe_smb2_negotiate(ip: str, port: int = 445, timeout: float = 1.4) -> Opti
     try:
         s.connect((ip, port))
         s.sendall(_build_smb2_negotiate_packet())
-        resp = s.recv(4096)
-        parsed = _parse_smb2_negotiate_response(resp)
+        resp = bytearray()
+        while len(resp) < 128:
+            chunk = s.recv(4096)
+            if not chunk:
+                break
+            resp.extend(chunk)
+            if len(resp) >= 4:
+                expected_len = struct.unpack(">I", b"\x00" + bytes(resp[1:4]))[0] + 4
+                if len(resp) >= expected_len:
+                    break
+        parsed = _parse_smb2_negotiate_response(bytes(resp))
         if parsed:
             parsed["ip"] = ip
             parsed["port"] = port
@@ -2238,8 +2258,10 @@ def probe_mqtt_broker(ip: str, port: int = 1883, timeout: float = 0.9) -> Option
             s.sendall(b"\xe0\x00")
         except Exception:
             pass
-        if len(resp) >= 4 and resp[0] == 0x20:
-            ret_code = resp[3]
+        if len(resp) >= 3 and resp[0] == 0x20:
+            # MQTT CONNACK: byte0=type 0x20, byte1=flags, byte2=return/reason code
+            # (v5.0 adds a property-length byte AFTER the reason code).
+            ret_code = resp[2]
             anon_ok = ret_code == 0x00
             return {
                 "port": port,
@@ -2884,7 +2906,8 @@ def audit_ipv6_posture(interface: str = "wlo1") -> Dict[str, Any]:
                 intel = oui_db.lookup(lladdr) if lladdr else None
                 eui = unmask_eui64_ipv6_mac([dst_v6])
                 if lladdr:
-                    router_macs.add(lladdr[:14])  # Group by 5-octet silicon prefix
+                    mac_prefix5 = ":".join(lladdr.split(":")[:5]) if lladdr.count(":") == 5 else lladdr
+                    router_macs.add(mac_prefix5)  # Group by 5-octet silicon prefix
                 posture["ipv6_routers"].append({
                     "ipv6": dst_v6,
                     "mac": lladdr,

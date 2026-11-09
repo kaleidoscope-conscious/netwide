@@ -50,7 +50,7 @@ def ensure_daemon_running(port: int = DEFAULT_PORT) -> None:
 
     def _run_server() -> None:
         import uvicorn
-        uvicorn.run("netpulse.server:app", host="0.0.0.0", port=port, log_level="warning")
+        uvicorn.run("netpulse.server:app", host="127.0.0.1", port=port, log_level="warning")
 
     t = threading.Thread(target=_run_server, daemon=True)
     t.start()
@@ -76,7 +76,7 @@ def launch_desktop_app() -> None:
     ensure_daemon_running(DEFAULT_PORT)
 
     try:
-        from PyQt6.QtCore import QTimer, QUrl, Qt
+        from PyQt6.QtCore import QObject, QTimer, QUrl, Qt, pyqtSignal
         from PyQt6.QtGui import QAction, QDesktopServices, QIcon, QKeySequence, QShortcut
         from PyQt6.QtWebEngineCore import QWebEngineDownloadRequest, QWebEnginePage
         from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -337,6 +337,19 @@ def launch_desktop_app() -> None:
         tray.setContextMenu(tray_menu)
         tray.show()
 
+    class _PostureBridge(QObject):
+        posture_ready = pyqtSignal(str, str, str)
+
+    posture_bridge = _PostureBridge(win)
+
+    def _apply_posture(summary: str, title: str, tooltip: str) -> None:
+        status_bar.showMessage(summary)
+        win.setWindowTitle(title)
+        if tray is not None:
+            tray.setToolTip(tooltip)
+
+    posture_bridge.posture_ready.connect(_apply_posture)
+
     def _poll_live_posture() -> None:
         def _fetch() -> None:
             try:
@@ -357,10 +370,9 @@ def launch_desktop_app() -> None:
                     f"Optimal RF: 2.4G Ch {ch24} / 5G Ch {ch5}  |  "
                     f"[Ctrl+R] Scan  [Ctrl+F] OUI Search  [Ctrl+Shift+E] CSV"
                 )
-                status_bar.showMessage(summary)
-                win.setWindowTitle(f"NetPulse // OmniSight — Security Grade {grade} ({score}/100) • {on_cnt} Hosts Online")
-                if tray is not None:
-                    tray.setToolTip(f"NetPulse // OmniSight — Grade {grade} ({score}/100) • {on_cnt}/{tot_cnt} Online")
+                title = f"NetPulse // OmniSight — Security Grade {grade} ({score}/100) • {on_cnt} Hosts Online"
+                tooltip = f"NetPulse // OmniSight — Grade {grade} ({score}/100) • {on_cnt}/{tot_cnt} Online"
+                posture_bridge.posture_ready.emit(summary, title, tooltip)
             except Exception:
                 pass
 

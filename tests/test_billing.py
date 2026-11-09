@@ -71,6 +71,8 @@ def test_tampered_license_key_rejected():
 
 
 def test_stripe_webhook_hmac_verification():
+    import time as _time
+
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "sub_wh.db")
         mgr = SubscriptionManager(db_path=db_path)
@@ -78,6 +80,7 @@ def test_stripe_webhook_hmac_verification():
         mgr.configure_stripe_keys(secret_key="sk_test_123", webhook_secret=wh_secret)
 
         payload_dict = {
+            "id": "evt_test_wh_1",
             "type": "checkout.session.completed",
             "data": {
                 "object": {
@@ -92,7 +95,8 @@ def test_stripe_webhook_hmac_verification():
             },
         }
         raw_body = json.dumps(payload_dict).encode("utf-8")
-        t_str = "1700000000"
+        # Live timestamp (the 5-minute anti-replay tolerance window rejects stale ones)
+        t_str = str(int(_time.time()))
         sig = hmac.new(
             wh_secret.encode("utf-8"),
             f"{t_str}.".encode("utf-8") + raw_body,
@@ -103,4 +107,18 @@ def test_stripe_webhook_hmac_verification():
         res = mgr.handle_stripe_webhook(raw_body, sig_header)
         assert res["ok"] is True
         assert res["minted"]["tier"] == "enterprise"
+        assert mgr.get_subscription_status()["tier"] == "enterprise"
+
+        # Idempotency: a duplicate delivery of the same event must NOT re-mint
+        # (and must report the duplicate nature).
+        res_dup = mgr.handle_stripe_webhook(raw_body, sig_header)
+        assert res_dup["ok"] is True
+        assert res_dup.get("duplicate") is True
+        assert mgr.get_subscription_status()["tier"] == "enterprise"
+
+        # Fail-closed: an unsigned payload (with no sig header) must be rejected,
+        # and the rejection must not have altered the active subscription state.
+        res_unsigned = mgr.handle_stripe_webhook(raw_body, "")
+        assert res_unsigned["ok"] is False
+        assert "signature" in res_unsigned["error"].lower()
         assert mgr.get_subscription_status()["tier"] == "enterprise"

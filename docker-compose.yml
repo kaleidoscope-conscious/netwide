@@ -8,8 +8,13 @@ services:
       - NET_RAW
     env_file:
       - .env
+    environment:
+      # Persist the SQLite intel DB on the named volume. Mounting the volume over
+      # /app/netpulse shadowed the entire package source (documented bug) — mount
+      # a dedicated /data dir and point engines at it via NETPULSE_DB_PATH instead.
+      - NETPULSE_DB_PATH=/data/netpulse_intel.db
     volumes:
-      - netpulse_data:/app/netpulse
+      - netpulse_data:/data
     restart: unless-stopped
 
 volumes:

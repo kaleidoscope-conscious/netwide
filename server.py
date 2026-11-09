@@ -18,9 +18,11 @@ from __future__ import annotations
 import asyncio
 import csv
 import io
+import ipaddress
 import os
 import subprocess
 import time
+import urllib.parse
 import urllib.request
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional, Set
@@ -37,6 +39,7 @@ from netpulse.fingerprint import (
     compute_network_security_posture,
     run_full_network_scan,
 )
+from netpulse.intel_hypotheses import generate_hypotheses
 from netpulse.oui import oui_db
 from netpulse.probers import (
     NetworkInterfaceInfo,
@@ -381,6 +384,16 @@ class EngineState:
             self.wan_intel,
         )
 
+        # Boltzmann-ranked detection hypotheses — the information-density layer.
+        # Reuses the threat audit already computed above (pure math, no I/O).
+        hypotheses = generate_hypotheses(
+            self.devices,
+            self.wifi_spectrum,
+            arp_anomalies=list(self.sniffer.arp_anomalies)[:25],
+            threats=threats,
+            limit=500,
+        )
+
         return {
             "meta": {
                 "version": "4.5.0",
@@ -412,6 +425,8 @@ class EngineState:
             "gateway_5g": gw_5g,
             "devices": self.devices,
             "threats": threats,
+            "hypotheses_top": hypotheses[:12],
+            "hypotheses_total": len(hypotheses),
             "security_posture": security_posture,
             "top_talkers": top_talkers,
             "wifi": self.wifi_spectrum,
@@ -510,11 +525,26 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_allowed_cors_origins = [
+    o for o in os.environ.get(
+        "NETPULSE_CORS_ORIGINS",
+        "http://127.0.0.1:8765,http://localhost:8765",
+    ).split(",")
+    if o.strip()
+]
+
+# Optional shared-secret gate for the live WebSocket feed (/ws).
+_WS_AUTH_TOKEN = os.environ.get("NETPULSE_WS_TOKEN", "").strip()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_allowed_cors_origins,
+    allow_origin_regex=os.environ.get(
+        "NETPULSE_CORS_ORIGIN_REGEX",
+        r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$",
+    ),
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Admin-Token"],
 )
 
 
@@ -672,6 +702,35 @@ async def get_state() -> JSONResponse:
     return JSONResponse(state.to_snapshot())
 
 
+def _compute_full_hypotheses(limit: int = 500) -> List[Dict[str, Any]]:
+    """Thread-safe wrapper: fresh threat audit + ranked hypothesis generation."""
+    try:
+        threats = audit_network_threats(state.devices, state.wifi_spectrum, state.net_info.ssid)
+    except Exception:
+        threats = []
+    return generate_hypotheses(
+        state.devices,
+        state.wifi_spectrum or {},
+        arp_anomalies=list(state.sniffer.arp_anomalies)[:25],
+        threats=threats,
+        limit=max(1, limit),
+    )
+
+
+@app.get("/api/hypotheses")
+async def get_hypotheses(limit: int = 60) -> JSONResponse:
+    """
+    Full ranked detection-hypothesis feed — every raw signal converted into a
+    Boltzmann-weighted, prioritized, action-backed hypothesis.
+    """
+    hyps = await asyncio.to_thread(_compute_full_hypotheses, max(1, limit))
+    return JSONResponse({
+        "ok": True,
+        "count": len(hyps),
+        "hypotheses": hyps,
+    })
+
+
 @app.post("/api/scan")
 async def manual_scan() -> JSONResponse:
     snap = await trigger_scan_and_broadcast()
@@ -681,19 +740,33 @@ async def manual_scan() -> JSONResponse:
 @app.get("/api/device-image/{ip}")
 async def proxy_device_image(ip: str) -> Response:
     """Fetch and proxy actual hardware PNG icon directly from Roku / UPnP device on the LAN."""
+    # SSRF Guard: Validate ip is a valid IPv4/IPv6 address and not a loopback / cloud metadata IP
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+        if ip_obj.is_loopback or ip_obj.is_multicast or str(ip_obj) == "169.254.169.254":
+            raise HTTPException(status_code=400, detail="Invalid target address")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid IP format")
+
     candidate_urls = [f"http://{ip}:8060/device-image.png"]
     dev = next((d for d in state.devices if d.get("ip") == ip), None)
     if dev:
         upnp_icon = dev.get("upnp_info", {}).get("icon_url")
-        if upnp_icon and upnp_icon not in candidate_urls:
-            candidate_urls.insert(0, upnp_icon)
+        if upnp_icon and isinstance(upnp_icon, str):
+            parsed_host = urllib.parse.urlparse(upnp_icon).hostname
+            if parsed_host == ip and upnp_icon not in candidate_urls:
+                candidate_urls.insert(0, upnp_icon)
 
     def _fetch() -> Optional[bytes]:
         for url in candidate_urls:
             try:
                 req = urllib.request.Request(url, headers={"User-Agent": "NetPulse/2.0"})
                 with urllib.request.urlopen(req, timeout=1.5) as resp:
-                    return resp.read(524288)
+                    data = resp.read(524288)
+                    ctype = resp.headers.get("Content-Type", "")
+                    if ctype and not ctype.startswith("image/"):
+                        continue
+                    return data
             except Exception:
                 continue
         return None
@@ -1038,13 +1111,13 @@ async def action_quarantine(req: QuarantineRequest) -> JSONResponse:
     dkey = req.mac.upper().strip() if req.mac else f"IP:{req.ip}"
     if req.action.lower() in ("release", "stop"):
         released = quarantine_engine.release(req.ip)
-        net_db.update_device_customization(dkey, trust_state="watchlist")
-        state.devices = net_db.get_all_devices()
+        await asyncio.to_thread(net_db.update_device_customization, dkey, trust_state="watchlist")
+        state.devices = await asyncio.to_thread(net_db.get_all_devices)
         await broadcast_ws({"type": "full_state", "data": state.to_snapshot()})
         return JSONResponse({"ok": True, "ip": req.ip, "quarantined": False, "released": released})
     entry = quarantine_engine.engage(req.ip, req.mac, reason="Guardian Shield Active Quarantine")
-    net_db.update_device_customization(dkey, trust_state="intruder")
-    state.devices = net_db.get_all_devices()
+    await asyncio.to_thread(net_db.update_device_customization, dkey, trust_state="intruder")
+    state.devices = await asyncio.to_thread(net_db.get_all_devices)
     await broadcast_ws({"type": "full_state", "data": state.to_snapshot()})
     return JSONResponse({"ok": True, "ip": req.ip, "quarantined": True, "entry": entry})
 
@@ -1312,6 +1385,9 @@ def _build_inventory_csv_text(devices: List[Dict[str, Any]]) -> str:
 
 @app.get("/api/export/csv")
 async def export_inventory_csv() -> Response:
+    gate = _require_tier("forensic_export")
+    if gate:
+        return gate
     csv_text = await asyncio.to_thread(_build_inventory_csv_text, state.devices)
     return Response(
         content=csv_text.encode("utf-8"),
@@ -1442,7 +1518,11 @@ async def activate_license_endpoint(req: ActivateLicenseRequest) -> JSONResponse
 
 
 @app.post("/api/subscription/deactivate")
-async def deactivate_license_endpoint() -> JSONResponse:
+async def deactivate_license_endpoint(request: Request) -> JSONResponse:
+    # Guard: unauthenticated revocation would let ANY network peer wipe a paid license.
+    adm_err = _require_admin(request)
+    if adm_err:
+        return adm_err
     res = await asyncio.to_thread(subscription_engine.deactivate_license)
     await broadcast_ws({"type": "full_state", "data": state.to_snapshot()})
     return JSONResponse(res)
@@ -1565,6 +1645,17 @@ async def admin_list_leads_endpoint(request: Request) -> JSONResponse:
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket) -> None:
     await ws.accept()
+    # Optional live-stream token gate: set NETPULSE_WS_TOKEN to require
+    # `?token=...` from non-loopback peers (desktop app on localhost is exempt).
+    if _WS_AUTH_TOKEN:
+        client_host = ws.client.host if ws.client else ""
+        provided_token = ws.query_params.get("token") or ""
+        if client_host not in ("127.0.0.1", "::1", "testclient") and provided_token != _WS_AUTH_TOKEN:
+            try:
+                await ws.close(code=4401)  # policy violation: unauthorized
+            except Exception:
+                pass
+            return
     state.ws_clients.add(ws)
     try:
         await ws.send_json({"type": "full_state", "data": state.to_snapshot()})

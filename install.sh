@@ -9,7 +9,23 @@ echo "======================================================================"
 echo "  NetPulse // OmniSight v4.5.0 — Production Installer"
 echo "======================================================================"
 
-# 1. Install systemd user service
+# 1. Create a virtualenv and install runtime dependencies
+#    (install.sh previously started the service WITHOUT installing Python deps —
+#    guaranteed crash on any clean machine).
+VENV_DIR="$APP_DIR/.venv"
+RUNTIME_DEPS=( "fastapi>=0.110.0" "uvicorn[standard]>=0.29.0" "pydantic>=2.6.0" "rich>=13.7.0" "qrcode>=7.4.2" )
+if "$PYTHON_BIN" -m venv "$VENV_DIR" 2>/dev/null; then
+    echo "[*] Installing runtime dependencies into $VENV_DIR ..."
+    "$VENV_DIR/bin/pip" install --quiet --upgrade pip
+    "$VENV_DIR/bin/pip" install --quiet "${RUNTIME_DEPS[@]}"
+    VENV_PY="$VENV_DIR/bin/python"
+else
+    echo "[!] python3-venv unavailable — falling back to user-site pip install"
+    "$PYTHON_BIN" -m pip install --user --quiet "${RUNTIME_DEPS[@]}"
+    VENV_PY="$PYTHON_BIN"
+fi
+
+# 2. Install systemd user service
 SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
 mkdir -p "$SYSTEMD_USER_DIR"
 
@@ -22,7 +38,7 @@ After=network-online.target
 Type=simple
 WorkingDirectory=$APP_DIR
 Environment=PYTHONPATH=$PARENT_DIR
-ExecStart=$PYTHON_BIN -m netpulse serve --host 0.0.0.0 --port 8765
+ExecStart=$VENV_PY -m netpulse serve --host 0.0.0.0 --port 8765
 Restart=always
 RestartSec=4
 
@@ -33,7 +49,7 @@ EOF
 systemctl --user daemon-reload
 systemctl --user enable --now netpulse-guardian.service
 
-# 2. Install Desktop Launcher (.desktop)
+# 3. Install Desktop Launcher (.desktop)
 APPS_DIR="$HOME/.local/share/applications"
 mkdir -p "$APPS_DIR"
 
@@ -43,7 +59,7 @@ Type=Application
 Name=NetPulse Workbench
 GenericName=Sovereign Network & RF Intelligence Suite
 Comment=Deep LAN Fingerprinting, 802.11 TSF De-Cloaking, Wire DPI & Endpoint Control
-Exec=env PYTHONPATH=$PARENT_DIR $PYTHON_BIN -m netpulse desktop
+Exec=env PYTHONPATH=$PARENT_DIR $VENV_PY -m netpulse desktop
 Icon=$APP_DIR/static/netpulse-icon.svg
 Terminal=false
 Categories=Network;Security;System;Monitor;

@@ -2088,6 +2088,29 @@
             <div><strong>Category Taxonomy:</strong> <span class="mono">${cats || '—'}</span></div>
           `;
         }
+        // Boltzmann-ranked detection hypothesis feed (/api/hypotheses)
+        try {
+          const hypRes = await fetch('/api/hypotheses?limit=12');
+          const hypData = await hypRes.json();
+          const hypEl = document.getElementById('secModalHypothesesBox');
+          if (hypEl) {
+            const hyps = hypData.hypotheses || [];
+            const sevCol = s => s === 'CRITICAL' ? '#ef4444' : s === 'HIGH' ? '#f59e0b' : s === 'MEDIUM' ? '#eab308' : '#34d399';
+            hypEl.innerHTML = hyps.length ? hyps.map(h => {
+              const ev = Math.round((h.impact || 0) * (h.probability || 0) * 100);
+              return `
+                <div style="background:#111622;border:1px solid #334155;border-radius:7px;padding:8px 10px;">
+                  <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+                    <span style="font-weight:700;color:${sevCol(h.severity)};">${h.severity}</span>
+                    <span class="mono" style="font-size:10.5px;color:#94a3b8;">p=${h.probability} • impact=${h.impact} • EV ${ev}%</span>
+                  </div>
+                  <div style="margin-top:3px;">${h.title}</div>
+                  <div style="color:#38bdf8;margin-top:3px;">→ ${h.suggested_action}</div>
+                </div>
+              `;
+            }).join('') : '<div style="color:#64748b;">No active hypotheses — network is quiet.</div>';
+          }
+        } catch (e2) {}
       } catch (e) {}
     }
 
@@ -4076,6 +4099,10 @@
         </div>
       </div>
       <div id="secModalPillars" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;"></div>
+      <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;line-height:1.7;">
+        <div style="font-weight:700;color:#a78bfa;margin-bottom:6px;">🧠 Priority Detection Hypotheses (`/api/hypotheses` — Boltzmann-ranked action feed)</div>
+        <div id="secModalHypothesesBox" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
       <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;line-height:1.7;" id="secModalIpv6Box"></div>
       <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:8px;padding:12px;font-size:12px;line-height:1.7;" id="secModalDbBox"></div>
     </div>

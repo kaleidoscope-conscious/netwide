@@ -20,9 +20,10 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from contextlib import closing
 from typing import Any, Dict, List, Optional, Tuple
 
-DB_DEFAULT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "netpulse_intel.db")
+DB_DEFAULT_PATH = os.environ.get("NETPULSE_DB_PATH") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "netpulse_intel.db")
 
 TIER_RANK: Dict[str, int] = {
     "free": 0,
@@ -141,9 +142,8 @@ class SubscriptionManager:
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode = WAL;")
         return conn
-
     def _init_tables(self) -> None:
-        with self._lock, self._connect() as conn:
+        with self._lock, closing(self._connect()) as conn, conn:
             conn.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS subscription_config (
@@ -214,14 +214,14 @@ class SubscriptionManager:
                 pass
 
     def _get_config(self, key: str, default: str = "") -> str:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             row = conn.execute(
                 "SELECT value FROM subscription_config WHERE key = ?", (key,)
             ).fetchone()
             return str(row["value"]) if row else default
 
     def _set_config(self, key: str, value: str) -> None:
-        with self._lock, self._connect() as conn:
+        with self._lock, closing(self._connect()) as conn, conn:
             conn.execute(
                 """
                 INSERT INTO subscription_config (key, value)
@@ -236,7 +236,15 @@ class SubscriptionManager:
         env_secret = os.environ.get("NETPULSE_LICENSE_SECRET", "").strip()
         if env_secret:
             return env_secret.encode("utf-8")
-        return self._get_config("signing_secret", "netpulse-sovereign-default-secret").encode("utf-8")
+        stored = self._get_config("signing_secret", "")
+        if stored:
+            return stored.encode("utf-8")
+        # No env secret and no persisted secret: generate a strong random secret and
+        # persist it immediately. Never fall back to a publicly-known constant —
+        # that would make every NP1 key forgeable.
+        generated = secrets.token_hex(32)
+        self._set_config("signing_secret", generated)
+        return generated.encode("utf-8")
 
     def get_admin_token(self) -> str:
         env_admin = os.environ.get("NETPULSE_ADMIN_TOKEN", "").strip()
@@ -317,11 +325,13 @@ class SubscriptionManager:
         payload_b64 = _b64url_encode(payload_bytes)
 
         sig_full = hmac.new(self._signing_secret(), payload_b64.encode("ascii"), hashlib.sha256).digest()
-        sig_b64 = _b64url_encode(sig_full[:18])  # 144-bit truncated HMAC-SHA256 tag
+        # Full 256-bit HMAC-SHA256 tag (upgraded from the legacy 144-bit truncated tag).
+        # verify_license_key() accepts both the full tag and the legacy truncated one.
+        sig_b64 = _b64url_encode(sig_full)
 
         license_key = f"NP1-{tier_clean.upper()}-{payload_b64}-{sig_b64}"
 
-        with self._lock, self._connect() as conn:
+        with self._lock, closing(self._connect()) as conn, conn:
             conn.execute(
                 """
                 INSERT INTO minted_licenses (
@@ -371,9 +381,12 @@ class SubscriptionManager:
 
         _, tier_prefix, payload_b64, sig_b64 = parts
         expected_sig = hmac.new(self._signing_secret(), payload_b64.encode("ascii"), hashlib.sha256).digest()
-        expected_sig_b64 = _b64url_encode(expected_sig[:18])
+        # Accept both the current full 256-bit tag and the legacy 144-bit truncated tag
+        # so pre-upgrade minted keys remain valid.
+        expected_sig_full = _b64url_encode(expected_sig)
+        expected_sig_trunc = _b64url_encode(expected_sig[:18])
 
-        if not hmac.compare_digest(sig_b64, expected_sig_b64):
+        if not (hmac.compare_digest(sig_b64, expected_sig_full) or hmac.compare_digest(sig_b64, expected_sig_trunc)):
             return {"valid": False, "error": "Cryptographic signature verification failed (invalid HMAC-SHA256 tag)."}
 
         try:
@@ -395,7 +408,7 @@ class SubscriptionManager:
             }
 
         jti = str(payload.get("jti", ""))
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             row = conn.execute(
                 "SELECT revoked FROM minted_licenses WHERE jti = ?", (jti,)
             ).fetchone()
@@ -442,9 +455,21 @@ class SubscriptionManager:
         }
 
     def revoke_license(self, jti: str) -> Dict[str, Any]:
-        with self._lock, self._connect() as conn:
+        target = (jti or "").strip()
+        # Accept a full NP1-* license key (admins commonly paste the whole key)
+        # in addition to a bare JTI ledger id.
+        if target.startswith("NP1-"):
+            parts = target.split("-")
+            if len(parts) != 4:
+                return {"ok": False, "error": "Malformed license key cannot be parsed for revocation."}
+            try:
+                payload = json.loads(_b64url_decode(parts[2]).decode("utf-8"))
+                target = str(payload.get("jti", "")).strip() or target
+            except Exception:
+                pass
+        with self._lock, closing(self._connect()) as conn, conn:
             cur = conn.execute(
-                "UPDATE minted_licenses SET revoked = 1 WHERE jti = ?", (jti.strip(),)
+                "UPDATE minted_licenses SET revoked = 1 WHERE jti = ?", (target,)
             )
             conn.commit()
             if cur.rowcount == 0:
@@ -457,7 +482,7 @@ class SubscriptionManager:
         return {"ok": True, "jti": jti, "revoked": True}
 
     def list_minted_licenses(self) -> List[Dict[str, Any]]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             rows = conn.execute(
                 "SELECT * FROM minted_licenses ORDER BY issued_at DESC LIMIT 100"
             ).fetchall()
@@ -700,7 +725,9 @@ class SubscriptionManager:
 
         payment_status = data.get("payment_status")
         status = data.get("status")
-        if payment_status not in ("paid", "no_payment_required") and status != "complete":
+        if payment_status == "no_payment_required":
+            return {"ok": False, "error": "Refusing to mint a paid license for a free (no_payment_required) checkout session."}
+        if payment_status != "paid":
             return {"ok": False, "error": f"Checkout session not paid yet (status={status}, payment={payment_status})."}
 
         meta = data.get("metadata") or {}
@@ -728,6 +755,15 @@ class SubscriptionManager:
         """
         Verify Stripe-Signature (`t=...,v1=...`) using HMAC-SHA256 and process
         `checkout.session.completed` and `customer.subscription.deleted` events.
+
+        Hardening:
+        - Fail-closed: unsigned/unverifiable payloads are rejected unless the
+          NETPULSE_WEBHOOK_ALLOW_UNSIGNED=1 escape hatch is set (local dev only).
+        - 5-minute timestamp tolerance window (anti-replay), matching Stripe docs.
+        - Idempotent: repeated deliveries of the same event id / session id
+          short-circuit instead of minting duplicate licenses.
+        - `customer.subscription.deleted` revokes all licenses minted for the
+          cancelled subscription/customer and downgrades the node if it was active.
         """
         wh_secret = os.environ.get("STRIPE_WEBHOOK_SECRET") or self._get_config("stripe_webhook_secret", "")
         if wh_secret and sig_header:
@@ -736,10 +772,23 @@ class SubscriptionManager:
             )
             t_val = parts.get("t", "")
             v1_val = parts.get("v1", "")
+            try:
+                ts = int(t_val)
+                if abs(time.time() - ts) > 300:
+                    return {"ok": False, "error": "Stripe webhook timestamp outside tolerance window (possible replay)."}
+            except ValueError:
+                return {"ok": False, "error": "Malformed Stripe webhook timestamp."}
             signed_payload = f"{t_val}.".encode("utf-8") + raw_body
             expected = hmac.new(wh_secret.encode("utf-8"), signed_payload, hashlib.sha256).hexdigest()
             if not hmac.compare_digest(v1_val, expected):
                 return {"ok": False, "error": "Invalid Stripe webhook signature."}
+        elif not (os.environ.get("NETPULSE_WEBHOOK_ALLOW_UNSIGNED", "").strip().lower() in ("1", "true", "yes")):
+            return {
+                "ok": False,
+                "error": "Stripe webhook signature required: no webhook secret configured. "
+                         "Set STRIPE_WEBHOOK_SECRET (or the stripe_webhook_secret config) to enable webhook processing. "
+                         "Set NETPULSE_WEBHOOK_ALLOW_UNSIGNED=1 only for local testing.",
+            }
 
         try:
             event = json.loads(raw_body.decode("utf-8"))
@@ -747,9 +796,36 @@ class SubscriptionManager:
             return {"ok": False, "error": "Invalid JSON webhook payload."}
 
         ev_type = event.get("type", "")
+        ev_id = str(event.get("id", ""))
         obj = (event.get("data") or {}).get("object") or {}
 
+        # Idempotency: skip events we already processed (Stripe retries deliveries).
+        if ev_id and self._get_config(f"webhook_processed_{ev_id}", ""):
+            return {"ok": True, "event": ev_type, "duplicate": True}
+
         if ev_type == "checkout.session.completed":
+            session_id = str(obj.get("id", ""))
+            # Duplicate-delivery guard: never re-mint for the same checkout session.
+            existing_key = ""
+            with closing(self._connect()) as conn:
+                row = conn.execute(
+                    "SELECT license_key FROM minted_licenses WHERE stripe_session_id = ? LIMIT 1",
+                    (session_id,),
+                ).fetchone()
+                if row:
+                    existing_key = str(row["license_key"])
+            if existing_key:
+                act = self.activate_license_key(existing_key)
+                if ev_id:
+                    self._set_config(f"webhook_processed_{ev_id}", str(int(time.time())))
+                return {"ok": True, "event": ev_type, "duplicate_session": True, "activated": act}
+
+            payment_status = obj.get("payment_status")
+            if payment_status == "no_payment_required":
+                return {"ok": False, "error": "Refusing to mint a paid license for a free (no_payment_required) checkout session."}
+            if payment_status is not None and payment_status != "" and payment_status != "paid":
+                return {"ok": False, "error": f"Checkout session not paid yet (payment={payment_status})."}
+
             meta = obj.get("metadata") or {}
             tier = meta.get("netpulse_tier", "pro")
             plan = meta.get("netpulse_plan", "monthly")
@@ -763,12 +839,43 @@ class SubscriptionManager:
                 tier=tier,
                 plan=plan,
                 email=email,
-                stripe_session_id=str(obj.get("id", "")),
+                stripe_session_id=session_id,
                 stripe_customer_id=str(obj.get("customer", "")),
             )
             self.activate_license_key(minted["license_key"])
+            if ev_id:
+                self._set_config(f"webhook_processed_{ev_id}", str(int(time.time())))
             return {"ok": True, "event": ev_type, "minted": minted}
 
+        if ev_type == "customer.subscription.deleted":
+            cust_id = str(obj.get("customer", "") or "")
+            sub_session = str(obj.get("id", "") or "")
+            revoked_jtis: List[str] = []
+            with closing(self._connect()) as conn:
+                rows = conn.execute(
+                    """
+                    SELECT jti FROM minted_licenses
+                    WHERE (stripe_customer_id != '' AND stripe_customer_id = ?)
+                       OR (stripe_session_id != '' AND stripe_session_id = ?)
+                    """,
+                    (cust_id, sub_session),
+                ).fetchall()
+                revoked_jtis = [str(r["jti"]) for r in rows]
+                for jti in revoked_jtis:
+                    conn.execute("UPDATE minted_licenses SET revoked = 1 WHERE jti = ?", (jti,))
+                conn.commit()
+            # If any revoked key was the active one, drop it (verifier now flags revoked).
+            active_key = self._get_config("active_license_key", "")
+            if active_key:
+                ver = self.verify_license_key(active_key)
+                if not ver.get("valid"):
+                    self._set_config("active_license_key", "")
+            if ev_id:
+                self._set_config(f"webhook_processed_{ev_id}", str(int(time.time())))
+            return {"ok": True, "event": ev_type, "revoked_jtis": revoked_jtis}
+
+        if ev_id:
+            self._set_config(f"webhook_processed_{ev_id}", str(int(time.time())))
         return {"ok": True, "event": ev_type, "ignored": True}
 
     def capture_lead_and_issue_trial(
@@ -777,13 +884,39 @@ class SubscriptionManager:
         source: str = "pricing_storefront",
         use_case: str = "prosumer",
     ) -> Dict[str, Any]:
-        """Record a marketing lead in SQLite and automatically issue a 7-day Pro Guardian trial key."""
+        """Record a marketing lead in SQLite and automatically issue a 7-day Pro Guardian trial key.
+
+        Trial is enforced ONCE per node (same gate as start_free_trial) to prevent
+        unlimited trial minting via repeated lead submissions.
+        """
         clean_email = (email or "").strip().lower()
         if not clean_email or "@" not in clean_email:
             return {"ok": False, "error": "Please provide a valid email address."}
+        already_claimed = self._get_config("trial_claimed", "")
+        if already_claimed:
+            # Still record the lead, but no longer mint another free trial.
+            now = time.time()
+            with self._lock, closing(self._connect()) as conn, conn:
+                conn.execute(
+                    """
+                    INSERT INTO marketing_leads (email, source, use_case, trial_jti, created_at, updated_at)
+                    VALUES (?, ?, ?, '', ?, ?)
+                    ON CONFLICT(email) DO UPDATE SET
+                        source = excluded.source,
+                        use_case = excluded.use_case,
+                        updated_at = excluded.updated_at
+                    """,
+                    (clean_email, source.strip() or "web", use_case.strip() or "general", now, now),
+                )
+            return {
+                "ok": False,
+                "already_claimed": True,
+                "error": "The 7-day Pro Guardian free trial has already been used on this node.",
+                "message": "Lead captured — the one-time trial was already claimed on this node.",
+            }
         now = time.time()
         minted = self.mint_license_key(tier="pro", plan="trial", email=clean_email, days=7, max_nodes=3)
-        with self._lock, self._connect() as conn:
+        with self._lock, closing(self._connect()) as conn, conn:
             conn.execute(
                 """
                 INSERT INTO marketing_leads (email, source, use_case, trial_jti, created_at, updated_at)
@@ -797,6 +930,7 @@ class SubscriptionManager:
                 (clean_email, source.strip() or "web", use_case.strip() or "general", minted["jti"], now, now),
             )
             conn.commit()
+        self._set_config("trial_claimed", str(int(time.time())))
         self.activate_license_key(minted["license_key"])
         return {
             "ok": True,
@@ -808,7 +942,7 @@ class SubscriptionManager:
         }
 
     def list_marketing_leads(self) -> List[Dict[str, Any]]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             rows = conn.execute(
                 "SELECT * FROM marketing_leads ORDER BY updated_at DESC LIMIT 250"
             ).fetchall()
