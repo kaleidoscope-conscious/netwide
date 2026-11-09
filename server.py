@@ -829,6 +829,21 @@ async def get_network_analytics_endpoint() -> JSONResponse:
     })
 
 
+@app.get("/api/ledger")
+async def get_events_ledger(limit: int = 50) -> JSONResponse:
+    """Retrieve the append-only tamper-evident forensic event ledger."""
+    entries = await asyncio.to_thread(net_db.get_ledger_entries, limit)
+    verification = await asyncio.to_thread(net_db.verify_ledger_chain)
+    return JSONResponse({"ok": True, "entries": entries, "verification": verification})
+
+
+@app.get("/api/ledger/verify")
+async def verify_events_ledger() -> JSONResponse:
+    """Cryptographically verify the SHA-256 hash chain of the forensic event ledger."""
+    res = await asyncio.to_thread(net_db.verify_ledger_chain)
+    return JSONResponse(res)
+
+
 @app.get("/api/ipv6/audit")
 async def get_ipv6_audit_endpoint() -> JSONResponse:
     res = await asyncio.to_thread(audit_ipv6_posture, state.net_info.interface)
@@ -1112,11 +1127,13 @@ async def action_quarantine(req: QuarantineRequest) -> JSONResponse:
     if req.action.lower() in ("release", "stop"):
         released = quarantine_engine.release(req.ip)
         await asyncio.to_thread(net_db.update_device_customization, dkey, trust_state="watchlist")
+        await asyncio.to_thread(net_db.append_ledger_entry, "operator", "QUARANTINE_RELEASE", f"{dkey}@{req.ip}", "Operator manually released host from quarantine")
         state.devices = await asyncio.to_thread(net_db.get_all_devices)
         await broadcast_ws({"type": "full_state", "data": state.to_snapshot()})
         return JSONResponse({"ok": True, "ip": req.ip, "quarantined": False, "released": released})
     entry = quarantine_engine.engage(req.ip, req.mac, reason="Guardian Shield Active Quarantine")
     await asyncio.to_thread(net_db.update_device_customization, dkey, trust_state="intruder")
+    await asyncio.to_thread(net_db.append_ledger_entry, "operator", "QUARANTINE_ENGAGE", f"{dkey}@{req.ip}", "Operator engaged Guardian Shield active TCP RST quarantine")
     state.devices = await asyncio.to_thread(net_db.get_all_devices)
     await broadcast_ws({"type": "full_state", "data": state.to_snapshot()})
     return JSONResponse({"ok": True, "ip": req.ip, "quarantined": True, "entry": entry})

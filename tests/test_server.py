@@ -263,6 +263,8 @@ def test_all_registered_endpoints_and_websocket_functional():
         ("POST", "/api/scan", None, [200]),
         ("GET", "/api/oui/search?q=Ubiquiti&limit=5", None, [200]),
         ("GET", "/api/analytics", None, [200]),
+        ("GET", "/api/ledger", None, [200]),
+        ("GET", "/api/ledger/verify", None, [200]),
         ("GET", "/api/ipv6/audit", None, [200]),
         ("GET", "/api/subnet/calc?cidr=192.168.12.0/24", None, [200]),
         ("POST", "/api/subnet/calc", {"cidr": "10.0.0.0/16"}, [200]),

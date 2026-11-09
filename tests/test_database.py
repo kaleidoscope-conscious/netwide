@@ -178,3 +178,40 @@ def test_network_analytics_and_delete_device():
         assert len(db.get_all_devices()) == 0
 
 
+def test_tamper_evident_events_ledger():
+    import sqlite3
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test_ledger.db")
+        db = NetworkDatabase(db_path)
+
+        # 1. Empty ledger verification
+        assert db.verify_ledger_chain()["valid"] is True
+        assert db.verify_ledger_chain()["count"] == 0
+
+        # 2. Append entries
+        e1 = db.append_ledger_entry("operator", "QUARANTINE_ENGAGE", "192.168.1.50", "Isolating rogue device")
+        e2 = db.append_ledger_entry("netpulse_guardian", "SECURITY_ALERT", "192.168.1.50", "ARP spoofing attempt detected")
+        e3 = db.append_ledger_entry("operator", "QUARANTINE_RELEASE", "192.168.1.50", "Released host")
+
+        assert e2["prev_hash"] == e1["hash"]
+        assert e3["prev_hash"] == e2["hash"]
+
+        ver = db.verify_ledger_chain()
+        assert ver["valid"] is True
+        assert ver["count"] == 3
+        assert ver["genesis_hash"] == e1["hash"]
+        assert ver["head_hash"] == e3["hash"]
+
+        entries = db.get_ledger_entries(10)
+        assert len(entries) == 3
+
+        # 3. Test append-only trigger immutability (UPDATE and DELETE prohibited)
+        with db._connect() as conn:
+            import pytest
+            with pytest.raises(sqlite3.DatabaseError):
+                conn.execute("UPDATE events_ledger SET details = 'tampered' WHERE id = 1")
+
+            with pytest.raises(sqlite3.DatabaseError):
+                conn.execute("DELETE FROM events_ledger WHERE id = 1")
+
+

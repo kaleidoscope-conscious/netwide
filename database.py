@@ -8,6 +8,7 @@ Stores:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sqlite3
@@ -88,6 +89,32 @@ class NetworkDatabase:
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_events_ts ON events(timestamp DESC);
+
+                CREATE TABLE IF NOT EXISTS events_ledger (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    prev_hash TEXT NOT NULL,
+                    hash TEXT NOT NULL,
+                    timestamp REAL NOT NULL,
+                    time_str TEXT NOT NULL,
+                    actor TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    target TEXT NOT NULL,
+                    details TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_ledger_ts ON events_ledger(timestamp DESC);
+
+                CREATE TRIGGER IF NOT EXISTS trg_ledger_no_update
+                BEFORE UPDATE ON events_ledger
+                BEGIN
+                    SELECT RAISE(FAIL, 'events_ledger is an immutable append-only ledger');
+                END;
+
+                CREATE TRIGGER IF NOT EXISTS trg_ledger_no_delete
+                BEFORE DELETE ON events_ledger
+                BEGIN
+                    SELECT RAISE(FAIL, 'events_ledger is an immutable append-only ledger');
+                END;
                 """
             )
 
@@ -117,6 +144,99 @@ class NetworkDatabase:
             """,
             (now, t_str, event_type, severity, device_key, ip, device_name, details),
         )
+        self.append_ledger_entry(
+            actor="netpulse_guardian",
+            action=event_type,
+            target=f"{device_key}@{ip}",
+            details=f"[{severity}] {details}",
+            conn=conn,
+        )
+
+    def append_ledger_entry(
+        self,
+        actor: str,
+        action: str,
+        target: str,
+        details: str,
+        conn: Optional[sqlite3.Connection] = None,
+    ) -> Dict[str, Any]:
+        now = time.time()
+        t_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now))
+
+        def _do_insert(c: sqlite3.Connection) -> Dict[str, Any]:
+            last_row = c.execute("SELECT hash FROM events_ledger ORDER BY id DESC LIMIT 1").fetchone()
+            prev_hash = str(last_row["hash"]) if last_row else "0" * 64
+            content = f"{prev_hash}:{now:.6f}:{actor}:{action}:{target}:{details}"
+            entry_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+            cur = c.execute(
+                """
+                INSERT INTO events_ledger (prev_hash, hash, timestamp, time_str, actor, action, target, details)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (prev_hash, entry_hash, now, t_str, actor, action, target, details),
+            )
+            return {
+                "id": cur.lastrowid,
+                "prev_hash": prev_hash,
+                "hash": entry_hash,
+                "timestamp": now,
+                "time_str": t_str,
+                "actor": actor,
+                "action": action,
+                "target": target,
+                "details": details,
+            }
+
+        if conn is not None:
+            return _do_insert(conn)
+        with self._lock, self._connect() as c:
+            res = _do_insert(c)
+            c.commit()
+            return res
+
+    def get_ledger_entries(self, limit: int = 100) -> List[Dict[str, Any]]:
+        with self._lock, self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM events_ledger ORDER BY id DESC LIMIT ?", (max(1, min(1000, limit)),)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def verify_ledger_chain(self) -> Dict[str, Any]:
+        with self._lock, self._connect() as conn:
+            rows = conn.execute("SELECT * FROM events_ledger ORDER BY id ASC").fetchall()
+            if not rows:
+                return {
+                    "valid": True,
+                    "count": 0,
+                    "status": "GENESIS_EMPTY",
+                    "head_hash": "0" * 64,
+                }
+            expected_prev = "0" * 64
+            for r in rows:
+                if r["prev_hash"] != expected_prev:
+                    return {
+                        "valid": False,
+                        "broken_at_id": r["id"],
+                        "expected_prev": expected_prev,
+                        "actual_prev": r["prev_hash"],
+                    }
+                content = f"{r['prev_hash']}:{r['timestamp']:.6f}:{r['actor']}:{r['action']}:{r['target']}:{r['details']}"
+                expected_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+                if r["hash"] != expected_hash:
+                    return {
+                        "valid": False,
+                        "broken_at_id": r["id"],
+                        "expected_hash": expected_hash,
+                        "actual_hash": r["hash"],
+                    }
+                expected_prev = r["hash"]
+            return {
+                "valid": True,
+                "count": len(rows),
+                "status": "CHAIN_INTEGRITY_VERIFIED",
+                "genesis_hash": rows[0]["hash"],
+                "head_hash": rows[-1]["hash"],
+            }
 
     def sync_scan_results(self, active_profiles: List[DeviceProfile]) -> List[Dict[str, Any]]:
         """

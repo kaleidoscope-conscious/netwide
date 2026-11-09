@@ -2111,12 +2111,59 @@
             }).join('') : '<div style="color:#64748b;">No active hypotheses — network is quiet.</div>';
           }
         } catch (e2) {}
+
+        // Tamper-evident forensic ledger (/api/ledger)
+        try {
+          const ledRes = await fetch('/api/ledger?limit=5');
+          const ledData = await ledRes.json();
+          const ledEl = document.getElementById('secModalLedgerBox');
+          if (ledEl) {
+            const ver = ledData.verification || {};
+            const entries = ledData.entries || [];
+            const verBadge = ver.valid ? '<span style="color:#34d399;font-weight:700;">✓ CHAIN_INTEGRITY_VERIFIED</span>' : '<span style="color:#ef4444;font-weight:700;">⚠ BROKEN_CHAIN</span>';
+            ledEl.innerHTML = `
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <span style="font-weight:700;color:#38bdf8;">📜 Tamper-Evident SHA-256 Forensic Event Ledger (/api/ledger)</span>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  ${verBadge}
+                  <button class="btn btn-sm" style="padding:2px 6px;font-size:10px;" onclick="verifyLedgerChain()">Verify Chain</button>
+                </div>
+              </div>
+              <div class="mono" style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Head: ${ver.head_hash ? ver.head_hash.slice(0, 24) + '…' : '—'} • Total Ledger Records: ${ver.count || 0}</div>
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                ${entries.map(e => `
+                  <div style="background:#111622;border:1px solid #1f293d;border-radius:5px;padding:6px 8px;font-size:11px;">
+                    <div style="display:flex;justify-content:space-between;color:#cbd5e1;">
+                      <span style="font-weight:600;color:#f59e0b;">${e.action}</span>
+                      <span class="mono" style="color:#64748b;font-size:10px;">${e.time_str}</span>
+                    </div>
+                    <div class="mono" style="color:#94a3b8;font-size:10.5px;margin-top:2px;">Target: ${e.target} &bull; ${e.details}</div>
+                  </div>
+                `).join('') || '<div style="color:#64748b;">Ledger is initialized.</div>'}
+              </div>
+            `;
+          }
+        } catch (e3) {}
       } catch (e) {}
     }
 
     function closeSecurityPostureModal() {
       const m = document.getElementById('securityPostureModal');
       if (m) m.style.display = 'none';
+    }
+
+    async function verifyLedgerChain() {
+      try {
+        const res = await fetch('/api/ledger/verify');
+        const data = await res.json();
+        if (data.valid) {
+          showWorkbenchToast(`✓ Tamper-Evident Ledger Verified: ${data.count} records intact`, '#34d399');
+        } else {
+          showWorkbenchToast(`⚠ Ledger Verification Failed at block #${data.broken_at_id}`, '#ef4444');
+        }
+      } catch (e) {
+        showWorkbenchToast('Ledger verification error', '#ef4444');
+      }
     }
 
     async function deleteDeviceRecord(deviceKey) {
@@ -4104,7 +4151,8 @@
         <div id="secModalHypothesesBox" style="display:flex;flex-direction:column;gap:6px;"></div>
       </div>
       <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;line-height:1.7;" id="secModalIpv6Box"></div>
-      <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:8px;padding:12px;font-size:12px;line-height:1.7;" id="secModalDbBox"></div>
+      <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;line-height:1.7;" id="secModalDbBox"></div>
+      <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:8px;padding:12px;font-size:12px;line-height:1.7;" id="secModalLedgerBox"></div>
     </div>
   </div>
 

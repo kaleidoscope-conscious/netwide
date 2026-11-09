@@ -3,7 +3,7 @@
 [![Release v4.5.0](https://img.shields.io/badge/release-v4.5.0-10b981?style=for-the-badge)](https://github.com/kaleidoscopeAI/netpulse-omnisight/releases/tag/v4.5.0)
 [![Android 15 APK](https://img.shields.io/badge/Android_15_(API_35)-Download_APK-0284c7?style=for-the-badge&logo=android)](https://github.com/kaleidoscopeAI/netpulse-omnisight/releases/download/v4.5.0/NetPulse-Mobile-v4.5.0.apk)
 [![Storefront & Pricing](https://img.shields.io/badge/Storefront-Founder's_Lifetime_%24149-7c3aed?style=for-the-badge)](https://kaleidoscopeai.github.io/netpulse-omnisight/)
-[![Tests](https://img.shields.io/badge/pytest-59%2F59_passing-34d399?style=for-the-badge)](https://github.com/kaleidoscopeAI/netpulse-omnisight/actions)
+[![Tests](https://img.shields.io/badge/pytest-60%2F60_passing-34d399?style=for-the-badge)](https://github.com/kaleidoscopeAI/netpulse-omnisight/actions)
 
 **Sovereign Network Intelligence, 10-Stage 802.11 TSF De-Cloaking, Cryptographic Protocol Auditing, Domain/WAN OSINT, Wire DPI, Autonomous Countermeasures & Commercial Subscription Suite**
 
