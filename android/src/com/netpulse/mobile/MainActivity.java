@@ -3,12 +3,14 @@ package com.netpulse.mobile;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.hardware.camera2.CameraManager;
 import android.net.DhcpInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiInfo;
@@ -631,6 +633,95 @@ public class MainActivity extends Activity implements SensorEventListener {
                 }
             } catch (Exception ignored) {}
             return openList.toString();
+        }
+
+        @JavascriptInterface
+        public boolean toggleTorch(final boolean enable) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    CameraManager cm = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+                    if (cm != null) {
+                        String[] ids = cm.getCameraIdList();
+                        if (ids != null && ids.length > 0) {
+                            cm.setTorchMode(ids[0], enable);
+                            return true;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+            return false;
+        }
+
+        @JavascriptInterface
+        public void shareText(final String text, final String title) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Intent sendIntent = new Intent();
+                        sendIntent.setAction(Intent.ACTION_SEND);
+                        sendIntent.putExtra(Intent.EXTRA_TEXT, text);
+                        sendIntent.setType("text/plain");
+                        Intent shareIntent = Intent.createChooser(sendIntent, title);
+                        startActivity(shareIntent);
+                    } catch (Exception ignored) {}
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void launchRokuChannel(final String ip, final String appId) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        URL url = URI.create("http://" + ip + ":8060/launch/" + appId).toURL();
+                        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                        conn.setRequestMethod("POST");
+                        conn.setConnectTimeout(1400);
+                        conn.setReadTimeout(1400);
+                        conn.setDoOutput(true);
+                        conn.getOutputStream().write(new byte[0]);
+                        conn.getResponseCode();
+                        conn.disconnect();
+                    } catch (Exception ignored) {}
+                }
+            }).start();
+        }
+
+        @JavascriptInterface
+        public String pingHostNative(final String ip, final int count) {
+            try {
+                int pings = Math.max(1, Math.min(10, count));
+                long minRtt = Long.MAX_VALUE;
+                long maxRtt = 0;
+                long sumRtt = 0;
+                int success = 0;
+                for (int i = 0; i < pings; i++) {
+                    long t0 = System.currentTimeMillis();
+                    boolean ok = InetAddress.getByName(ip).isReachable(350);
+                    long elapsed = System.currentTimeMillis() - t0;
+                    if (ok) {
+                        success++;
+                        sumRtt += elapsed;
+                        if (elapsed < minRtt) minRtt = elapsed;
+                        if (elapsed > maxRtt) maxRtt = elapsed;
+                    }
+                }
+                JSONObject res = new JSONObject();
+                res.put("ip", ip);
+                res.put("transmitted", pings);
+                res.put("received", success);
+                res.put("packet_loss_pct", (int) Math.round((1.0 - ((double) success / pings)) * 100));
+                if (success > 0) {
+                    res.put("avg_rtt_ms", Math.round((double) sumRtt / success));
+                    res.put("min_rtt_ms", minRtt);
+                    res.put("max_rtt_ms", maxRtt);
+                }
+                return res.toString();
+            } catch (Exception e) {
+                return "{\"error\":\"" + e.getMessage() + "\"}";
+            }
         }
     }
 }

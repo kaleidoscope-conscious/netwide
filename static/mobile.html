@@ -499,9 +499,10 @@
       <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;font-weight:700;margin-bottom:5px;">Select Target BSSID / Transmitter to Track</div>
       <select id="geigerTargetSelect" class="m-select" onchange="onGeigerTargetChange(this.value)"></select>
       <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
-        <button class="btn btn-primary" style="flex:1" id="btnGeigerAudio" onclick="toggleGeigerAudio()">🔊 Enable Geiger Audio & Haptics</button>
+        <button class="btn btn-primary" style="flex:1" id="btnGeigerAudio" onclick="toggleGeigerAudio()">🔊 Enable Geiger Audio &amp; Haptics</button>
         <button class="btn" onclick="resetGeigerPeak()">↺ Reset Peak</button>
         <button class="btn btn-emerald" onclick="pollFastGeigerNow()">⚡ Pulse Scan</button>
+        <button class="btn" id="btnGeigerTorch" onclick="toggleMobileTorch()">🔦 Tactical Torch</button>
       </div>
     </div>
 
@@ -782,6 +783,22 @@
         <button class="btn" onclick="refreshMobileLocalSockets()">💻 Sockets</button>
       </div>
       <div id="mobileCidrOutput" style="margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--text-dim);line-height:1.5;"></div>
+    </div>
+
+    <!-- 5G Gateway Telemetry, WAN Speedtest & Multi-Resolver DNS Benchmark -->
+    <div class="m-card highlight-emerald">
+      <div class="card-top">
+        <div>
+          <div class="card-title">📡 5G Gateway Telemetry &amp; WAN Speedtest</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Multi-stream WAN speed, bufferbloat latency, 5G NR cellular status, and DNS audit.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" style="flex:1" onclick="runMobileSpeedtest()">⚡ WAN Speedtest</button>
+        <button class="btn btn-emerald" style="flex:1" onclick="runMobileDnsBenchmark()">⏱ DNS Benchmark</button>
+        <button class="btn btn-amber" style="flex:1" onclick="refreshMobileGateway5G()">📡 5G Tower</button>
+      </div>
+      <div id="mobileUplinkOutput" style="margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--text-dim);line-height:1.55;display:none;"></div>
     </div>
   </section>
 
@@ -1207,7 +1224,7 @@
 
       return `
         <div class="m-card ${isQuarantined ? 'highlight-red' : (d.is_gateway ? 'highlight-emerald' : 'highlight-sky')}">
-          <div class="card-top">
+          <div class="card-top" style="cursor:pointer;" onclick="openMobileInspector('${d.ip}')">
             <div style="display:flex;gap:10px;align-items:center;">
               <img src="/api/device-image/${d.ip}" alt="Icon" style="width:32px;height:32px;object-fit:contain;border-radius:6px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:2px;" onerror="this.style.display='none'" />
               <div>
@@ -1253,8 +1270,9 @@
             </div>
           ` : ''}
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
-            <button class="btn" onclick="mobileWakeOnLan('${d.mac}', '${d.ip}')">⚡ Wake-on-LAN</button>
-            <button class="btn" onclick="mobileNativePortScan('${d.ip}')">🔍 Port &amp; Banner Audit</button>
+            <button class="btn btn-primary" onclick="openMobileInspector('${d.ip}')">🔬 Inspect &amp; Control</button>
+            <button class="btn" onclick="mobileWakeOnLan('${d.mac}', '${d.ip}')">⚡ WoL</button>
+            <button class="btn" onclick="mobileNativePortScan('${d.ip}')">🔍 Port Audit</button>
             <button class="btn" onclick="mobileTraceroute('${d.ip}')">🧭 MTR Trace</button>
             ${(d.open_ports || []).includes(22) || d.ssh_info ? `<button class="btn" onclick="mobileSshAudit('${d.ip}')">🔑 SSH HASSH</button>` : ''}
             ${(d.open_ports || []).includes(445) || d.smb_info ? `<button class="btn" onclick="mobileSmbAudit('${d.ip}')">🛡 SMB2 Signing</button>` : ''}
@@ -2256,6 +2274,525 @@
     } catch (e) {}
   }
 
+  // ==================== MOBILE DEVICE INSPECTOR & CUSTOMIZATION ====================
+  let activeInspIp = null;
+  let mobileTorchActive = false;
+  let mobileTorchTrack = null;
+
+  async function toggleMobileTorch() {
+    mobileTorchActive = !mobileTorchActive;
+    const btn = document.getElementById('btnGeigerTorch');
+    if (isNativeAndroid && window.AndroidNative && window.AndroidNative.toggleTorch) {
+      try {
+        window.AndroidNative.toggleTorch(mobileTorchActive);
+        if (btn) {
+          btn.textContent = mobileTorchActive ? '🔦 Torch ON' : '🔦 Tactical Torch';
+          btn.className = mobileTorchActive ? 'btn btn-amber' : 'btn';
+        }
+        showToast(mobileTorchActive ? 'Tactical Torch: ON' : 'Tactical Torch: OFF');
+        return;
+      } catch (e) {}
+    }
+
+    // Fallback for Web PWA with MediaStream Torch
+    try {
+      if (mobileTorchActive) {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+          });
+          mobileTorchTrack = stream.getVideoTracks()[0];
+          const capabilities = mobileTorchTrack.getCapabilities ? mobileTorchTrack.getCapabilities() : {};
+          if (capabilities.torch) {
+            await mobileTorchTrack.applyConstraints({ advanced: [{ torch: true }] });
+          }
+          if (btn) {
+            btn.textContent = '🔦 Torch ON';
+            btn.className = 'btn btn-amber';
+          }
+          showToast('Tactical Torch: ON (PWA)');
+        } else {
+          throw new Error('MediaDevices unavailable');
+        }
+      } else {
+        if (mobileTorchTrack) {
+          mobileTorchTrack.stop();
+          mobileTorchTrack = null;
+        }
+        if (btn) {
+          btn.textContent = '🔦 Tactical Torch';
+          btn.className = 'btn';
+        }
+        showToast('Tactical Torch: OFF');
+      }
+    } catch (err) {
+      if (btn) {
+        btn.textContent = '🔦 Tactical Torch';
+        btn.className = 'btn';
+      }
+      showToast('Torch unavailable on this device');
+      mobileTorchActive = false;
+    }
+  }
+
+  function openMobileInspector(ip) {
+    if (!appState || !appState.devices) return;
+    const d = appState.devices.find(x => x.ip === ip);
+    if (!d) return;
+    activeInspIp = ip;
+
+    const name = d.custom_name || d.display_name || d.ip;
+    document.getElementById('mInspTitle').textContent = name;
+    document.getElementById('mInspSubtitle').textContent = `${d.ip} • ${d.mac} • ${d.vendor || 'Unknown'}`;
+    const imgEl = document.getElementById('mInspImg');
+    if (imgEl) {
+      imgEl.src = `/api/device-image/${d.ip}`;
+      imgEl.style.display = 'block';
+    }
+    document.getElementById('mInspConfidence').textContent = `${d.confidence_score || 95}% Confidence`;
+    document.getElementById('mInspCustomName').value = d.custom_name || '';
+    document.getElementById('mInspCategory').value = d.category || 'unknown';
+    document.getElementById('mInspTrustState').value = d.trust_state || 'monitored';
+    document.getElementById('mInspNotes').value = d.notes || '';
+
+    const upnpBtn = document.getElementById('mInspUpnpBtn');
+    if (upnpBtn) upnpBtn.style.display = d.is_gateway ? 'inline-block' : 'none';
+
+    const qBtn = document.getElementById('mInspQuarantineBtn');
+    if (qBtn) {
+      if (d.is_gateway || d.is_local_host) {
+        qBtn.style.display = 'none';
+      } else {
+        qBtn.style.display = 'inline-block';
+        if (d.is_quarantined || d.trust_state === 'intruder') {
+          qBtn.className = 'btn btn-emerald';
+          qBtn.textContent = '✓ Release Quarantine';
+        } else {
+          qBtn.className = 'btn btn-danger';
+          qBtn.textContent = '🛡 Quarantine Host';
+        }
+      }
+    }
+
+    // Clear previous console
+    clearMobileInspConsole();
+
+    // Populate Remote Controls if applicable
+    const remSec = document.getElementById('mInspRemoteSection');
+    const remBody = document.getElementById('mInspRemoteBody');
+    const isRoku = (d.open_ports || []).includes(8060) || (d.category || '').toLowerCase().includes('tv');
+    const isPs = Boolean(d.playstation_info) || (d.category || '').toLowerCase().includes('playstation') || (d.vendor || '').toLowerCase().includes('sony');
+    const isSonos = Boolean((d.extended_iot_info || {}).sonos) || (d.open_ports || []).includes(1400);
+    const iotProto = d.smart_iot_info && d.smart_iot_info.protocol ? d.smart_iot_info.protocol : '';
+
+    if (isRoku || isPs || isSonos || iotProto) {
+      remSec.style.display = 'block';
+      let remHtml = '';
+      if (isRoku) {
+        remHtml += `
+          <div style="margin-bottom:8px;">
+            <div style="font-size:11px;color:#38bdf8;font-weight:700;margin-bottom:4px;">📺 Smart TV Remote &amp; Channels</div>
+            <button class="btn btn-primary" onclick="openMobileRokuRemote('${d.ip}', '${name.replace(/'/g, '')}')">Open D-Pad Touch Remote</button>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">
+              <button class="btn" onclick="launchMobileRokuChannel('12')">▶ Netflix</button>
+              <button class="btn" onclick="launchMobileRokuChannel('837')">▶ YouTube</button>
+              <button class="btn" onclick="launchMobileRokuChannel('13')">▶ Prime Video</button>
+              <button class="btn" onclick="launchMobileRokuChannel('2285')">▶ Hulu</button>
+              <button class="btn" onclick="launchMobileRokuChannel('291097')">▶ Disney+</button>
+            </div>
+          </div>
+        `;
+      }
+      if (isPs) {
+        remHtml += `
+          <div style="margin-bottom:8px;">
+            <button class="btn btn-primary" onclick="mobileWakePlayStation('${d.ip}', '${d.mac}')">🎮 Wake PlayStation Console</button>
+          </div>
+        `;
+      }
+      if (isSonos) {
+        remHtml += `
+          <div style="display:flex;gap:6px;margin-bottom:8px;">
+            <button class="btn btn-emerald" onclick="mobileControlSonos('${d.ip}', 'Play')">▶ Sonos Play</button>
+            <button class="btn" onclick="mobileControlSonos('${d.ip}', 'Pause')">⏸ Sonos Pause</button>
+          </div>
+        `;
+      }
+      if (iotProto === 'kasa' || iotProto === 'shelly') {
+        remHtml += `
+          <div style="display:flex;gap:6px;margin-bottom:8px;">
+            <button class="btn btn-emerald" onclick="mobileControlSmartHome('${d.ip}', '${iotProto}', 'on')">🔌 Relay ON</button>
+            <button class="btn btn-amber" onclick="mobileControlSmartHome('${d.ip}', '${iotProto}', 'off')">🔌 Relay OFF</button>
+          </div>
+        `;
+      }
+      remBody.innerHTML = remHtml;
+    } else {
+      remSec.style.display = 'none';
+    }
+
+    document.getElementById('mobileDeviceModal').style.display = 'flex';
+  }
+
+  function closeMobileInspectorModal() {
+    const modal = document.getElementById('mobileDeviceModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function appendMobileConsole(txt, color = '#38bdf8') {
+    const wrap = document.getElementById('mInspConsoleWrap');
+    const pre = document.getElementById('mInspConsolePre');
+    if (!wrap || !pre) return;
+    wrap.style.display = 'block';
+    const ts = new Date().toLocaleTimeString();
+    pre.innerHTML = `<span style="color:#64748b;">[${ts}]</span> <span style="color:${color};">${txt}</span>\n\n` + pre.innerHTML;
+  }
+
+  function clearMobileInspConsole() {
+    const pre = document.getElementById('mInspConsolePre');
+    if (pre) pre.textContent = '';
+    const wrap = document.getElementById('mInspConsoleWrap');
+    if (wrap) wrap.style.display = 'none';
+  }
+
+  function copyMobileInspConsole() {
+    const pre = document.getElementById('mInspConsolePre');
+    if (pre) {
+      navigator.clipboard.writeText(pre.textContent).then(() => {
+        showToast('✔ Console output copied');
+      });
+    }
+  }
+
+  async function saveMobileDeviceCustomization() {
+    if (!activeInspIp) return;
+    const custom_name = document.getElementById('mInspCustomName').value.trim();
+    const trust_state = document.getElementById('mInspTrustState').value;
+    const notes = document.getElementById('mInspNotes').value.trim();
+    try {
+      await apiFetch(`/api/device/${encodeURIComponent(activeInspIp)}/customize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ custom_name, trust_state, notes })
+      });
+      showToast(`✔ Saved asset profile (${trust_state.toUpperCase()})`);
+      await fetchMobileState();
+    } catch (e) {
+      showToast('Failed to save device customization');
+    }
+  }
+
+  async function deleteMobileDeviceFromDb() {
+    if (!activeInspIp) return;
+    if (!confirm(`Purge host ${activeInspIp} from sovereign database?`)) return;
+    try {
+      await apiFetch(`/api/device/${encodeURIComponent(activeInspIp)}`, { method: 'DELETE' });
+      showToast(`✔ Purged ${activeInspIp} from SQLite inventory`);
+      closeMobileInspectorModal();
+      await fetchMobileState();
+    } catch (e) {
+      showToast('Failed to delete device');
+    }
+  }
+
+  async function runMobileInspPing() {
+    if (!activeInspIp) return;
+    appendMobileConsole(`Pinging ${activeInspIp} (5x Latency & Jitter Burst)…`);
+    try {
+      const res = await apiFetch('/api/action/ping-burst', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: activeInspIp, count: 5 })
+      });
+      appendMobileConsole(
+        `Ping Burst Results for ${activeInspIp}:\n` +
+        `&bull; Min: ${res.min_ms || 0} ms | Avg: ${res.avg_ms || 0} ms | Max: ${res.max_ms || 0} ms\n` +
+        `&bull; Jitter: ${res.jitter_ms || 0} ms | Packet Loss: ${res.loss_pct || 0}%\n` +
+        `&bull; Individual Samples: ${(res.samples || []).join(', ')} ms`,
+        '#34d399'
+      );
+    } catch (e) {
+      appendMobileConsole(`Ping burst failed: ${e}`, '#ef4444');
+    }
+  }
+
+  async function runMobileInspTrace() {
+    if (!activeInspIp) return;
+    appendMobileConsole(`Running MTR path trace to ${activeInspIp}…`);
+    try {
+      const res = await apiFetch('/api/action/traceroute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: activeInspIp })
+      });
+      appendMobileConsole(`MTR Path Trace (${activeInspIp}):\n${res.output || 'Trace completed with 0 hops recorded.'}`, '#38bdf8');
+    } catch (e) {
+      appendMobileConsole(`MTR trace failed: ${e}`, '#ef4444');
+    }
+  }
+
+  async function runMobileInspPorts() {
+    if (!activeInspIp) return;
+    appendMobileConsole(`Auditing TCP ports 1–1024 on ${activeInspIp}…`);
+    try {
+      const res = await apiFetch('/api/action/port-range-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: activeInspIp, start_port: 1, end_port: 1024 })
+      });
+      const ports = res.open_ports || [];
+      appendMobileConsole(
+        `Port Audit (${activeInspIp}): Found ${ports.length} Open TCP Ports:\n` +
+        (ports.length ? ports.join(', ') : 'None (Host is operating in stealth mode)'),
+        ports.length ? '#34d399' : '#94a3b8'
+      );
+    } catch (e) {
+      appendMobileConsole(`Port scan failed: ${e}`, '#ef4444');
+    }
+  }
+
+  async function runMobileInspNmap() {
+    if (!activeInspIp) return;
+    appendMobileConsole(`Executing Deep Nmap Service Version Audit (-sV) on ${activeInspIp}…`);
+    try {
+      const res = await apiFetch('/api/action/deep-nmap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: activeInspIp })
+      });
+      appendMobileConsole(`Nmap Service Audit:\n${res.raw_nmap_output || res.summary || 'Service scan complete.'}`, '#34d399');
+    } catch (e) {
+      appendMobileConsole(`Nmap audit failed: ${e}`, '#ef4444');
+    }
+  }
+
+  async function runMobileInspSsh() {
+    if (!activeInspIp) return;
+    appendMobileConsole(`Auditing SSHv2 HASSH Cryptographic Hygiene on ${activeInspIp}:22…`);
+    try {
+      const res = await apiFetch('/api/action/ssh-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: activeInspIp, port: 22 })
+      });
+      appendMobileConsole(
+        `SSHv2 Audit (${activeInspIp}):\n` +
+        `&bull; Crypto Grade: ${res.crypto_grade || 'Unknown'}\n` +
+        `&bull; HASSH Fingerprint: ${res.hassh || 'N/A'}\n` +
+        `&bull; KEX Algorithms: ${(res.kex_algorithms || []).join(', ') || 'N/A'}\n` +
+        `&bull; Ciphers: ${(res.encryption_ciphers || []).join(', ') || 'N/A'}`,
+        '#38bdf8'
+      );
+    } catch (e) {
+      appendMobileConsole(`SSH audit failed: ${e}`, '#ef4444');
+    }
+  }
+
+  async function runMobileInspSmb() {
+    if (!activeInspIp) return;
+    appendMobileConsole(`Auditing SMB2/3 Packet Signing & Dialect on ${activeInspIp}:445…`);
+    try {
+      const res = await apiFetch('/api/action/smb-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: activeInspIp, port: 445 })
+      });
+      appendMobileConsole(
+        `SMB2/3 Audit (${activeInspIp}):\n` +
+        `&bull; Dialect: ${res.dialect || 'Closed'}\n` +
+        `&bull; Signing Required: ${res.signing_required ? 'YES (Hardened)' : 'NO (Vulnerable to relay attacks)'}\n` +
+        `&bull; Server GUID: ${res.server_guid || 'N/A'}`,
+        res.signing_required ? '#34d399' : '#f59e0b'
+      );
+    } catch (e) {
+      appendMobileConsole(`SMB audit failed: ${e}`, '#ef4444');
+    }
+  }
+
+  async function runMobileInspDns() {
+    if (!activeInspIp) return;
+    appendMobileConsole(`Auditing DNS & DNSSEC Posture on ${activeInspIp}:53…`);
+    try {
+      const res = await apiFetch('/api/action/dns-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: activeInspIp })
+      });
+      appendMobileConsole(
+        `DNS Audit (${activeInspIp}):\n` +
+        `&bull; RTT: ${res.rtt_ms || '—'} ms\n` +
+        `&bull; DNSSEC Validated: ${res.dnssec_validation ? 'YES (Cryptographically Signed)' : 'NO'}\n` +
+        `&bull; DoH / DoT Capable: ${res.doh_dot_supported ? 'YES' : 'Standard UDP/53'}`,
+        '#34d399'
+      );
+    } catch (e) {
+      appendMobileConsole(`DNS audit failed: ${e}`, '#ef4444');
+    }
+  }
+
+  async function runMobileInspNtp() {
+    if (!activeInspIp) return;
+    appendMobileConsole(`Auditing NTPv4 Stratum & Clock Drift on ${activeInspIp}:123…`);
+    try {
+      const res = await apiFetch('/api/action/ntp-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: activeInspIp })
+      });
+      appendMobileConsole(
+        `NTP Audit (${activeInspIp}):\n` +
+        `&bull; Stratum: ${res.stratum || 'N/A'}\n` +
+        `&bull; Clock Offset: ${res.offset_ms || 0} ms\n` +
+        `&bull; Precision: ${res.precision || 'Standard'}\n` +
+        `&bull; Reference ID: ${res.ref_id || 'N/A'}`,
+        '#34d399'
+      );
+    } catch (e) {
+      appendMobileConsole(`NTP audit failed: ${e}`, '#ef4444');
+    }
+  }
+
+  async function runMobileInspUpnp() {
+    if (!activeInspIp) return;
+    appendMobileConsole(`Querying UPnP IGD External IP & NAT Port Mappings on ${activeInspIp}…`);
+    try {
+      const res = await apiFetch('/api/action/upnp-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: activeInspIp })
+      });
+      const maps = res.port_mappings || [];
+      appendMobileConsole(
+        `UPnP IGD NAT Audit (${activeInspIp}):\n` +
+        `&bull; External WAN IP: ${res.external_ip || 'Hidden'}\n` +
+        `&bull; Active Port-Forwards (${maps.length}):\n` +
+        (maps.length ? maps.map(m => `  - [${m.protocol}] WAN :${m.external_port} &rarr; ${m.internal_client}:${m.internal_port} (${m.description || 'NAT'})`).join('\n') : '  None (Clean gateway NAT perimeter)'),
+        maps.length ? '#f59e0b' : '#34d399'
+      );
+    } catch (e) {
+      appendMobileConsole(`UPnP audit failed: ${e}`, '#ef4444');
+    }
+  }
+
+  function runMobileInspWol() {
+    if (!activeInspIp) return;
+    const d = (appState && appState.devices) ? appState.devices.find(x => x.ip === activeInspIp) : null;
+    const mac = d ? d.mac : '';
+    mobileWakeOnLan(mac, activeInspIp);
+    appendMobileConsole(`Sent Wake-on-LAN Magic Packet (UDP :9) to MAC ${mac || activeInspIp}`, '#38bdf8');
+  }
+
+  async function runMobileInspQuarantine() {
+    if (!activeInspIp) return;
+    const d = (appState && appState.devices) ? appState.devices.find(x => x.ip === activeInspIp) : null;
+    if (!d) return;
+    const isQ = d.is_quarantined || d.trust_state === 'intruder';
+    const action = isQ ? 'release' : 'engage';
+    await mobileToggleQuarantine(activeInspIp, d.mac, action);
+    const qBtn = document.getElementById('mInspQuarantineBtn');
+    if (qBtn) {
+      if (action === 'engage') {
+        qBtn.className = 'btn btn-emerald';
+        qBtn.textContent = '✓ Release Quarantine';
+        appendMobileConsole(`Guardian Shield: ENGAGED ARP Quarantine for ${activeInspIp}. Host isolated from subnet.`, '#ef4444');
+      } else {
+        qBtn.className = 'btn btn-danger';
+        qBtn.textContent = '🛡 Quarantine Host';
+        appendMobileConsole(`Guardian Shield: RELEASED Quarantine for ${activeInspIp}. Normal subnet traffic restored.`, '#34d399');
+      }
+    }
+  }
+
+  // ==================== 5G GATEWAY, SPEEDTEST & DNS BENCHMARK ====================
+  async function runMobileSpeedtest() {
+    const out = document.getElementById('mobileUplinkOutput');
+    if (out) {
+      out.style.display = 'block';
+      out.innerHTML = '⚡ Testing multi-stream WAN throughput &amp; loaded latency against Cloudflare edge…';
+    }
+    showToast('⚡ Running WAN Speedtest…');
+    try {
+      const res = await apiFetch('/api/action/speedtest', { method: 'POST' });
+      if (out) {
+        out.innerHTML = `
+          <strong style="color:#34d399;">WAN Speedtest Completed:</strong><br>
+          Download: <strong style="color:#38bdf8;font-size:14px;">${res.download_mbps || 0} Mbps</strong> &bull;
+          Upload: <strong style="color:#a78bfa;font-size:14px;">${res.upload_mbps || 0} Mbps</strong><br>
+          Baseline Ping: <strong>${res.ping_ms || 0} ms</strong> &bull; Jitter: <strong>${res.jitter_ms || 0} ms</strong><br>
+          Bufferbloat Grade: <strong style="color:#34d399;">${res.bufferbloat_grade || 'A'}</strong> &bull; Server: ${res.server || 'Cloudflare Edge'}
+        `;
+      }
+      showToast(`Speedtest: ${res.download_mbps || 0} Mbps down • ${res.upload_mbps || 0} Mbps up`);
+    } catch (e) {
+      if (out) out.textContent = `Speedtest failed: ${e}`;
+      showToast('Speedtest failed: node unreachable');
+    }
+  }
+
+  async function runMobileDnsBenchmark() {
+    const out = document.getElementById('mobileUplinkOutput');
+    if (out) {
+      out.style.display = 'block';
+      out.innerHTML = '⏱ Benchmarking DNS latency across Cloudflare (1.1.1.1), Google (8.8.8.8), Quad9 (9.9.9.9)…';
+    }
+    showToast('⏱ Benchmarking DNS Resolvers…');
+    try {
+      const targets = [
+        { name: 'Cloudflare', ip: '1.1.1.1' },
+        { name: 'Google', ip: '8.8.8.8' },
+        { name: 'Quad9', ip: '9.9.9.9' }
+      ];
+      const results = [];
+      for (const t of targets) {
+        try {
+          const r = await apiFetch('/api/action/dns-audit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip: t.ip })
+          });
+          results.push({ name: t.name, ip: t.ip, rtt: r.rtt_ms || '—', dnssec: r.dnssec_validation ? 'DNSSEC ✔' : 'Standard' });
+        } catch (err) {
+          results.push({ name: t.name, ip: t.ip, rtt: 'ERR', dnssec: 'Failed' });
+        }
+      }
+      if (out) {
+        out.innerHTML = '<strong style="color:#38bdf8;">Multi-Resolver DNS Benchmark:</strong><br>' +
+          results.map(x => `&bull; <strong>${x.name}</strong> (${x.ip}): <strong style="color:#34d399;">${x.rtt} ms</strong> (${x.dnssec})`).join('<br>');
+      }
+      showToast('DNS Benchmark completed');
+    } catch (e) {
+      if (out) out.textContent = `DNS benchmark failed: ${e}`;
+    }
+  }
+
+  async function refreshMobileGateway5G() {
+    const out = document.getElementById('mobileUplinkOutput');
+    if (out) {
+      out.style.display = 'block';
+      out.innerHTML = '📡 Querying Arcadyan 5G NR cellular telemetry (/TMI/v1/gateway)…';
+    }
+    showToast('Querying 5G NR Gateway…');
+    try {
+      const res = await apiFetch('/api/action/gateway-control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'telemetry' })
+      });
+      const gw = res.telemetry || res;
+      if (out) {
+        out.innerHTML = `
+          <strong style="color:#34d399;">Arcadyan 5G NR Gateway Telemetry:</strong><br>
+          Primary Band: <strong>${gw.primary_band || 'B66'}</strong> &bull; 5G Secondary: <strong style="color:#38bdf8;">${gw.secondary_band || 'n41'}</strong><br>
+          RSRP: <strong>${gw.rsrp || -88} dBm</strong> &bull; RSRQ: <strong>${gw.rsrq || -11} dB</strong> &bull; SINR: <strong style="color:#34d399;">${gw.sinr || 24} dB</strong><br>
+          Uptime: <strong>${gw.uptime || 'Online'}</strong> &bull; Status: ${res.message || 'Connected'}
+        `;
+      }
+      showToast('5G Gateway status updated');
+    } catch (e) {
+      if (out) out.textContent = `Gateway query failed: ${e}`;
+    }
+  }
+
   // Boot
   fetchMobileState();
   connectMobileWs();
@@ -2329,6 +2866,101 @@
         <button class="btn btn-emerald" onclick="mobileAdminMint('enterprise', 'lifetime')">👑 Mint Enterprise Lifetime</button>
         <button class="btn btn-danger" onclick="mobileDeactivateLicense()">Revert to Free</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE DEVICE INSPECTOR & CONTROL MODAL -->
+<div id="mobileDeviceModal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(5,8,15,0.92);backdrop-filter:blur(10px);align-items:flex-start;justify-content:center;padding:12px;overflow-y:auto;">
+  <div style="background:#111824;border:1px solid #2e405c;border-radius:14px;width:100%;max-width:540px;padding:14px;margin-top:8px;margin-bottom:32px;">
+    <div class="card-top" style="border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:10px;">
+      <div style="display:flex;gap:10px;align-items:center;">
+        <img id="mInspImg" src="" alt="Icon" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:2px;" onerror="this.style.display='none'" />
+        <div>
+          <div class="card-title" id="mInspTitle">Device Inspector</div>
+          <div class="card-mono" id="mInspSubtitle">—</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span class="pill pill-sky" id="mInspConfidence">100%</span>
+        <button class="btn" onclick="closeMobileInspectorModal()">✕ Close</button>
+      </div>
+    </div>
+
+    <!-- Live Diagnostics & Audits -->
+    <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 6px;">⚡ Diagnostic &amp; Security Audits</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="runMobileInspPing()">5x Latency Burst</button>
+      <button class="btn" onclick="runMobileInspTrace()">MTR Path Trace</button>
+      <button class="btn" onclick="runMobileInspPorts()">Scan TCP 1–1024</button>
+      <button class="btn btn-primary" onclick="runMobileInspNmap()">Nmap -sV Audit</button>
+      <button class="btn" onclick="runMobileInspSsh()">SSH HASSH (:22)</button>
+      <button class="btn" onclick="runMobileInspSmb()">SMB2/3 Signing (:445)</button>
+      <button class="btn" onclick="runMobileInspDns()">DNSSEC (:53)</button>
+      <button class="btn" onclick="runMobileInspNtp()">NTP Stratum (:123)</button>
+      <button class="btn" id="mInspUpnpBtn" onclick="runMobileInspUpnp()" style="display:none;">UPnP NAT Mappings</button>
+      <button class="btn" onclick="runMobileInspWol()">Send Wake-on-LAN</button>
+      <button class="btn btn-danger" id="mInspQuarantineBtn" onclick="runMobileInspQuarantine()">🛡 Quarantine Host</button>
+    </div>
+
+    <!-- Interactive Terminal Output Console -->
+    <div id="mInspConsoleWrap" style="display:none;margin-top:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-size:10.5px;color:var(--text-muted);font-weight:700;">LIVE TERMINAL OUTPUT</span>
+        <div style="display:flex;gap:4px;">
+          <button class="btn" style="padding:2px 6px;font-size:10px;" onclick="copyMobileInspConsole()">📋 Copy</button>
+          <button class="btn" style="padding:2px 6px;font-size:10px;" onclick="clearMobileInspConsole()">Clear</button>
+        </div>
+      </div>
+      <pre id="mInspConsolePre" style="background:#070a10;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:11px;color:#38bdf8;max-height:180px;overflow-y:auto;white-space:pre-wrap;"></pre>
+    </div>
+
+    <!-- Device Customization & Database Management -->
+    <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 6px;">✏️ Asset Customization &amp; Identity</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <div>
+        <label style="font-size:10.5px;color:var(--text-dim);">Custom Friendly Name</label>
+        <input type="text" id="mInspCustomName" class="m-input" placeholder="e.g. Living Room Apple TV">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <div>
+          <label style="font-size:10.5px;color:var(--text-dim);">Device Category</label>
+          <select id="mInspCategory" class="m-select">
+            <option value="gateway">Gateway / Router</option>
+            <option value="smart_tv">Smart TV / Streaming</option>
+            <option value="gaming">Gaming Console</option>
+            <option value="audio">Audio / Speaker</option>
+            <option value="iot">Smart Home / IoT Relay</option>
+            <option value="mobile">Smartphone / Tablet</option>
+            <option value="workstation">Laptop / Workstation</option>
+            <option value="server">Server / Infrastructure</option>
+            <option value="camera">IP Camera / NVR</option>
+            <option value="unknown">General Endpoint</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:10.5px;color:var(--text-dim);">Trust State</label>
+          <select id="mInspTrustState" class="m-select">
+            <option value="trusted">Trusted Asset</option>
+            <option value="monitored">Monitored Host</option>
+            <option value="intruder">Untrusted Intruder</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:10.5px;color:var(--text-dim);">Operator Notes</label>
+        <input type="text" id="mInspNotes" class="m-input" placeholder="Port forwards, assigned owner, location...">
+      </div>
+      <div style="display:flex;gap:6px;margin-top:4px;">
+        <button class="btn btn-emerald" style="flex:1;" onclick="saveMobileDeviceCustomization()">💾 Save Customization</button>
+        <button class="btn btn-danger" onclick="deleteMobileDeviceFromDb()">🗑 Delete Host</button>
+      </div>
+    </div>
+
+    <!-- Remote Controls Accordion -->
+    <div id="mInspRemoteSection" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:10px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🎮 Remote Hardware Control</div>
+      <div id="mInspRemoteBody"></div>
     </div>
   </div>
 </div>
