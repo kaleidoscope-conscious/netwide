@@ -86,8 +86,8 @@ def parse_iw_scan_dump(interface: str = "wlo1") -> Dict[str, Dict[str, Any]]:
             continue
         first_line = block.splitlines()[0]
         # Real iw output: "BSS 22:EF:BD:5B:09:A8(on wlo1)" / "... (not associated)".
-        # Capture the 17-char MAC strictly; previous split("(") logic could never match.
-        m_bssid = re.match(r"BSS\s+([0-9A-Fa-f:]{17})", first_line)
+        # re.split("(?m)^BSS ", out) strips the leading "BSS ", so first_line begins with the MAC
+        m_bssid = re.match(r"(?:BSS\s+)?([0-9A-Fa-f:]{17})", first_line.strip())
         if not m_bssid:
             continue
         bssid = m_bssid.group(1).upper()

@@ -49,6 +49,7 @@ def test_mint_and_verify_license_key():
         mgr.activate_license_key(minted_ent["license_key"])
         assert mgr.check_feature_access("quarantine")[0] is True
         assert mgr.check_feature_access("forensic_export")[0] is True
+        assert mgr.check_feature_access("unrecognized_bogus_feature")[0] is False
 
         # Revoke the Enterprise key -> automatically invalidates and reverts to free
         rev = mgr.revoke_license(minted_ent["jti"])

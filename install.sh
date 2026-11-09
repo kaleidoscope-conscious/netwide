@@ -38,6 +38,7 @@ After=network-online.target
 Type=simple
 WorkingDirectory=$APP_DIR
 Environment=PYTHONPATH=$PARENT_DIR
+Environment=PYTHONUNBUFFERED=1
 ExecStart=$VENV_PY -m netpulse serve --host 0.0.0.0 --port 8765
 Restart=always
 RestartSec=4

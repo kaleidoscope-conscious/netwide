@@ -266,7 +266,7 @@ def cmd_domain(target: str) -> None:
     res = probe_domain_and_wan_target(target)
     if not res.get("ok"):
         console.print(f"[bold red]Domain probe failed:[/bold red] {res.get('error')}")
-        return
+        raise SystemExit(1)
     tls = res.get("tls") or {}
     http = res.get("http") or {}
     console.print(
@@ -318,7 +318,7 @@ def cmd_cidr(cidr_str: str) -> None:
     res = calculate_subnet_cidr(cidr_str)
     if not res.get("ok"):
         console.print(f"[bold red]Invalid CIDR:[/bold red] {res.get('error')}")
-        return
+        raise SystemExit(1)
     console.print(
         Panel(
             f"[bold cyan]CIDR Block:[/bold cyan] [bold white]{res.get('cidr')}[/bold white] "
@@ -471,12 +471,18 @@ def main(argv: List[str] | None = None) -> None:
         elif act == "activate":
             res = subscription_engine.activate_license_key(args.key)
             console.print(res)
+            if not res.get("ok"):
+                raise SystemExit(1)
         elif act == "deactivate":
             res = subscription_engine.deactivate_license()
             console.print(res)
+            if not res.get("ok"):
+                raise SystemExit(1)
         elif act == "revoke":
             res = subscription_engine.revoke_license(args.key)
             console.print(res)
+            if not res.get("ok"):
+                raise SystemExit(1)
         elif act == "list":
             keys = subscription_engine.list_minted_licenses()
             t = Table(title="Minted NetPulse Cryptographic Licenses", box=box.ROUNDED)

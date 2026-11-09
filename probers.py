@@ -2193,8 +2193,10 @@ def _parse_smb2_negotiate_response(data: bytes) -> Optional[Dict[str, Any]]:
             cap_flags.append(name)
 
     return {
+        "dialect": SMB2_DIALECT_NAMES.get(dialect_rev, f"SMB (0x{dialect_rev:04X})"),
         "dialect_code": f"0x{dialect_rev:04X}",
         "dialect_name": SMB2_DIALECT_NAMES.get(dialect_rev, f"SMB (0x{dialect_rev:04X})"),
+        "security_mode": sec_mode,
         "signing_enabled": signing_enabled,
         "signing_required": signing_required,
         "ntlm_relay_vulnerable": not signing_required,
@@ -2258,10 +2260,13 @@ def probe_mqtt_broker(ip: str, port: int = 1883, timeout: float = 0.9) -> Option
             s.sendall(b"\xe0\x00")
         except Exception:
             pass
-        if len(resp) >= 3 and resp[0] == 0x20:
-            # MQTT CONNACK: byte0=type 0x20, byte1=flags, byte2=return/reason code
-            # (v5.0 adds a property-length byte AFTER the reason code).
-            ret_code = resp[2]
+        if len(resp) >= 4 and resp[0] == 0x20:
+            # OASIS MQTT 3.1.1 CONNACK:
+            # Byte 0: Packet Type (0x20 = CONNACK)
+            # Byte 1: Remaining Length (0x02 bytes follow)
+            # Byte 2: Connect Acknowledge Flags (bit 0 = Session Present)
+            # Byte 3: Connect Return Code (0x00 = Connection Accepted, 0x05 = Not Authorized)
+            ret_code = resp[3]
             anon_ok = ret_code == 0x00
             return {
                 "port": port,

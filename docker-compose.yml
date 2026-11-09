@@ -7,7 +7,8 @@ services:
       - NET_ADMIN
       - NET_RAW
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       # Persist the SQLite intel DB on the named volume. Mounting the volume over
       # /app/netpulse shadowed the entire package source (documented bug) — mount

@@ -563,7 +563,13 @@ class SubscriptionManager:
         """
         req = FEATURE_REQUIREMENTS.get(feature_key)
         if not req:
-            return True, None
+            return False, {
+                "ok": False,
+                "upgrade_required": True,
+                "feature_key": feature_key,
+                "feature_name": feature_key,
+                "error": f"Feature '{feature_key}' is unrecognized or unentitled.",
+            }
         req_tier, feature_label = req
         status = self.get_subscription_status()
         cur_tier = status["tier"]
