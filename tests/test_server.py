@@ -374,6 +374,35 @@ def test_every_html_button_and_link_leads_to_valid_action() -> None:
                 )
 
 
+def test_every_backend_api_endpoint_is_surfaced_in_ui() -> None:
+    """Verify that 100% of user-facing /api/* backend endpoints in server.py are surfaced across the UI HTML views."""
+    import os
+    from fastapi.routing import APIRoute
+
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ui_files = [
+        os.path.join(root_dir, "static", "index.html"),
+        os.path.join(root_dir, "static", "mobile.html"),
+        os.path.join(root_dir, "static", "pricing.html"),
+        os.path.join(root_dir, "static", "launch.html"),
+    ]
+    combined_ui = "\n".join(open(p, "r", encoding="utf-8").read() for p in ui_files)
+
+    # Server-to-server webhook & health check routes that aren't user-clicked in the browser
+    non_ui_routes = {"/api/subscription/webhook", "/api/health"}
+
+    for route in app.routes:
+        if isinstance(route, APIRoute) and route.path.startswith("/api/"):
+            if route.path in non_ui_routes:
+                continue
+            # Normalize parameterized paths like /api/device/{device_key}/customize -> /api/device/
+            base_prefix = route.path.split("{")[0].rstrip("/")
+            assert base_prefix in combined_ui, (
+                f"Backend endpoint '{route.path}' (prefix '{base_prefix}') is not surfaced in any UI HTML view!"
+            )
+
+
+
 
 
 

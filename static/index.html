@@ -161,34 +161,55 @@
       font-family: var(--font-mono);
     }
 
-    /* Telemetry Summary Strip */
+    /* Telemetry Summary Strip (6 Interactive Quick-Jump KPI Cards) */
     .summary-strip {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       gap: 1px;
       background: var(--border);
       border-bottom: 1px solid var(--border);
     }
-    @media (max-width: 1100px) {
+    @media (max-width: 1320px) {
+      .summary-strip { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 820px) {
       .summary-strip { grid-template-columns: repeat(2, 1fr); }
     }
     .summary-cell {
       background: var(--bg-surface);
-      padding: 12px 18px;
+      padding: 11px 16px;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.14s ease, border-color 0.14s ease;
+      border-top: 2px solid transparent;
+    }
+    .summary-cell:hover {
+      background: var(--bg-elevated);
+      border-top-color: var(--accent);
+    }
+    .summary-cell.active-kpi {
+      background: rgba(59, 130, 246, 0.08);
+      border-top-color: var(--accent);
     }
     .summary-label {
-      font-size: 11px;
+      font-size: 10.5px;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.4px;
       font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     .summary-val {
-      font-size: 18px;
+      font-size: 16.5px;
       font-weight: 600;
       font-family: var(--font-mono);
       color: var(--text-primary);
       margin: 3px 0 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .summary-sub {
       font-size: 11px;
@@ -207,10 +228,11 @@
       padding: 0 20px;
       background: var(--bg-surface);
       border-bottom: 1px solid var(--border);
+      gap: 12px;
     }
     .nav-tabs {
       display: flex;
-      gap: 4px;
+      gap: 2px;
       overflow-x: auto;
     }
     .nav-tab {
@@ -218,18 +240,44 @@
       color: var(--text-secondary);
       border: none;
       border-bottom: 2px solid transparent;
-      padding: 11px 14px;
-      font-size: 12.5px;
+      padding: 11px 13px;
+      font-size: 12px;
       font-weight: 500;
       cursor: pointer;
       white-space: nowrap;
-      transition: color 0.12s, border-color 0.12s;
+      transition: color 0.12s, border-color 0.12s, background 0.12s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
-    .nav-tab:hover { color: var(--text-primary); }
-    .nav-tab.active {
+    .nav-tab:hover {
       color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .nav-tab.active {
+      color: #ffffff;
       border-bottom-color: var(--accent);
+      background: rgba(59, 130, 246, 0.07);
       font-weight: 600;
+    }
+    .nav-step {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-strong);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+    .nav-tab.active .nav-step {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
     }
 
     /* Main Content Container */
@@ -553,67 +601,73 @@
       <div class="app-mark">NP</div>
       <div>
         <div class="app-title">
-          NetPulse Workbench
+          NetPulse // OmniSight v4.5.0
           <span class="status-indicator"><span class="status-dot"></span><span id="wsStateLabel">Connected</span></span>
         </div>
-        <div class="app-subtitle">Local Network Inventory, Protocol Telemetry &amp; Endpoint Control</div>
+        <div class="app-subtitle">Sovereign Network Inventory, 10-Stage RF De-Cloaker, Cryptographic Protocol Auditor &amp; Endpoint Control</div>
       </div>
     </div>
 
     <div class="header-right">
       <div class="meta-pill" id="ifaceMetaPill">Interface: <strong>wlo1</strong></div>
-      <button class="btn" onclick="openSubscriptionModal()" id="subTierBtn" style="background:rgba(167,139,250,0.16);border-color:#a78bfa;color:#e9d5ff;font-weight:700;">💎 <span id="subTierBadgeText">FREE TIER</span></button>
-      <button class="btn btn-primary" onclick="triggerManualScan()" id="scanBtn">Scan Subnet</button>
-      <button class="btn btn-primary" onclick="triggerAreaScan()" id="areaScanBtn" style="background:#0284c7;border-color:#0369a1;">Deep Area Scan</button>
-      <button class="btn" onclick="triggerCameraSweep()" id="camBtn">ONVIF &amp; RF Audit</button>
-      <button class="btn" onclick="openOuiModal()" id="ouiBtn">🔍 OUI &amp; EUI-64 Lookup</button>
-      <button class="btn" onclick="openAllAroundToolkitModal()" id="toolkitBtn" style="border-color:#38bdf8;color:#7dd3fc;">🛠 All-Around Toolkit</button>
-      <button class="btn" onclick="triggerSpeedtest()" id="speedBtn">WAN Benchmark</button>
-      <button class="btn" onclick="exportForensicReport()" id="exportBtn">Export Report</button>
+      <button class="btn btn-primary" onclick="triggerManualScan()" id="scanBtn">⚡ Scan Subnet</button>
+      <button class="btn btn-primary" onclick="triggerAreaScan()" id="areaScanBtn" style="background:#0284c7;border-color:#0369a1;">📡 Deep Area &amp; RF De-Cloak</button>
+      <button class="btn" onclick="triggerCameraSweep()" id="camBtn">📷 ONVIF &amp; Camera Sweep</button>
+      <button class="btn" onclick="triggerSpeedtest()" id="speedBtn">🚀 WAN Benchmark</button>
+      <button class="btn" onclick="jumpToWorkspaceTab('toolkit')" id="toolkitBtn" style="border-color:#38bdf8;color:#7dd3fc;">🛠 Engineering &amp; OSINT</button>
+      <button class="btn" onclick="openOuiModal()" id="ouiBtn">🔍 47k OUI Search</button>
+      <button class="btn" onclick="exportForensicReport()" id="exportBtn">📄 Export Dossier</button>
       <a class="btn" href="/api/export/csv" download="NetPulse_Inventory.csv" style="text-decoration:none;">⬇ CSV</a>
-      <button class="btn btn-primary" onclick="openMobileQrModal()" id="mobileQrBtn" style="background:#059669;border-color:#10b981;">📱 Mobile App &amp; APK</button>
-      <a class="btn btn-primary" href="/launch" style="background:#7c3aed;border-color:#a855f7;text-decoration:none;display:inline-flex;align-items:center;">🚀 Play Store &amp; Launch Hub</a>
+      <button class="btn btn-primary" onclick="openMobileQrModal()" id="mobileQrBtn" style="background:#059669;border-color:#10b981;">📱 Mobile &amp; APK</button>
+      <a class="btn btn-primary" href="/launch" style="background:#7c3aed;border-color:#a855f7;text-decoration:none;display:inline-flex;align-items:center;">🚀 Launch Hub</a>
+      <button class="btn" onclick="openSubscriptionModal()" id="subTierBtn" style="background:rgba(167,139,250,0.16);border-color:#a78bfa;color:#e9d5ff;font-weight:700;">💎 <span id="subTierBadgeText">FREE TIER</span></button>
     </div>
   </header>
 
-  <!-- METRIC SUMMARY STRIP -->
+  <!-- 6-CARD INTERACTIVE EXECUTIVE KPI & QUICK-JUMP STRIP -->
   <section class="summary-strip">
-    <div class="summary-cell">
-      <div class="summary-label">Discovered Hosts</div>
+    <div class="summary-cell active-kpi" id="kpiCard-inventory" onclick="jumpToWorkspaceTab('inventory')" title="Click to open Tab 1: Subnet Endpoint Matrix &amp; Remote Control Workbench">
+      <div class="summary-label"><span>1. LAN Endpoints &amp; Control</span><span style="color:var(--accent);">↗</span></div>
       <div class="summary-val" id="sumHosts">--</div>
       <div class="summary-sub" id="sumHostsSub">Awaiting scan…</div>
     </div>
-    <div class="summary-cell">
-      <div class="summary-label">Gateway &amp; 5G NR Uplink</div>
-      <div class="summary-val" id="sum5g">--</div>
-      <div class="summary-sub" id="sum5gSub">--</div>
-    </div>
-    <div class="summary-cell">
-      <div class="summary-label">802.11 RF &amp; Silicon Clusters</div>
+    <div class="summary-cell" id="kpiCard-areascan" onclick="jumpToWorkspaceTab('areascan')" title="Click to open Tab 2: 10-Stage Hidden BSSID De-Cloaker, Silicon Clusters &amp; 4-Ring Area Scan">
+      <div class="summary-label"><span>2. 10-Stage RF De-Cloaker</span><span style="color:var(--accent);">↗</span></div>
       <div class="summary-val" id="sumWifi">--</div>
       <div class="summary-sub" id="sumWifiSub">--</div>
     </div>
-    <div class="summary-cell">
-      <div class="summary-label">WAN Egress &amp; DNS</div>
-      <div class="summary-val" id="sumWan">--</div>
-      <div class="summary-sub" id="sumWanSub">--</div>
+    <div class="summary-cell" id="kpiCard-spectrum" onclick="jumpToWorkspaceTab('spectrum')" title="Click to open Tab 3: Live RF Geiger Sonar, 802.11 Channel Optimizer &amp; Bluetooth 5.2">
+      <div class="summary-label"><span>3. Spectrum, RF Geiger &amp; BLE</span><span style="color:var(--accent);">↗</span></div>
+      <div class="summary-val" id="sumSpectrum">RF Sonar &amp; BLE 5.2</div>
+      <div class="summary-sub" id="sumSpectrumSub">Walk-Around Geiger + Channel Optimizer</div>
     </div>
-    <div class="summary-cell" onclick="openSecurityPostureModal()" style="cursor:pointer;" title="Click to open 5-Pillar Security Posture, IPv6 Dual-Stack &amp; 24h SQLite Analytics">
-      <div class="summary-label">Security Posture &amp; Analytics ↗</div>
+    <div class="summary-cell" id="kpiCard-uplink" onclick="jumpToWorkspaceTab('uplink')" title="Click to open Tab 5: 5G NR Cellular Gateway, Multi-Resolver DNS, WAN Throughput &amp; Geo-Map">
+      <div class="summary-label"><span>5. 5G NR Gateway &amp; WAN</span><span style="color:var(--accent);">↗</span></div>
+      <div class="summary-val" id="sum5g">--</div>
+      <div class="summary-sub" id="sum5gSub">--</div>
+    </div>
+    <div class="summary-cell" id="kpiCard-packets" onclick="jumpToWorkspaceTab('packets')" title="Click to open Tab 6: 5-Pillar Security Posture, IPv6 Dual-Stack, Crypto Auditors &amp; Wire DPI">
+      <div class="summary-label"><span>6. Security, Crypto &amp; Wire DPI</span><span style="color:var(--accent);">↗</span></div>
       <div class="summary-val" id="sumSec">--</div>
       <div class="summary-sub" id="sumSecSub">--</div>
     </div>
+    <div class="summary-cell" id="kpiCard-toolkit" onclick="jumpToWorkspaceTab('toolkit')" title="Click to open Tab 7: Domain/TLS OSINT, Local Listening Sockets (ss -tulnp), 47k OUI Search &amp; CIDR Calc">
+      <div class="summary-label"><span>7. OSINT, Sockets &amp; CIDR</span><span style="color:var(--accent);">↗</span></div>
+      <div class="summary-val" id="sumWan">--</div>
+      <div class="summary-sub" id="sumWanSub">--</div>
+    </div>
   </section>
 
-  <!-- NAVIGATION BAR -->
+  <!-- 7-TAB PRIMARY WORKSPACE NAVIGATION BAR -->
   <div class="nav-bar">
     <div class="nav-tabs">
-      <button class="nav-tab active" data-tab="inventory" onclick="switchTab('inventory', this)">Network Inventory &amp; Device Control</button>
-      <button class="nav-tab" data-tab="areascan" onclick="switchTab('areascan', this)">Area Scan (Deep &amp; Wide) &amp; RF Attribution</button>
-      <button class="nav-tab" data-tab="spectrum" onclick="switchTab('spectrum', this)">802.11 Spectrum &amp; Bluetooth</button>
-      <button class="nav-tab" data-tab="topology" onclick="switchTab('topology', this)">Topology Graph</button>
-      <button class="nav-tab" data-tab="uplink" onclick="switchTab('uplink', this)">5G Gateway, WAN &amp; Geo-Map</button>
-      <button class="nav-tab" data-tab="packets" onclick="switchTab('packets', this)">Wire Packet Capture &amp; Event Log</button>
+      <button class="nav-tab active" data-tab="inventory" onclick="switchTab('inventory', this)"><span class="nav-step">1</span>LAN Inventory &amp; Control</button>
+      <button class="nav-tab" data-tab="areascan" onclick="switchTab('areascan', this)"><span class="nav-step">2</span>Area Scan &amp; 10-Stage De-Cloaker</button>
+      <button class="nav-tab" data-tab="spectrum" onclick="switchTab('spectrum', this)"><span class="nav-step">3</span>802.11 Spectrum, RF Geiger &amp; BLE</button>
+      <button class="nav-tab" data-tab="topology" onclick="switchTab('topology', this)"><span class="nav-step">4</span>Interactive Topology Radar</button>
+      <button class="nav-tab" data-tab="uplink" onclick="switchTab('uplink', this)"><span class="nav-step">5</span>5G Gateway, WAN &amp; Geo-Map</button>
+      <button class="nav-tab" data-tab="packets" onclick="switchTab('packets', this)"><span class="nav-step">6</span>Security Posture, Crypto &amp; Wire DPI</button>
+      <button class="nav-tab" data-tab="toolkit" onclick="switchTab('toolkit', this)"><span class="nav-step">7</span>Engineering, Domain OSINT &amp; Local Sockets</button>
     </div>
   </div>
 
@@ -625,7 +679,11 @@
       <div id="advisoryBanner"></div>
 
       <div class="toolbar">
-        <input type="text" id="hostSearch" class="input-field" placeholder="Search IP, MAC, manufacturer, model, serial, open port, or running app…" oninput="renderInventory()" />
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1;">
+          <input type="text" id="hostSearch" class="input-field" style="min-width:290px;" placeholder="Search IP, MAC, manufacturer, model, serial, open port, JA3, or running app…" oninput="renderInventory()" />
+          <button class="btn btn-sm" style="border-color:#10b981;color:#34d399;" onclick="triggerWakeAllLan()">⚡ Wake All LAN Hosts</button>
+          <button class="btn btn-sm" onclick="jumpToWorkspaceTab('packets')">🛡 5-Pillar Security &amp; Wire DPI &rarr;</button>
+        </div>
         <div class="filter-group">
           <button class="filter-btn active" onclick="setFilter('ALL', this)">All Endpoints</button>
           <button class="filter-btn" onclick="setFilter('Gateway', this)">Gateway</button>
@@ -643,7 +701,7 @@
         <div class="panel">
           <div class="panel-header">
             <span>Subnet Endpoint Matrix</span>
-            <span class="mono" style="color:var(--text-muted);font-weight:400;font-size:11px;">Select any endpoint to inspect hardware dossier &amp; execute remote control</span>
+            <span class="mono" style="color:var(--text-muted);font-weight:400;font-size:11px;">Click any endpoint row to inspect hardware dossier &amp; execute remote control on the right &rarr;</span>
           </div>
           <div class="table-wrap">
             <table class="ent-table">
@@ -668,13 +726,14 @@
       </div>
     </section>
 
-    <!-- TAB: AREA SCAN (DEEP & WIDE) & 5-VECTOR RF ATTRIBUTION -->
+    <!-- TAB 2: AREA SCAN (DEEP & WIDE) & 10-STAGE RF ATTRIBUTION -->
     <section id="tab-areascan" class="tab-pane">
       <div class="panel" style="border-color:rgba(16,185,129,0.35);">
         <div class="panel-header" style="background:rgba(16,185,129,0.06);">
-          <span>Universal Hidden De-Cloaker — 100% Resolution of Hidden 802.11 BSSIDs, Privacy MACs &amp; Stealth Endpoints</span>
+          <span>Universal Hidden De-Cloaker — 10-Stage Resolution of Hidden 802.11 BSSIDs, Privacy MACs &amp; Stealth Endpoints</span>
           <div style="display:flex;gap:8px;align-items:center;">
             <span id="hiddenDeCloakBadge" class="tag tag-online"></span>
+            <button class="btn btn-sm" onclick="jumpToWorkspaceTab('spectrum')">◎ Open RF Geiger Sonar &rarr;</button>
             <button class="btn btn-sm btn-primary" onclick="triggerAreaScan()">De-Cloak &amp; Re-Verify All Hidden</button>
           </div>
         </div>
@@ -688,7 +747,7 @@
                 <th>Parent Router / Subnet</th>
                 <th>Channel / State &amp; Signal / RTT</th>
                 <th>Conf</th>
-                <th>8-Stage Silicon, 64-Bit TSF &amp; Protocol Proof</th>
+                <th>10-Stage Silicon, 64-Bit TSF &amp; Protocol Proof</th>
               </tr>
             </thead>
             <tbody id="hiddenEntitiesBody"></tbody>
@@ -750,22 +809,53 @@
       </div>
     </section>
 
-    <!-- TAB 2: TOPOLOGY GRAPH -->
-    <section id="tab-topology" class="tab-pane">
-      <div class="topo-container" style="position:relative;">
-        <div style="position:absolute;top:12px;left:14px;z-index:10;display:flex;gap:8px;align-items:center;background:rgba(15,19,28,0.88);padding:6px 10px;border:1px solid var(--border-subtle);border-radius:6px;">
-          <span class="mono" style="font-size:11px;color:var(--text-secondary);margin-right:4px;">TOPOLOGY VIEW:</span>
-          <button class="btn" id="topoModeOnlineBtn" onclick="setTopologyMode('online')" style="padding:3px 9px;font-size:11px;border-color:var(--accent-blue);color:#fff;">Online Active</button>
-          <button class="btn" id="topoModeAllBtn" onclick="setTopologyMode('all')" style="padding:3px 9px;font-size:11px;">+ Offline History (2-Ring)</button>
-          <button class="btn" id="topoModeRfBtn" onclick="setTopologyMode('rf')" style="padding:3px 9px;font-size:11px;">+ Co-Located RF BSSIDs</button>
-          <span class="mono" style="font-size:10.5px;color:var(--text-muted);margin-left:8px;">Drag nodes to arrange • Click node to inspect</span>
-        </div>
-        <canvas id="topologyCanvas"></canvas>
-      </div>
-    </section>
-
-    <!-- TAB 3: 802.11 SPECTRUM & BLUETOOTH -->
+    <!-- TAB 3: 802.11 SPECTRUM, LIVE RF GEIGER SONAR & BLUETOOTH -->
     <section id="tab-spectrum" class="tab-pane">
+      <!-- Live Desktop Walk-Around & Dual-Node RF Geiger Counter Panel (/api/rf-geiger) -->
+      <div class="panel" style="border-color:rgba(56,189,248,0.45);margin-bottom:16px;">
+        <div class="panel-header" style="background:rgba(56,189,248,0.08);">
+          <span>◎ Live 802.11 RF Geiger Counter, Signal Oscilloscope &amp; Dual-Node (Laptop + Phone) Triangulation (`/api/rf-geiger`)</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span id="deskGeigerStatusPill" class="tag tag-blue">READY TO TRACK</span>
+            <button class="btn btn-sm btn-primary" id="deskGeigerAudioBtn" onclick="toggleDesktopGeigerAudio()">🔊 Enable Geiger Audio Clicks</button>
+            <button class="btn btn-sm" onclick="pollDesktopGeiger()">⚡ Pulse RF Sample</button>
+            <button class="btn btn-sm" onclick="resetDesktopGeiger()">↺ Reset Peak</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div style="display:grid;grid-template-columns:1.1fr 1.4fr;gap:16px;align-items:center;">
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Select Target 802.11 BSSID Transmitter</div>
+              <select id="deskGeigerSelect" class="input-field mono" style="width:100%;margin-bottom:10px;" onchange="onDesktopGeigerTargetChange(this.value)"></select>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                <div style="background:var(--bg-canvas);border:1px solid var(--border);border-radius:5px;padding:8px 10px;">
+                  <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;">Live RSSI / Peak</div>
+                  <div class="mono" style="font-size:18px;font-weight:800;color:#38bdf8;" id="deskGeigerDbm">-- dBm</div>
+                  <div class="mono" style="font-size:10.5px;color:var(--text-secondary);" id="deskGeigerPeak">Peak: -- dBm</div>
+                </div>
+                <div style="background:var(--bg-canvas);border:1px solid var(--border);border-radius:5px;padding:8px 10px;">
+                  <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;">Multipath Range &amp; Ch</div>
+                  <div class="mono" style="font-size:14px;font-weight:700;color:#34d399;margin-top:2px;" id="deskGeigerDist">— m</div>
+                  <div class="mono" style="font-size:10.5px;color:var(--text-secondary);" id="deskGeigerChan">Ch —</div>
+                </div>
+                <div style="background:var(--bg-canvas);border:1px solid var(--border);border-radius:5px;padding:8px 10px;">
+                  <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;">64-Bit TSF &amp; Dual-Node</div>
+                  <div class="mono" style="font-size:12px;font-weight:700;color:#e2e8f0;margin-top:2px;" id="deskGeigerTsf">—</div>
+                  <div class="mono" style="font-size:10.5px;color:#a78bfa;" id="deskGeigerDual">Single-Receiver</div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <canvas id="deskGeigerCanvas" width="680" height="120" style="width:100%;height:120px;background:#07090e;border:1px solid var(--border-strong);border-radius:6px;display:block;"></canvas>
+              <div class="mono" style="font-size:10.5px;color:var(--text-muted);margin-top:4px;display:flex;justify-content:space-between;">
+                <span id="deskGeigerIdentityLine">Select any BSSID or click "◎ Track" in the table below</span>
+                <span>Solid = Live dBm • Dashed Red = Peak Envelope</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="two-col">
         <div class="panel">
           <div class="panel-header">
@@ -777,7 +867,7 @@
               <thead>
                 <tr>
                   <th>SSID / Attribution Proof</th>
-                  <th>BSSID</th>
+                  <th>BSSID &amp; Sonar</th>
                   <th>Channel / Freq</th>
                   <th>64-Bit TSF Clock &amp; QBSS</th>
                   <th>Signal &amp; Multipath Range</th>
@@ -792,7 +882,7 @@
 
         <div>
           <div class="panel">
-            <div class="panel-header">Channel Utilization</div>
+            <div class="panel-header">Channel Utilization &amp; RF Spectral Optimizer</div>
             <div class="panel-body" id="channelUtilizationBody"></div>
           </div>
           <div class="panel">
@@ -803,12 +893,29 @@
       </div>
     </section>
 
-    <!-- TAB 4: 5G GATEWAY, WAN & GEO-MAP -->
+    <!-- TAB 4: INTERACTIVE TOPOLOGY GRAPH -->
+    <section id="tab-topology" class="tab-pane">
+      <div class="topo-container" style="position:relative;">
+        <div style="position:absolute;top:12px;left:14px;z-index:10;display:flex;gap:8px;align-items:center;background:rgba(15,19,28,0.88);padding:6px 10px;border:1px solid var(--border-subtle);border-radius:6px;flex-wrap:wrap;">
+          <span class="mono" style="font-size:11px;color:var(--text-secondary);margin-right:4px;">TOPOLOGY VIEW:</span>
+          <button class="btn" id="topoModeOnlineBtn" onclick="setTopologyMode('online')" style="padding:3px 9px;font-size:11px;border-color:var(--accent-blue);color:#fff;">Online Active</button>
+          <button class="btn" id="topoModeAllBtn" onclick="setTopologyMode('all')" style="padding:3px 9px;font-size:11px;">+ Offline History (2-Ring)</button>
+          <button class="btn" id="topoModeRfBtn" onclick="setTopologyMode('rf')" style="padding:3px 9px;font-size:11px;">+ Co-Located RF BSSIDs</button>
+          <span class="mono" style="font-size:10.5px;color:var(--text-muted);margin-left:8px;">Drag nodes to arrange • Click any node to open its Control Workbench in Tab 1</span>
+        </div>
+        <canvas id="topologyCanvas"></canvas>
+      </div>
+    </section>
+
+    <!-- TAB 5: 5G GATEWAY, WAN & GEO-MAP -->
     <section id="tab-uplink" class="tab-pane">
       <div class="two-col">
         <div>
           <div class="panel">
-            <div class="panel-header">Arcadyan TMO-G4AR 5G NR Cellular Telemetry (/TMI/v1/gateway)</div>
+            <div class="panel-header">
+              <span>Arcadyan TMO-G4AR 5G NR Cellular Telemetry (/TMI/v1/gateway)</span>
+              <button class="btn btn-sm" onclick="jumpToGatewayInspector()">Open Gateway Admin Control &rarr;</button>
+            </div>
             <div class="panel-body" id="gatewayTelemetryBody"></div>
           </div>
           <div class="panel">
@@ -832,13 +939,49 @@
       </div>
     </section>
 
-    <!-- TAB 5: WIRE PACKETS & EVENT LOG -->
+    <!-- TAB 6: SECURITY POSTURE, CRYPTOGRAPHIC AUDITORS, IPV6 & WIRE DPI -->
     <section id="tab-packets" class="tab-pane">
+      <!-- 5-Pillar Security Posture, IPv6 Dual-Stack Audit & Fleet Cryptographic Protocol Auditor -->
+      <div class="panel" style="border-color:rgba(16,185,129,0.4);margin-bottom:16px;">
+        <div class="panel-header" style="background:rgba(16,185,129,0.07);">
+          <span>🛡 5-Pillar Network Security Posture, IPv6 Dual-Stack SLAAC EUI-64 Audit &amp; Cryptographic Protocol Probers</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span id="inlineSecGradeBadge" class="tag tag-online">Grade A+</span>
+            <button class="btn btn-sm btn-primary" onclick="refreshInlineSecurityPosture()">↻ Re-Audit Security &amp; IPv6</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="inlineSecPillars" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px;"></div>
+          <div class="two-col" style="margin-bottom:12px;">
+            <div style="background:var(--bg-canvas);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:11.5px;line-height:1.65;" id="inlineIpv6Box">Loading IPv6 Dual-Stack &amp; SLAAC EUI-64 posture…</div>
+            <div style="background:var(--bg-canvas);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:11.5px;line-height:1.65;" id="inlineDbAnalyticsBox">Loading 24-Hour SQLite RTT &amp; Category Telemetry…</div>
+          </div>
+          <!-- Fleet-Wide Cryptographic Protocol Auditor Bar -->
+          <div style="background:var(--bg-canvas);border:1px solid var(--border-strong);border-radius:6px;padding:10px 12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+              <div>
+                <strong style="color:#38bdf8;font-size:12px;">🔐 Active Cryptographic &amp; Infrastructure Protocol Auditors</strong>
+                <span class="mono" style="color:var(--text-muted);font-size:11px;margin-left:8px;">Target IP:</span>
+                <input id="cryptoAuditTargetIp" type="text" class="input-field mono" style="min-width:140px;width:150px;padding:4px 8px;height:28px;" value="192.168.12.1" />
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="btn btn-sm btn-primary" onclick="runInlineCryptoAudit('dns')">🌐 DNSSEC &amp; DoT (:53/:853)</button>
+                <button class="btn btn-sm btn-primary" onclick="runInlineCryptoAudit('ntp')">⏱ NTPv4 Stratum &amp; Mode-6 (:123)</button>
+                <button class="btn btn-sm btn-primary" onclick="runInlineCryptoAudit('upnp')">🔓 UPnP IGD NAT Port-Forwards</button>
+                <button class="btn btn-sm" onclick="runInlineCryptoAudit('ssh')">🔑 SSHv2 Binary HASSH (:22)</button>
+                <button class="btn btn-sm" onclick="runInlineCryptoAudit('smb')">🛡 SMB2/3 NTLM-Relay Signing (:445)</button>
+              </div>
+            </div>
+            <pre id="inlineCryptoAuditPre" class="terminal-output" style="display:none;max-height:220px;margin-top:8px;"></pre>
+          </div>
+        </div>
+      </div>
+
       <div class="two-col">
         <div class="panel">
           <div class="panel-header">
             <span>Live Link-Layer Broadcast &amp; Multicast Capture (tshark)</span>
-            <span class="mono" style="font-size:11px;color:var(--text-muted);">ARP • mDNS • SSDP • DHCP • NBNS • DNS</span>
+            <span class="mono" style="font-size:11px;color:var(--text-muted);">ARP • mDNS • SSDP • DHCP • NBNS • DNS (Click any destination IP to inspect in Tab 7)</span>
           </div>
           <div class="table-wrap" style="max-height:540px;overflow-y:auto;">
             <table class="ent-table">
@@ -895,6 +1038,97 @@
       </div>
     </section>
 
+    <!-- TAB 7: ALL-AROUND NETWORK ENGINEERING, DOMAIN/TLS OSINT, LOCAL SOCKETS, 47K OUI & CIDR WORKSPACE -->
+    <section id="tab-toolkit" class="tab-pane">
+      <!-- 1. Domain, DNS Records, Email Security (SPF/DMARC) & Live X.509 TLS Inspector -->
+      <div class="panel" style="border-color:rgba(56,189,248,0.4);">
+        <div class="panel-header" style="background:rgba(56,189,248,0.07);">
+          <span>🌐 1. Domain, DNS Records (A/AAAA/MX/NS/TXT), Email Anti-Spoofing (SPF/DMARC) &amp; Live X.509 TLS (:443) Inspector (`/api/action/domain-intel`)</span>
+          <span id="tabToolkitDomainGrade" class="tag tag-online">Ready</span>
+        </div>
+        <div class="panel-body">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+            <input type="text" id="tabToolkitDomainInput" class="input-field mono" style="flex:1;min-width:240px;" value="cloudflare.com" placeholder="Enter domain, hostname, URL, or IP (e.g. cloudflare.com, google.com, github.com, 1.1.1.1)…" />
+            <button class="btn btn-primary" onclick="runTabDomainRecon()">Inspect Target</button>
+            <button class="btn btn-sm" onclick="runTabDomainRecon('cloudflare.com')">cloudflare.com</button>
+            <button class="btn btn-sm" onclick="runTabDomainRecon('google.com')">google.com</button>
+            <button class="btn btn-sm" onclick="runTabDomainRecon('github.com')">github.com</button>
+            <button class="btn btn-sm" onclick="runTabDomainRecon('quad9.net')">quad9.net</button>
+          </div>
+          <div id="tabToolkitDomainOutput"></div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <!-- 2. Local Workstation Listening Daemons & Socket Table -->
+        <div class="panel">
+          <div class="panel-header">
+            <span>💻 2. Local Workstation Listening Daemons, PIDs &amp; NIC Bandwidth (`/api/local/sockets`)</span>
+            <button class="btn btn-sm btn-primary" onclick="refreshTabLocalSockets()">↻ Refresh Sockets</button>
+          </div>
+          <div class="panel-body">
+            <div id="tabToolkitSocketsMeta" class="mono" style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">Loading local kernel socket table…</div>
+            <div class="table-wrap" style="max-height:310px;overflow-y:auto;">
+              <table class="ent-table">
+                <thead>
+                  <tr>
+                    <th>Proto</th>
+                    <th>Bind : Port</th>
+                    <th>Daemon / PID</th>
+                    <th>Exposure</th>
+                  </tr>
+                </thead>
+                <tbody id="tabToolkitSocketsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. IPv4/IPv6 CIDR Subnet Calculator & Fleet Wake-on-LAN + Inline 47k IEEE OUI Unmasker -->
+        <div>
+          <div class="panel">
+            <div class="panel-header">
+              <span>🧮 3. IPv4 / IPv6 CIDR Subnet Calculator (`/api/subnet/calc`) &amp; Fleet Wake-on-LAN</span>
+              <button class="btn btn-sm btn-primary" style="background:#059669;border-color:#10b981;" onclick="triggerWakeAllLan()">⚡ Wake All Discovered LAN Hosts</button>
+            </div>
+            <div class="panel-body">
+              <div style="display:flex;gap:8px;margin-bottom:10px;">
+                <input type="text" id="tabToolkitCidrInput" class="input-field mono" style="flex:1;" value="192.168.12.0/24" placeholder="192.168.12.0/24 or 10.0.0.0/16 or fe80::/64" oninput="runTabSubnetCalculator()" />
+                <button class="btn btn-primary btn-sm" onclick="runTabSubnetCalculator()">Calculate CIDR</button>
+              </div>
+              <div id="tabToolkitCidrOutput" style="font-size:12px;line-height:1.75;color:#cbd5e1;"></div>
+              <div id="tabToolkitWakeStatus" class="mono" style="font-size:11.5px;color:#34d399;margin-top:6px;"></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <span>🔍 4. 47,035+ IEEE OUI Vendor &amp; IPv6 SLAAC EUI-64 Hardware Unmasking Engine (`/api/oui/search`)</span>
+              <span id="tabOuiCountBadge" class="tag tag-blue">47,035 Signatures</span>
+            </div>
+            <div class="panel-body">
+              <div style="display:flex;gap:8px;margin-bottom:8px;">
+                <input type="text" id="tabOuiQueryInput" class="input-field mono" style="flex:1;" value="Ubiquiti" placeholder="Enter MAC (18:A5:1D:13:62:3D), Vendor (Ubiquiti, Sonos, Apple), or EUI-64 IPv6…" oninput="runTabOuiSearch()" />
+                <button class="btn btn-primary btn-sm" onclick="runTabOuiSearch()">Search OUI</button>
+              </div>
+              <div class="table-wrap" style="max-height:185px;overflow-y:auto;">
+                <table class="ent-table">
+                  <thead>
+                    <tr>
+                      <th>OUI / Unmasked MAC</th>
+                      <th>Registered Manufacturer</th>
+                      <th>Registry</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tabOuiResultsBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <script>
@@ -945,13 +1179,75 @@
       </svg>`;
     }
 
+    let tab7Initialized = false;
+    let deskGeigerHistory = [];
+    let deskGeigerPeakDbm = -100;
+    let deskGeigerAudioOn = false;
+    let deskGeigerAudioCtx = null;
+    let deskGeigerTimer = null;
+
     function switchTab(id, btn) {
       document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
-      document.getElementById('tab-' + id).classList.add('active');
-      if (btn) btn.classList.add('active');
+      document.querySelectorAll('.summary-cell').forEach(c => c.classList.remove('active-kpi'));
+      const pane = document.getElementById('tab-' + id);
+      if (pane) pane.classList.add('active');
+      if (btn) {
+        btn.classList.add('active');
+      } else {
+        const matchBtn = document.querySelector(`.nav-tab[data-tab="${id}"]`);
+        if (matchBtn) matchBtn.classList.add('active');
+      }
+      const kpiCard = document.getElementById('kpiCard-' + id);
+      if (kpiCard) kpiCard.classList.add('active-kpi');
+
       if (id === 'topology') resizeTopology();
       if (id === 'uplink') initOrUpdateMap();
+      if (id === 'spectrum') {
+        populateDesktopGeigerSelect();
+        pollDesktopGeiger();
+      }
+      if (id === 'packets') {
+        refreshInlineSecurityPosture();
+      }
+      if (id === 'toolkit' && !tab7Initialized) {
+        tab7Initialized = true;
+        runTabDomainRecon();
+        refreshTabLocalSockets();
+        runTabSubnetCalculator();
+        runTabOuiSearch();
+      }
+    }
+
+    function jumpToWorkspaceTab(id, targetParam) {
+      const btn = document.querySelector(`.nav-tab[data-tab="${id}"]`);
+      switchTab(id, btn);
+      if (id === 'toolkit' && targetParam) {
+        tab7Initialized = true;
+        runTabDomainRecon(targetParam);
+        refreshTabLocalSockets();
+        runTabSubnetCalculator();
+        runTabOuiSearch();
+      }
+    }
+
+    function jumpToGatewayInspector() {
+      if (!appState || !appState.devices) return;
+      const gw = appState.devices.find(d => d.is_gateway) || appState.devices.find(d => d.ip === '192.168.12.1') || appState.devices[0];
+      if (gw) {
+        selectedIp = gw.ip;
+        jumpToWorkspaceTab('inventory');
+        renderInventory();
+        renderInspector();
+        setTimeout(() => scrollToInspectorSection('inspSecControl'), 80);
+      }
+    }
+
+    function scrollToInspectorSection(secId) {
+      const el = document.getElementById(secId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
 
     function setFilter(cat, btn) {
@@ -982,20 +1278,28 @@
       }
 
       const clustersCount = ((state.area_scan || {}).summary || {}).physical_radio_appliances || (wifi.physical_clusters || []).length || 0;
-      document.getElementById('sumWifi').textContent = `${wifi.total_aps || 0} BSSIDs &rarr; ${clustersCount} Physical Radios`;
       document.getElementById('sumWifi').innerHTML = `${wifi.total_aps || 0} BSSIDs &rarr; ${clustersCount} Silicon Radios`;
-      document.getElementById('sumWifiSub').textContent = `2.4 GHz: ${wifi.band_24_count || 0} • 5 GHz: ${wifi.band_5_count || 0} • ${wifi.hidden_aps || 0} Hidden Attributed`;
+      document.getElementById('sumWifiSub').textContent = `2.4 GHz: ${wifi.band_24_count || 0} • 5 GHz: ${wifi.band_5_count || 0} • ${wifi.hidden_aps || 0} Hidden Unmasked`;
+
+      const chRec = wifi.channel_recommendations || {};
+      const opt24 = chRec.band_24ghz?.recommended_channel ?? 1;
+      const opt5 = chRec.band_5ghz?.recommended_channel ?? 36;
+      const btCount = ((state.bluetooth || {}).devices || []).length;
+      const sumSpecEl = document.getElementById('sumSpectrum');
+      const sumSpecSubEl = document.getElementById('sumSpectrumSub');
+      if (sumSpecEl) sumSpecEl.textContent = `Opt Ch ${opt24} / Ch ${opt5} • ${btCount} BLE`;
+      if (sumSpecSubEl) sumSpecSubEl.textContent = `Live RF Geiger Sonar • ${wifi.total_aps || 0} APs Tracked`;
 
       const gwDns = (wan.dns_benchmarks || [])[0];
-      document.getElementById('sumWan').textContent = wan.public_ip || '—';
-      document.getElementById('sumWanSub').textContent = `${wan.city || ''} ${wan.region || ''} • Gateway DNS ${gwDns?.rtt_ms ?? '?'} ms`;
+      document.getElementById('sumWan').textContent = wan.public_ip || 'Domain & Socket OSINT';
+      document.getElementById('sumWanSub').textContent = `${wan.city || ''} ${wan.region || ''} • DNS ${gwDns?.rtt_ms ?? '?'} ms • ${(meta.oui_database_size || 47035).toLocaleString()} OUIs`;
 
       const threats = state.threats || [];
       const posture = state.security_posture || {};
       const secScore = posture.score !== undefined ? posture.score : (meta.security_score ?? 100);
       const secGrade = posture.grade || meta.security_grade || 'A+';
       document.getElementById('sumSec').textContent = `Posture ${secScore}/100 (${secGrade})`;
-      document.getElementById('sumSecSub').textContent = `${(meta.oui_database_size || 47033).toLocaleString()} OUIs • ${threats.length} Advisory Item(s)`;
+      document.getElementById('sumSecSub').textContent = `5-Pillar Crypto + IPv6 • ${threats.length} Advisory Item(s)`;
 
       const sub = state.subscription || {};
       const subBtn = document.getElementById('subTierBtn');
@@ -1041,6 +1345,7 @@
       renderInspector();
       renderAreaScan();
       renderSpectrum();
+      populateDesktopGeigerSelect();
       renderUplink();
       renderPackets();
       rebuildTopology();
@@ -1172,12 +1477,12 @@
         </div>
       ` : '';
 
-      /* 2. Roku ECP Hardware Remote Control Pad */
+      /* 2. Roku ECP Hardware Remote Control Pad & Direct Channel Launcher */
       const ecpMode = d.roku_info?.['ecp-setting-mode'] || 'default';
       const rokuEcpHtml = hasRoku ? `
         <div class="inspector-section">
           <div class="section-title">
-            <span>Roku ECP Hardware Remote (${d.ip}:8060)</span>
+            <span>Roku ECP Hardware Remote &amp; Channel Launcher (${d.ip}:8060)</span>
             <span class="tag ${ecpMode==='limited'?'tag-standby':'tag-online'}">ECP Mode: ${ecpMode}</span>
           </div>
           ${ecpMode === 'limited' ? `
@@ -1185,6 +1490,18 @@
               Note: Roku OS 16.0.4 sets ECP keypresses to <code>limited</code> by default (DIAL app launch above works without restriction). To enable full D-Pad keypress injection, set <em>Settings &rarr; System &rarr; Advanced system settings &rarr; Control by mobile apps &rarr; Network access &rarr; Permissive</em>.
             </div>
           ` : ''}
+          <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-bottom:4px;text-transform:uppercase;">ECP Channel Direct Launch (/launch/&lt;appId&gt;):</div>
+          <div class="control-grid" style="margin-bottom:8px;">
+            <button class="btn btn-sm btn-primary" onclick="launchRokuChannel('${d.ip}', '12', 'Netflix')">Netflix (12)</button>
+            <button class="btn btn-sm btn-primary" onclick="launchRokuChannel('${d.ip}', '13', 'Prime Video')">Prime Video (13)</button>
+            <button class="btn btn-sm" onclick="launchRokuChannel('${d.ip}', '2285', 'Hulu')">Hulu (2285)</button>
+            <button class="btn btn-sm" onclick="launchRokuChannel('${d.ip}', '291097', 'Disney+')">Disney+ (291097)</button>
+            <button class="btn btn-sm" onclick="launchRokuChannel('${d.ip}', '837', 'YouTube')">YouTube (837)</button>
+            <button class="btn btn-sm" onclick="launchRokuChannel('${d.ip}', '74519', 'Pluto TV')">Pluto TV (74519)</button>
+            <button class="btn btn-sm" onclick="launchRokuChannel('${d.ip}', '61322', 'Max')">Max (61322)</button>
+            <button class="btn btn-sm" onclick="launchRokuChannel('${d.ip}', '593099', 'Apple TV')">Apple TV (593099)</button>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-bottom:4px;text-transform:uppercase;">Hardware Power, Volume &amp; HDMI Input:</div>
           <div class="control-grid" style="margin-bottom:8px;">
             <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'PowerOn')">Power On</button>
             <button class="btn btn-sm" onclick="sendRokuKey('${d.ip}', 'PowerOff')">Power Off</button>
@@ -1366,19 +1683,31 @@
       `;
 
       pane.innerHTML = `
-        <div class="inspector-top">
-          <div>
-            <div style="font-size:15px;font-weight:600;color:var(--text-primary);">${d.custom_name || d.display_name}</div>
-            <div class="mono" style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">${d.ip} &bull; ${d.mac} &bull; ${d.vendor}</div>
+        <div class="inspector-top" style="flex-direction:column;align-items:stretch;gap:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div style="display:flex;gap:12px;align-items:center;">
+              <img src="/api/device-image/${d.ip}" alt="Device Icon" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:2px;" onerror="this.style.display='none'" />
+              <div>
+                <div style="font-size:15px;font-weight:600;color:var(--text-primary);">${d.custom_name || d.display_name}</div>
+                <div class="mono" style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">${d.ip} &bull; ${d.mac} &bull; ${d.vendor}</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              ${isQuarantined ? `<span class="tag tag-offline">QUARANTINED</span>` : ''}
+              <span class="tag tag-blue">${d.confidence_score}% Confidence</span>
+            </div>
           </div>
-          <div style="display:flex;gap:6px;align-items:center;">
-            ${isQuarantined ? `<span class="tag tag-offline">QUARANTINED</span>` : ''}
-            <span class="tag tag-blue">${d.confidence_score}% Confidence</span>
+          <!-- 4-Pill Inspector Section Quick-Jump Bar -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap;padding-top:4px;border-top:1px solid rgba(255,255,255,0.06);">
+            <button class="btn btn-sm" style="font-size:10.5px;padding:3px 8px;" onclick="scrollToInspectorSection('inspSecDiag')">⚡ 1. Diagnostics &amp; Shield</button>
+            <button class="btn btn-sm" style="font-size:10.5px;padding:3px 8px;" onclick="scrollToInspectorSection('inspSecWire')">📡 2. Wire DPI &amp; 24h</button>
+            <button class="btn btn-sm" style="font-size:10.5px;padding:3px 8px;" onclick="scrollToInspectorSection('inspSecControl')">🎮 3. Remote &amp; Protocols</button>
+            <button class="btn btn-sm" style="font-size:10.5px;padding:3px 8px;" onclick="scrollToInspectorSection('inspSecDossier')">🔬 4. Silicon &amp; Raw JSON</button>
           </div>
         </div>
 
         <!-- Active Diagnostics, Guardian Shield Quarantine & Universal Endpoint Control -->
-        <div class="inspector-section">
+        <div class="inspector-section" id="inspSecDiag">
           <div class="section-title">Endpoint Diagnostics, Guardian Shield &amp; Network Control</div>
           <div class="control-grid">
             <button class="btn btn-sm btn-primary" onclick="runPingBurst('${d.ip}')">5x Latency &amp; Jitter Burst</button>
@@ -1407,15 +1736,19 @@
           </div>
         </div>
 
-        ${presenceHtml}
-        ${wireDpiHtml}
-        ${sessionLauncherHtml}
-        ${dialControlHtml}
-        ${rokuEcpHtml}
-        ${psHtml}
-        ${spotifyHtml}
-        ${sonosHtml}
-        ${gwControlHtml}
+        <div id="inspSecWire">
+          ${presenceHtml}
+          ${wireDpiHtml}
+        </div>
+        <div id="inspSecControl">
+          ${sessionLauncherHtml}
+          ${dialControlHtml}
+          ${rokuEcpHtml}
+          ${psHtml}
+          ${spotifyHtml}
+          ${sonosHtml}
+          ${gwControlHtml}
+        </div>
 
         <!-- Interactive HTTP / REST Endpoint Inspector -->
         <div class="inspector-section">
@@ -1441,7 +1774,7 @@
         </div>
 
         <!-- Deep Hardware & Protocol Specification Table -->
-        <div class="inspector-section">
+        <div class="inspector-section" id="inspSecDossier">
           <div class="section-title">Hardware, Radio &amp; Protocol Specification Dossier</div>
           <table class="spec-table">
             <tbody>${specRows}</tbody>
@@ -1568,6 +1901,12 @@
     async function sendRokuKey(ip, key) {
       await runConsoleAction(`Roku ECP Keypress '${key}' -> ${ip}:8060`, fetch('/api/action/roku-key', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, key})
+      }).then(r => r.json()));
+    }
+
+    async function launchRokuChannel(ip, app_id, label = '') {
+      await runConsoleAction(`Roku ECP Direct Channel Launch ${label ? "'" + label + "' " : ''}(/launch/${app_id}) -> ${ip}:8060`, fetch('/api/action/roku-launch', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ip, app_id})
       }).then(r => r.json()));
     }
 
@@ -1930,7 +2269,10 @@
             ? `<span class="tag tag-standby">${h.domain}</span>`
             : `<span class="tag tag-blue">${h.domain}</span>`;
           const jumpBtn = h.linked_lan_ip
-            ? `<div style="margin-top:4px;"><button class="btn btn-sm btn-primary" onclick="jumpToLanHost('${h.linked_lan_ip}')">Inspect &amp; Control ${h.linked_lan_ip}</button></div>`
+            ? `<button class="btn btn-sm btn-primary" onclick="jumpToLanHost('${h.linked_lan_ip}')">Inspect &amp; Control ${h.linked_lan_ip}</button>`
+            : '';
+          const geigerBtn = isRf && h.identifier
+            ? `<button class="btn btn-sm" style="border-color:#38bdf8;color:#7dd3fc;" onclick="trackDesktopGeiger('${h.identifier}')">◎ Track in RF Geiger</button>`
             : '';
           return `
             <tr>
@@ -1953,7 +2295,7 @@
               <td><span class="tag tag-online">${h.confidence}%</span></td>
               <td style="max-width:440px;">
                 <div style="color:var(--text-secondary);font-size:11.5px;line-height:1.4;">${h.silicon_proof}</div>
-                ${jumpBtn}
+                <div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;">${jumpBtn}${geigerBtn}</div>
               </td>
             </tr>
           `;
@@ -1972,7 +2314,10 @@
             ? `${r.qbss_stations} sta &bull; ${r.qbss_utilization_pct ?? '?'}% util`
             : `<span style="color:var(--text-muted);">No QBSS IE</span>`;
           const lanJump = r.linked_lan_ip
-            ? `<div style="margin-top:4px;"><button class="btn btn-sm btn-primary" onclick="jumpToLanHost('${r.linked_lan_ip}')">Inspect LAN Host ${r.linked_lan_ip}</button></div>`
+            ? `<button class="btn btn-sm btn-primary" onclick="jumpToLanHost('${r.linked_lan_ip}')">Inspect LAN Host ${r.linked_lan_ip}</button>`
+            : '';
+          const geigerBtn = r.bssid
+            ? `<button class="btn btn-sm" style="border-color:#38bdf8;color:#7dd3fc;" onclick="trackDesktopGeiger('${r.bssid}')">◎ Track in RF Geiger</button>`
             : '';
           return `
             <tr>
@@ -2000,7 +2345,7 @@
                 <div style="font-weight:600;color:var(--text-primary);font-size:11.5px;margin-bottom:2px;">${r.parent_appliance || ''}</div>
                 <div style="color:var(--text-secondary);font-size:11.5px;line-height:1.4;">${r.technical_proof || ''}</div>
                 ${r.wps_hardware ? `<div class="mono" style="color:#93c5fd;font-size:10.5px;margin-top:3px;">Beacon WPS IE: ${r.wps_hardware}</div>` : ''}
-                ${lanJump}
+                <div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;">${lanJump}${geigerBtn}</div>
               </td>
             </tr>
           `;
@@ -2096,6 +2441,7 @@
             <td class="mono">
               <div>${ap.bssid}</div>
               <div style="font-size:10px;color:var(--text-muted);">${ap.is_locally_administered ? 'U/L=1 Virtual' : 'UAA Burned-In'}</div>
+              <div style="margin-top:4px;"><button class="btn btn-sm" style="padding:2px 7px;font-size:10.5px;border-color:#38bdf8;color:#7dd3fc;" onclick="trackDesktopGeiger('${ap.bssid}')">◎ Track in Geiger</button></div>
             </td>
             <td class="mono">
               <div>${ap.band} (Ch ${ap.channel})</div>
@@ -2259,12 +2605,283 @@
       }
     }
 
+    function populateDesktopGeigerSelect() {
+      const sel = document.getElementById('deskGeigerSelect');
+      if (!sel || !appState || !appState.wifi) return;
+      const aps = appState.wifi.access_points || [];
+      if (!aps.length) return;
+      const curVal = sel.value;
+      sel.innerHTML = aps.map(ap => {
+        const label = ap.is_hidden && ap.de_cloaked_ssid
+          ? `<Hidden -> ${ap.de_cloaked_ssid}>`
+          : (ap.ssid || '<Hidden>');
+        return `<option value="${ap.bssid}">${ap.bssid} — ${label} (${ap.band} Ch ${ap.channel} • ${ap.signal_dbm} dBm)</option>`;
+      }).join('');
+      if (curVal && aps.some(a => a.bssid === curVal)) {
+        sel.value = curVal;
+      }
+    }
+
+    function onDesktopGeigerTargetChange(bssid) {
+      deskGeigerHistory = [];
+      deskGeigerPeakDbm = -100;
+      pollDesktopGeiger();
+    }
+
+    function resetDesktopGeiger() {
+      deskGeigerHistory = [];
+      deskGeigerPeakDbm = -100;
+      pollDesktopGeiger();
+      showWorkbenchToast('↺ Reset RF Geiger peak envelope & history', '#38bdf8');
+    }
+
+    function toggleDesktopGeigerAudio() {
+      deskGeigerAudioOn = !deskGeigerAudioOn;
+      const btn = document.getElementById('deskGeigerAudioBtn');
+      if (deskGeigerAudioOn) {
+        if (!deskGeigerAudioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) deskGeigerAudioCtx = new AudioContextClass();
+        }
+        if (btn) btn.textContent = '🔊 Geiger Audio ON (Mute)';
+        showWorkbenchToast('🔊 Web Audio RF Geiger Clicks Enabled', '#10b981');
+        if (!deskGeigerTimer) {
+          deskGeigerTimer = setInterval(() => {
+            const specPane = document.getElementById('tab-spectrum');
+            if (specPane && specPane.classList.contains('active')) pollDesktopGeiger();
+          }, 2500);
+        }
+      } else {
+        if (btn) btn.textContent = '🔊 Enable Geiger Audio Clicks';
+        showWorkbenchToast('🔇 Web Audio RF Geiger Muted', '#f59e0b');
+      }
+    }
+
+    function playDesktopGeigerClick(dbm) {
+      if (!deskGeigerAudioOn || !deskGeigerAudioCtx) return;
+      try {
+        if (deskGeigerAudioCtx.state === 'suspended') deskGeigerAudioCtx.resume();
+        const norm = Math.max(0, Math.min(1, (dbm + 95) / 65));
+        const freq = 320 + norm * 1400;
+        const osc = deskGeigerAudioCtx.createOscillator();
+        const gain = deskGeigerAudioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, deskGeigerAudioCtx.currentTime);
+        gain.gain.setValueAtTime(0.14, deskGeigerAudioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, deskGeigerAudioCtx.currentTime + 0.045);
+        osc.connect(gain);
+        gain.connect(deskGeigerAudioCtx.destination);
+        osc.start();
+        osc.stop(deskGeigerAudioCtx.currentTime + 0.05);
+      } catch (_) {}
+    }
+
+    async function pollDesktopGeiger() {
+      const sel = document.getElementById('deskGeigerSelect');
+      if (!sel) return;
+      if (!sel.value) populateDesktopGeigerSelect();
+      const bssid = sel.value;
+      if (!bssid) return;
+      try {
+        const res = await fetch(`/api/rf-geiger?bssid=${encodeURIComponent(bssid)}`).then(r => r.json());
+        if (!res.found) return;
+        const dbm = Number(res.signal_dbm ?? -90);
+        if (dbm > deskGeigerPeakDbm) deskGeigerPeakDbm = dbm;
+        deskGeigerHistory.push({ dbm, peak: deskGeigerPeakDbm });
+        if (deskGeigerHistory.length > 50) deskGeigerHistory.shift();
+
+        const dbmEl = document.getElementById('deskGeigerDbm');
+        const peakEl = document.getElementById('deskGeigerPeak');
+        const distEl = document.getElementById('deskGeigerDist');
+        const chanEl = document.getElementById('deskGeigerChan');
+        const tsfEl = document.getElementById('deskGeigerTsf');
+        const dualEl = document.getElementById('deskGeigerDual');
+        const idLine = document.getElementById('deskGeigerIdentityLine');
+        const pill = document.getElementById('deskGeigerStatusPill');
+
+        if (dbmEl) {
+          dbmEl.textContent = `${dbm} dBm (${res.signal_pct || 0}%)`;
+          dbmEl.style.color = dbm >= -50 ? '#10b981' : (dbm >= -68 ? '#38bdf8' : '#f59e0b');
+        }
+        if (peakEl) peakEl.textContent = `Peak: ${deskGeigerPeakDbm} dBm`;
+        if (distEl) distEl.textContent = `${res.distance_range_m || ('~' + res.est_distance_m + 'm')}`;
+        if (chanEl) chanEl.textContent = `${res.band || ''} Ch ${res.channel || '?'} (${res.freq_mhz || '?'} MHz)`;
+        if (tsfEl) tsfEl.textContent = res.tsf_human || 'Active Beacon';
+        if (dualEl) {
+          const tri = res.dual_node_triangulation || {};
+          dualEl.textContent = tri.active
+            ? `Dual-Node: Phone ${tri.phone_rssi_dbm} dBm (${tri.closer_node})`
+            : 'Single-Node (Open APK for Dual)';
+        }
+        if (idLine) {
+          idLine.innerHTML = `Tracking <strong>${res.bssid}</strong> &rarr; <strong style="color:#34d399;">${res.de_cloaked_ssid || res.ssid}</strong> (${res.de_cloaked_parent || res.vendor || ''})`;
+        }
+        if (pill) {
+          const prox = dbm >= -45 ? 'HOT — < 2m PROXIMITY' : (dbm >= -62 ? 'WARM — IN ROOM' : 'TRACKING BEACON');
+          pill.textContent = prox;
+          pill.className = `tag ${dbm >= -50 ? 'tag-online' : 'tag-blue'}`;
+        }
+        drawDesktopGeigerCanvas();
+        playDesktopGeigerClick(dbm);
+      } catch (_) {}
+    }
+
+    function drawDesktopGeigerCanvas() {
+      const c = document.getElementById('deskGeigerCanvas');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const w = c.width, h = c.height;
+      ctx.clearRect(0, 0, w, h);
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(38, 48, 66, 0.55)';
+      ctx.lineWidth = 1;
+      [0.25, 0.5, 0.75].forEach(f => {
+        ctx.beginPath();
+        ctx.moveTo(0, h * f);
+        ctx.lineTo(w, h * f);
+        ctx.stroke();
+      });
+
+      if (deskGeigerHistory.length === 0) return;
+      const pts = deskGeigerHistory.length === 1 ? [deskGeigerHistory[0], deskGeigerHistory[0]] : deskGeigerHistory;
+      const mapY = (dbm) => {
+        const clamped = Math.max(-95, Math.min(-25, dbm));
+        return h - 10 - ((clamped + 95) / 70) * (h - 20);
+      };
+
+      // Peak envelope dashed line
+      ctx.beginPath();
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 1.5;
+      pts.forEach((p, idx) => {
+        const x = (idx / (pts.length - 1)) * (w - 16) + 8;
+        const y = mapY(p.peak);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Live RSSI line
+      ctx.beginPath();
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.4;
+      pts.forEach((p, idx) => {
+        const x = (idx / (pts.length - 1)) * (w - 16) + 8;
+        const y = mapY(p.dbm);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+
+    function trackDesktopGeiger(bssid) {
+      if (!bssid) return;
+      jumpToWorkspaceTab('spectrum');
+      populateDesktopGeigerSelect();
+      const sel = document.getElementById('deskGeigerSelect');
+      if (sel) sel.value = bssid;
+      deskGeigerHistory = [];
+      deskGeigerPeakDbm = -100;
+      pollDesktopGeiger();
+      if (!deskGeigerTimer) {
+        deskGeigerTimer = setInterval(() => {
+          const specPane = document.getElementById('tab-spectrum');
+          if (specPane && specPane.classList.contains('active')) pollDesktopGeiger();
+        }, 2500);
+      }
+      showWorkbenchToast(`◎ Tracking ${bssid} in Live 802.11 RF Geiger Sonar`, '#38bdf8');
+    }
+
+    async function refreshInlineSecurityPosture() {
+      try {
+        const res = await fetch('/api/analytics');
+        const data = await res.json();
+        const pos = data.security_posture || {};
+        const v6 = data.ipv6_posture || {};
+        const ana = data.database_analytics || {};
+        const badge = document.getElementById('inlineSecGradeBadge');
+        if (badge) {
+          badge.textContent = `Score: ${pos.score ?? 100}/100 (Grade ${pos.grade || 'A+'})`;
+        }
+        const pillarsEl = document.getElementById('inlineSecPillars');
+        if (pillarsEl && pos.pillars) {
+          pillarsEl.innerHTML = Object.values(pos.pillars).map(p => {
+            const pct = Math.round(((p.score || 0) / Math.max(1, p.max || 25)) * 100);
+            const col = pct >= 85 ? '#10b981' : (pct >= 65 ? '#f59e0b' : '#ef4444');
+            return `
+              <div style="background:var(--bg-canvas);border:1px solid var(--border);border-radius:6px;padding:9px 11px;">
+                <div style="display:flex;justify-content:space-between;font-size:11.5px;font-weight:600;margin-bottom:5px;">
+                  <span>${p.label}</span>
+                  <span class="mono" style="color:${col};">${p.score}/${p.max} (${pct}%)</span>
+                </div>
+                <div style="height:6px;background:#1e293b;border-radius:3px;overflow:hidden;">
+                  <div style="width:${pct}%;height:100%;background:${col};"></div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+        const v6El = document.getElementById('inlineIpv6Box');
+        if (v6El) {
+          const rtrs = (v6.ipv6_routers || []).map(r => `${r.ipv6} (${r.mac} • ${r.vendor})`).join(', ') || 'None detected';
+          v6El.innerHTML = `
+            <div style="font-weight:700;color:#38bdf8;margin-bottom:3px;">🌐 IPv6 Dual-Stack, SLAAC EUI-64 &amp; RA Guard Audit (`/api/ipv6/audit`)</div>
+            <div><strong>IPv6 Posture Grade:</strong> <span class="mono" style="color:#34d399;">${v6.security_grade || 'A'}</span> &bull; <strong>RFC 8981 Privacy:</strong> <span class="mono">${v6.privacy_extensions_active ? 'ACTIVE (Temporary SLAAC)' : 'EUI-64'}</span></div>
+            <div><strong>Global Unicast IPv6:</strong> <span class="mono">${(v6.global_unicast_addresses || []).join(', ') || 'Link-Local Only'}</span></div>
+            <div><strong>Active ICMPv6 Routers:</strong> <span class="mono">${rtrs}</span></div>
+          `;
+        }
+        const anaEl = document.getElementById('inlineDbAnalyticsBox');
+        if (anaEl) {
+          const rtt = ana.subnet_rtt_24h || {};
+          const cats = Object.entries(ana.category_distribution || {}).map(([k, v]) => `${k}: ${v}`).join(' • ');
+          anaEl.innerHTML = `
+            <div style="font-weight:700;color:#34d399;margin-bottom:3px;">📊 24-Hour SQLite RTT Telemetry &amp; Inventory Breakdown (`/api/analytics`)</div>
+            <div><strong>24h RTT (${rtt.samples || 0} samples):</strong> <span class="mono">Avg ${rtt.avg_rtt_ms ?? '--'} ms • Min ${rtt.min_rtt_ms ?? '--'} ms • Max ${rtt.max_rtt_ms ?? '--'} ms</span></div>
+            <div><strong>Inventory State:</strong> <span class="mono">${ana.online_devices || 0} Online / ${ana.total_devices || 0} Total • ${ana.randomized_mac_devices || 0} LAA Privacy MACs</span></div>
+            <div><strong>Category Taxonomy:</strong> <span class="mono">${cats || '—'}</span></div>
+          `;
+        }
+      } catch (_) {}
+    }
+
+    async function runInlineCryptoAudit(proto) {
+      const ipInput = document.getElementById('cryptoAuditTargetIp');
+      const targetIp = (ipInput ? ipInput.value : '192.168.12.1').trim() || '192.168.12.1';
+      const pre = document.getElementById('inlineCryptoAuditPre');
+      if (pre) {
+        pre.style.display = 'block';
+        pre.textContent = `[Running ${proto.toUpperCase()} Cryptographic Protocol Audit against ${targetIp}…]`;
+      }
+      showWorkbenchToast(`⟳ Auditing ${proto.toUpperCase()} protocol on ${targetIp}…`, '#38bdf8');
+      let url = '/api/action/dns-audit';
+      let body = { ip: targetIp };
+      if (proto === 'ntp') url = '/api/action/ntp-audit';
+      else if (proto === 'upnp') { url = '/api/action/upnp-nat-audit'; body = { gateway_ip: targetIp }; }
+      else if (proto === 'ssh') { url = '/api/action/ssh-audit'; body = { ip: targetIp, port: 22 }; }
+      else if (proto === 'smb') { url = '/api/action/smb-audit'; body = { ip: targetIp, port: 445 }; }
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(body)
+        }).then(r => r.json());
+        if (pre) pre.textContent = JSON.stringify(res, null, 2);
+        showWorkbenchToast(`✓ Completed ${proto.toUpperCase()} cryptographic audit on ${targetIp}`, '#10b981');
+      } catch (e) {
+        if (pre) pre.textContent = `Audit error: ${e}`;
+      }
+    }
+
     function renderPackets() {
       if (!appState) return;
       document.getElementById('wireTableBody').innerHTML = (appState.wire_packets || []).slice(0, 60).map(p => {
         const dstTarget = p.ip_dst || p.eth_dst || '';
         const dstLink = (p.ip_dst && !p.ip_dst.startsWith('224.') && !p.ip_dst.startsWith('239.') && !p.ip_dst.startsWith('255.'))
-          ? `<span style="cursor:pointer;text-decoration:underline;color:#38bdf8;" title="Inspect destination in All-Around Toolkit" onclick="openAllAroundToolkitModal('${p.ip_dst}')">${dstTarget}</span>`
+          ? `<span style="cursor:pointer;text-decoration:underline;color:#38bdf8;" title="Click to inspect destination in Tab 7 Engineering &amp; OSINT" onclick="jumpToWorkspaceTab('toolkit', '${p.ip_dst}')">${dstTarget}</span>`
           : dstTarget;
         return `
           <tr class="mono">
@@ -2722,6 +3339,21 @@
             </tr>
           `).join('') || '<tr><td colspan="7" style="color:var(--text-muted);">No keys minted yet.</td></tr>';
         }
+
+        // Load captured marketing & trial leads ledger (/api/subscription/admin/leads)
+        const lRes = await fetch('/api/subscription/admin/leads');
+        const lData = await lRes.json();
+        const leadsBody = document.getElementById('capturedLeadsBody');
+        if (leadsBody && lData.leads) {
+          leadsBody.innerHTML = lData.leads.slice(0, 10).map(l => `
+            <tr>
+              <td>${l.email || '—'}</td>
+              <td><span class="tag tag-blue">${l.tier || 'pro'}</span></td>
+              <td class="mono">${l.source || 'storefront'}</td>
+              <td class="mono">${l.created_human || l.created_at || '—'}</td>
+            </tr>
+          `).join('') || '<tr><td colspan="4" style="color:var(--text-muted);">No marketing leads captured yet.</td></tr>';
+        }
       } catch (e) {}
     }
 
@@ -3013,14 +3645,150 @@
 
     async function triggerWakeAllLan() {
       const st = document.getElementById('toolkitWakeAllStatus');
+      const tabSt = document.getElementById('tabToolkitWakeStatus');
       if (st) st.textContent = 'Transmitting IEEE 802.3 Magic Packets to all LAN hosts…';
+      if (tabSt) tabSt.textContent = 'Transmitting IEEE 802.3 Magic Packets to all LAN hosts…';
+      showWorkbenchToast('⟳ Transmitting IEEE 802.3 Wake-on-LAN Magic Packets to all LAN hosts…', '#38bdf8');
       try {
         const res = await fetch('/api/action/wake-all', {method: 'POST'});
         const d = await res.json();
-        if (st) st.textContent = `✓ Woke ${d.woken_count}/${d.total_targets} LAN endpoints via UDP :9 Broadcast`;
+        const msg = `✓ Woke ${d.woken_count}/${d.total_targets} LAN endpoints via UDP :9 Broadcast`;
+        if (st) st.textContent = msg;
+        if (tabSt) tabSt.textContent = msg;
+        showWorkbenchToast(msg, '#10b981');
       } catch (e) {
         if (st) st.textContent = `Wake-All failed: ${e}`;
+        if (tabSt) tabSt.textContent = `Wake-All failed: ${e}`;
       }
+    }
+
+    async function runTabDomainRecon(presetTarget) {
+      const inp = document.getElementById('tabToolkitDomainInput');
+      if (presetTarget && inp) inp.value = presetTarget;
+      const target = (inp ? inp.value : 'cloudflare.com').trim() || 'cloudflare.com';
+      const box = document.getElementById('tabToolkitDomainOutput');
+      const badge = document.getElementById('tabToolkitDomainGrade');
+      if (box) box.innerHTML = `<div class="mono" style="color:#38bdf8;font-size:12px;">Probing DNS (A/AAAA/MX/NS/TXT/SPF/DMARC), TLS :443 X.509 Certificate &amp; HTTPS/HTTP3 headers for <strong>${target}</strong>…</div>`;
+      try {
+        const res = await fetch('/api/action/domain-intel', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({target})
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          if (box) box.innerHTML = `<div style="color:#f87171;">Error: ${data.error || 'Reconnaissance failed'}</div>`;
+          return;
+        }
+        if (badge) {
+          badge.textContent = `Grade ${data.security_grade} (${data.security_score}/100)`;
+          badge.className = `tag ${String(data.security_grade).startsWith('A') ? 'tag-online' : (data.security_grade === 'B' ? 'tag-blue' : 'tag-standby')}`;
+        }
+        const tls = data.tls || {};
+        const http = data.http || {};
+        const hdrs = http.security_headers || {};
+        if (box) {
+          box.innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:11.5px;line-height:1.65;">
+              <div style="background:var(--bg-canvas);border:1px solid var(--border);border-radius:6px;padding:10px 12px;">
+                <div style="font-weight:700;color:#38bdf8;margin-bottom:4px;">DNS &amp; Email Anti-Spoofing (SPF / DMARC)</div>
+                <div><strong>Domain:</strong> <span class="mono">${data.domain}</span> ${data.reverse_ptr ? `(&rarr; <span class="mono">${data.reverse_ptr}</span>)` : ''}</div>
+                <div><strong>IPv4 (A):</strong> <span class="mono">${(data.ipv4_addresses || []).join(', ') || '—'}</span></div>
+                <div><strong>IPv6 (AAAA):</strong> <span class="mono">${(data.ipv6_addresses || []).join(', ') || '—'}</span></div>
+                <div><strong>MX Servers:</strong> <span class="mono">${(data.mx_records || []).slice(0, 4).join(', ') || '—'}</span></div>
+                <div><strong>NS Servers:</strong> <span class="mono">${(data.ns_records || []).slice(0, 4).join(', ') || '—'}</span></div>
+                <div><strong>SPF Policy:</strong> <span class="mono" style="color:${data.spf_present ? '#34d399' : '#f87171'};">${data.spf_record || 'Missing SPF TXT'}</span></div>
+                <div><strong>DMARC Policy:</strong> <span class="mono" style="color:${data.dmarc_present ? '#34d399' : '#fbbf24'};">${data.dmarc_record || 'Missing _dmarc TXT'}</span></div>
+              </div>
+              <div style="background:var(--bg-canvas);border:1px solid var(--border);border-radius:6px;padding:10px 12px;">
+                <div style="font-weight:700;color:#34d399;margin-bottom:4px;">Live X.509 TLS (:443) &amp; HTTPS/HTTP3 Posture</div>
+                <div><strong>TLS Handshake:</strong> <span class="mono">${tls.protocol || 'Closed'} &bull; ${tls.cipher_suite || '—'} (${tls.cipher_bits || 0}-bit)</span></div>
+                <div><strong>Subject CN / Issuer:</strong> <span class="mono">${tls.subject_cn || '—'}</span> (by <strong>${tls.issuer_org || tls.issuer_cn || '—'}</strong>)</div>
+                <div><strong>Validity:</strong> <span class="mono">${tls.not_before || '—'} &rarr; ${tls.not_after || '—'}</span></div>
+                <div><strong>SAN Count:</strong> <span class="mono">${tls.san_count || 0} DNS SANs (${(tls.san_domains || []).slice(0, 4).join(', ')})</span></div>
+                <div><strong>HTTP Status / Server:</strong> <span class="mono">${http.status_code || '—'} (${http.latency_ms || '—'} ms) &bull; ${http.server || 'Hidden'}</span></div>
+                <div><strong>HTTP/3 (QUIC) / HSTS:</strong> <span class="mono">HTTP/3: ${http.http3_supported ? 'YES' : 'No'} &bull; HSTS: ${hdrs['strict-transport-security'] ? 'Enforced' : 'None'} &bull; CSP: ${hdrs['content-security-policy'] ? 'Active' : 'None'}</span></div>
+                ${(data.findings || []).length ? `<div style="margin-top:4px;color:#fbbf24;"><strong>Findings:</strong> ${data.findings.join(' • ')}</div>` : `<div style="margin-top:4px;color:#34d399;"><strong>Posture:</strong> Hardened TLS, SPF &amp; DMARC verified</div>`}
+              </div>
+            </div>
+          `;
+        }
+      } catch (e) {
+        if (box) box.innerHTML = `<div style="color:#f87171;">Request failed: ${e}</div>`;
+      }
+    }
+
+    async function refreshTabLocalSockets() {
+      const tbody = document.getElementById('tabToolkitSocketsBody');
+      const meta = document.getElementById('tabToolkitSocketsMeta');
+      try {
+        const res = await fetch('/api/local/sockets');
+        const data = await res.json();
+        if (meta) {
+          const rxTx = (data.interface_counters || []).map(c => `${c.interface}: ↓${c.rx_mb}MB ↑${c.tx_mb}MB`).join(' • ');
+          meta.innerHTML = `Listening Daemons: <strong>${data.listening_count || 0}</strong> &bull; LAN-Exposed: <strong style="color:#fbbf24;">${data.lan_exposed_count || 0}</strong> &bull; Established Outbound: <strong>${data.established_count || 0}</strong> &bull; ${rxTx}`;
+        }
+        if (tbody) {
+          tbody.innerHTML = (data.listening_sockets || []).slice(0, 45).map(s => `
+            <tr class="mono">
+              <td><span class="tag tag-blue">${s.proto}</span></td>
+              <td style="font-weight:600;color:#fff;">${s.bind_address}:${s.port}</td>
+              <td style="color:#34d399;">${s.process || 'kernel'} ${s.pid ? `(PID ${s.pid})` : ''}</td>
+              <td><span class="tag ${s.lan_exposed ? 'tag-standby' : 'tag-neutral'}">${s.scope}</span></td>
+            </tr>
+          `).join('');
+        }
+      } catch (e) {
+        if (meta) meta.textContent = `Socket audit error: ${e}`;
+      }
+    }
+
+    async function runTabSubnetCalculator() {
+      const cidr = (document.getElementById('tabToolkitCidrInput')?.value || '192.168.12.0/24').trim();
+      const out = document.getElementById('tabToolkitCidrOutput');
+      try {
+        const res = await fetch(`/api/subnet/calc?cidr=${encodeURIComponent(cidr)}`);
+        const d = await res.json();
+        if (!d.ok) {
+          if (out) out.innerHTML = `<span style="color:#f87171;">${d.error}</span>`;
+          return;
+        }
+        if (out) {
+          out.innerHTML = `
+            <div><strong>CIDR Block:</strong> <span class="mono" style="color:#38bdf8;">${d.cidr}</span> (IPv${d.ip_version} &bull; ${d.ip_class} &bull; ${d.scope})</div>
+            <div><strong>Network / Broadcast:</strong> <span class="mono">${d.network_address}</span> &rarr; <span class="mono">${d.broadcast_address}</span></div>
+            <div><strong>Netmask / Wildcard:</strong> <span class="mono">${d.netmask}</span> (Wildcard <span class="mono">${d.hostmask}</span>)</div>
+            <div><strong>Usable Host Range:</strong> <span class="mono" style="color:#34d399;">${d.first_usable} &rarr; ${d.last_usable}</span> (<strong>${Number(d.usable_hosts).toLocaleString()}</strong> usable hosts)</div>
+          `;
+        }
+      } catch (e) {
+        if (out) out.textContent = `Error: ${e}`;
+      }
+    }
+
+    async function runTabOuiSearch() {
+      const q = (document.getElementById('tabOuiQueryInput')?.value || 'Ubiquiti').trim();
+      const tbody = document.getElementById('tabOuiResultsBody');
+      const badge = document.getElementById('tabOuiCountBadge');
+      if (!tbody) return;
+      try {
+        const res = await fetch(`/api/oui/search?q=${encodeURIComponent(q)}&limit=35`).then(r => r.json());
+        const rows = res.results || [];
+        if (badge) badge.textContent = `${rows.length} Match(es) (${res.mode || 'vendor'})`;
+        tbody.innerHTML = rows.map(r => {
+          const prefix = r.unmasked_mac ? `${r.ipv6} &rarr; <strong>${r.unmasked_mac}</strong>` : (r.oui_prefix || r.mac || '');
+          const extra = r.unmasked_parent_vendor
+            ? `<div style="color:#34d399;font-size:10px;">Unmasked LAA Parent: ${r.unmasked_parent_oui} (${r.unmasked_parent_vendor})</div>`
+            : '';
+          return `
+            <tr>
+              <td class="mono" style="font-weight:600;color:#38bdf8;">${prefix}</td>
+              <td style="font-weight:600;color:#fff;">${r.vendor || ''} ${extra}</td>
+              <td class="mono" style="font-size:10.5px;color:#94a3b8;">${r.registry_type || 'IEEE MA-L'}</td>
+            </tr>
+          `;
+        }).join('') || `<tr><td colspan="3" style="color:var(--text-muted);">No matching IEEE OUI or EUI-64 records found.</td></tr>`;
+      } catch (e) {}
     }
 
     // Automatically verify Stripe Checkout return session if present in URL
@@ -3199,6 +3967,23 @@
                 </tr>
               </thead>
               <tbody id="mintedKeysBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <div style="font-size:11.5px;font-weight:700;color:#cbd5e1;margin-bottom:6px;">Captured Storefront &amp; Trial Leads (`/api/subscription/admin/leads`)</div>
+          <div class="table-wrap" style="max-height:140px;overflow-y:auto;">
+            <table class="ent-table">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Interested Tier</th>
+                  <th>Source</th>
+                  <th>Captured At</th>
+                </tr>
+              </thead>
+              <tbody id="capturedLeadsBody"></tbody>
             </table>
           </div>
         </div>

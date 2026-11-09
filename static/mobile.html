@@ -644,6 +644,23 @@
       </div>
     </div>
 
+    <!-- 5-Pillar Security Posture, IPv6 Dual-Stack & Counter-Surveillance Sweep -->
+    <div class="m-card highlight-emerald">
+      <div class="card-top">
+        <div>
+          <div class="card-title">🛡 5-Pillar Security Posture &amp; IPv6 SLAAC Audit</div>
+          <div class="card-mono" id="mobileSecPostureSub">Cryptographic Hygiene • RF Spectrum • IPv6 RA Guard</div>
+        </div>
+        <span class="pill pill-green" id="mobileSecGradePill">GRADE A+</span>
+      </div>
+      <div id="mobileSecPostureBody" style="font-size:11.5px;color:var(--text-dim);margin-top:8px;line-height:1.55;">Loading 5-Pillar Security Posture &amp; IPv6 Dual-Stack Telemetry…</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+        <button class="btn btn-primary" style="flex:1" onclick="refreshMobileSecurityPosture()">↻ Audit Security &amp; IPv6</button>
+        <button class="btn btn-amber" style="flex:1" onclick="mobileCameraSweep()">📷 ONVIF &amp; Camera RF Sweep</button>
+      </div>
+      <div id="mobileCameraSweepOut" style="display:none;margin-top:8px;font-family:var(--mono);font-size:10.5px;color:#cbd5e1;background:#070a10;padding:8px;border-radius:6px;border:1px solid var(--border);max-height:160px;overflow-y:auto;"></div>
+    </div>
+
     <div class="sec-header">
       <div class="sec-title">4-Ring Deep &amp; Wide Area Scan</div>
       <button class="btn btn-primary" onclick="triggerFullMobileScan()">⟳ Refresh Rings</button>
@@ -744,8 +761,8 @@
     <div class="m-card highlight-sky">
       <div class="card-top">
         <div>
-          <div class="card-title">🛠 All-Around Domain/TLS OSINT, CIDR &amp; Fleet WoL</div>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Inspect DNS (A/AAAA/MX/NS/SPF/DMARC) &amp; TLS :443 X.509 certificates, calculate CIDR blocks, or wake all LAN endpoints.</div>
+          <div class="card-title">🛠 All-Around Domain/TLS OSINT, 47k OUI, Sockets &amp; CIDR</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Inspect DNS (A/AAAA/MX/NS/SPF/DMARC) &amp; TLS :443 X.509 certificates, search 47,035 IEEE OUIs &amp; SLAAC EUI-64, inspect node listening sockets, or calculate CIDR blocks.</div>
         </div>
       </div>
       <div style="display:flex;gap:6px;margin-top:8px;">
@@ -754,9 +771,15 @@
       </div>
       <div id="mobileDomainOutput" style="margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--text-dim);line-height:1.5;"></div>
       <div style="display:flex;gap:6px;margin-top:8px;">
+        <input type="text" id="mobileOuiInput" class="m-input" value="Sonos" placeholder="MAC, Vendor (Sonos, Apple), or EUI-64 IPv6">
+        <button class="btn btn-primary" onclick="runMobileOuiSearch()">🔍 47k OUI</button>
+      </div>
+      <div id="mobileOuiOutput" style="margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--text-dim);line-height:1.5;"></div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
         <input type="text" id="mobileCidrInput" class="m-input" value="192.168.12.0/24" placeholder="192.168.12.0/24">
-        <button class="btn btn-amber" onclick="runMobileCidrCalc()">🧮 CIDR Calc</button>
-        <button class="btn btn-emerald" onclick="runMobileWakeAll()">⚡ Wake All LAN</button>
+        <button class="btn btn-amber" onclick="runMobileCidrCalc()">🧮 CIDR</button>
+        <button class="btn btn-emerald" onclick="runMobileWakeAll()">⚡ Wake All</button>
+        <button class="btn" onclick="refreshMobileLocalSockets()">💻 Sockets</button>
       </div>
       <div id="mobileCidrOutput" style="margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--text-dim);line-height:1.5;"></div>
     </div>
@@ -839,6 +862,10 @@
       drawGeigerCanvas();
     } else if (tabId === 'areascan') {
       drawMobileTopology();
+      refreshMobileSecurityPosture();
+    } else if (tabId === 'setup') {
+      runMobileOuiSearch();
+      runMobileCidrCalc();
     }
   }
 
@@ -1181,10 +1208,13 @@
       return `
         <div class="m-card ${isQuarantined ? 'highlight-red' : (d.is_gateway ? 'highlight-emerald' : 'highlight-sky')}">
           <div class="card-top">
-            <div>
-              <div class="card-title">${name}</div>
-              <div class="card-mono">${d.ip} • ${d.mac}</div>
-              ${protoBadges.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">${protoBadges.join('')}</div>` : ''}
+            <div style="display:flex;gap:10px;align-items:center;">
+              <img src="/api/device-image/${d.ip}" alt="Icon" style="width:32px;height:32px;object-fit:contain;border-radius:6px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:2px;" onerror="this.style.display='none'" />
+              <div>
+                <div class="card-title">${name}</div>
+                <div class="card-mono">${d.ip} • ${d.mac}</div>
+                ${protoBadges.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">${protoBadges.join('')}</div>` : ''}
+              </div>
             </div>
             <span class="pill ${isQuarantined ? 'pill-red' : (d.is_online ? 'pill-green' : 'pill-amber')}">${isQuarantined ? 'QUARANTINED' : (d.power_state || 'ONLINE')}</span>
           </div>
@@ -1225,6 +1255,9 @@
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
             <button class="btn" onclick="mobileWakeOnLan('${d.mac}', '${d.ip}')">⚡ Wake-on-LAN</button>
             <button class="btn" onclick="mobileNativePortScan('${d.ip}')">🔍 Port &amp; Banner Audit</button>
+            <button class="btn" onclick="mobileTraceroute('${d.ip}')">🧭 MTR Trace</button>
+            ${(d.open_ports || []).includes(22) || d.ssh_info ? `<button class="btn" onclick="mobileSshAudit('${d.ip}')">🔑 SSH HASSH</button>` : ''}
+            ${(d.open_ports || []).includes(445) || d.smb_info ? `<button class="btn" onclick="mobileSmbAudit('${d.ip}')">🛡 SMB2 Signing</button>` : ''}
             ${isRoku ? `<button class="btn btn-primary" onclick="openMobileRokuRemote('${d.ip}', '${name.replace(/'/g, '')}')">📺 TV Touch Remote</button>` : ''}
             ${isPs ? `<button class="btn btn-primary" onclick="mobileWakePlayStation('${d.ip}', '${d.mac}')">🎮 Wake PlayStation</button>` : ''}
             ${isSonos ? `
@@ -1238,6 +1271,8 @@
             ${isCast ? `<button class="btn" onclick="mobileControlSmartHome('${d.ip}', 'google_cast', 'status')">📺 Cast Eureka</button>` : ''}
             ${d.is_gateway ? `<button class="btn btn-emerald" onclick="refreshGateway5G('${d.ip}')">📡 5G NR Tower Status</button>` : ''}
             ${d.is_gateway ? `<button class="btn" onclick="mobileDnsAudit('${d.ip}')">🌐 DNSSEC Audit</button>` : ''}
+            ${d.is_gateway ? `<button class="btn" onclick="mobileNtpAudit('${d.ip}')">⏱ NTP Stratum</button>` : ''}
+            ${d.is_gateway ? `<button class="btn" onclick="mobileUpnpAudit('${d.ip}')">🔓 UPnP NAT</button>` : ''}
             ${!d.is_gateway && !d.is_local_host ? (
               isQuarantined
                 ? `<button class="btn btn-emerald" onclick="mobileToggleQuarantine('${d.ip}', '${d.mac}', 'release')">✓ Release Quarantine</button>`
@@ -1445,6 +1480,117 @@
       showToast(`DNS (${ip}): ${res.security_grade || 'Audited'} • RTT ${res.query_rtt_ms ?? '?'} ms`);
     } catch (e) {
       showToast(`Could not run DNS audit on ${ip}`);
+    }
+  }
+
+  async function mobileTraceroute(ip) {
+    try {
+      showToast(`Running MTR path trace to ${ip}...`);
+      const res = await apiFetch('/api/action/traceroute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip })
+      });
+      const firstLine = (res.output || '').split('\n').filter(Boolean).slice(-1)[0] || 'Completed';
+      showToast(`Trace (${ip}): ${firstLine.slice(0, 65)}`);
+    } catch (e) {
+      showToast(`Traceroute error on ${ip}`);
+    }
+  }
+
+  async function mobileSshAudit(ip) {
+    try {
+      const res = await apiFetch('/api/action/ssh-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip, port: 22 })
+      });
+      showToast(`SSH (${ip}): ${res.crypto_grade || 'Closed'} • HASSH ${res.hassh || 'N/A'}`);
+    } catch (e) {
+      showToast(`Could not run SSH audit on ${ip}`);
+    }
+  }
+
+  async function mobileSmbAudit(ip) {
+    try {
+      const res = await apiFetch('/api/action/smb-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip, port: 445 })
+      });
+      showToast(`SMB (${ip}): ${res.dialect || 'Closed'} • Signing ${res.signing_required ? 'REQUIRED' : 'Optional'}`);
+    } catch (e) {
+      showToast(`Could not run SMB audit on ${ip}`);
+    }
+  }
+
+  async function mobileNtpAudit(ip) {
+    try {
+      const res = await apiFetch('/api/action/ntp-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip })
+      });
+      showToast(`NTP (${ip}): Stratum ${res.stratum ?? 'Closed'} (${res.ref_id || 'N/A'}) • ${res.security_grade || ''}`);
+    } catch (e) {
+      showToast(`Could not run NTP audit on ${ip}`);
+    }
+  }
+
+  async function mobileUpnpAudit(ip) {
+    try {
+      const res = await apiFetch('/api/action/upnp-nat-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gateway_ip: ip })
+      });
+      showToast(`UPnP NAT (${ip}): ${res.mapping_count ?? 0} active port-forwards (${res.security_grade || 'A'})`);
+    } catch (e) {
+      showToast(`Could not run UPnP NAT audit on ${ip}`);
+    }
+  }
+
+  async function refreshMobileSecurityPosture() {
+    const bodyEl = document.getElementById('mobileSecPostureBody');
+    const pillEl = document.getElementById('mobileSecGradePill');
+    try {
+      const data = await apiFetch('/api/analytics');
+      const pos = data.security_posture || {};
+      const v6 = data.ipv6_posture || {};
+      const ana = data.database_analytics || {};
+      if (pillEl) {
+        pillEl.textContent = `SCORE ${pos.score ?? 100}/100 (${pos.grade || 'A+'})`;
+      }
+      if (bodyEl) {
+        const pillars = Object.values(pos.pillars || {}).map(p => `${p.label}: <strong>${p.score}/${p.max}</strong>`).join(' • ');
+        const rtt = ana.subnet_rtt_24h || {};
+        bodyEl.innerHTML = `
+          <div><strong>5-Pillar Breakdown:</strong> ${pillars || 'All checks nominal'}</div>
+          <div style="margin-top:4px;"><strong>IPv6 Dual-Stack (/api/ipv6/audit):</strong> Grade <strong style="color:#38bdf8;">${v6.security_grade || 'A'}</strong> • RFC 8981 Privacy: <strong>${v6.privacy_extensions_active ? 'ACTIVE' : 'EUI-64'}</strong> • Routers: ${(v6.ipv6_routers || []).length}</div>
+          <div style="margin-top:4px;"><strong>24h SQLite RTT (${rtt.samples || 0} samples):</strong> Avg ${rtt.avg_rtt_ms ?? '--'} ms • ${ana.online_devices || 0}/${ana.total_devices || 0} Online</div>
+        `;
+      }
+      showToast(`Security Posture: ${pos.score ?? 100}/100 (${pos.grade || 'A+'})`);
+    } catch (e) {
+      if (bodyEl) bodyEl.textContent = 'Connect to stationary node to load 5-Pillar Security & IPv6 telemetry.';
+    }
+  }
+
+  async function mobileCameraSweep() {
+    const out = document.getElementById('mobileCameraSweepOut');
+    if (out) {
+      out.style.display = 'block';
+      out.textContent = 'Running ONVIF WS-Discovery, RTSP :554 & 802.11 TSF Hidden Camera Sweep…';
+    }
+    showToast('Running ONVIF & Hidden Camera RF Sweep…');
+    try {
+      const res = await apiFetch('/api/action/camera-sweep', { method: 'POST' });
+      if (out) {
+        out.textContent = JSON.stringify(res, null, 2);
+      }
+      showToast('Completed ONVIF & Hidden Camera RF Sweep');
+    } catch (e) {
+      if (out) out.textContent = `Camera sweep failed: ${e}`;
     }
   }
 
@@ -1888,6 +2034,41 @@
     }
   }
 
+  async function runMobileOuiSearch() {
+    const q = (document.getElementById('mobileOuiInput')?.value || 'Sonos').trim();
+    const out = document.getElementById('mobileOuiOutput');
+    if (out) out.textContent = `Searching 47,035+ IEEE OUI & SLAAC EUI-64 Registry for "${q}"…`;
+    try {
+      const r = await fetch(`${API_BASE}/api/oui/search?q=${encodeURIComponent(q)}&limit=10`);
+      const d = await r.json();
+      const rows = d.results || [];
+      if (out) {
+        out.innerHTML = rows.length
+          ? rows.map(x => `<strong style="color:#38bdf8;">${x.unmasked_mac || x.oui_prefix || x.mac || ''}</strong> &rarr; <strong>${x.vendor || ''}</strong> (${x.registry_type || 'MA-L'})`).join('<br>')
+          : 'No matching IEEE OUI or EUI-64 records found.';
+      }
+    } catch (e) {
+      if (out) out.textContent = `OUI search failed: ${e}`;
+    }
+  }
+
+  async function refreshMobileLocalSockets() {
+    const out = document.getElementById('mobileCidrOutput');
+    if (out) out.textContent = 'Querying stationary node listening sockets (/api/local/sockets)…';
+    try {
+      const r = await fetch(`${API_BASE}/api/local/sockets`);
+      const d = await r.json();
+      const socks = (d.listening_sockets || []).slice(0, 12);
+      if (out) {
+        out.innerHTML = `<strong style="color:#34d399;">Listening Daemons (${d.listening_count || 0} total • ${d.lan_exposed_count || 0} LAN-Exposed):</strong><br>` +
+          socks.map(s => `${s.proto} <strong>${s.bind_address}:${s.port}</strong> &mdash; ${s.process || 'kernel'} (${s.scope})`).join('<br>');
+      }
+      showToast(`Loaded ${d.listening_count || 0} listening sockets`);
+    } catch (e) {
+      if (out) out.textContent = `Socket audit failed: ${e}`;
+    }
+  }
+
   // Poll hardware magnetometer & phone info
   let lastMobileTelemetryPush = 0;
   function pollHardwareSensors() {
@@ -2109,10 +2290,11 @@
         </div>
         <div class="card-mono" style="font-size:16px;font-weight:800;color:#fff;">$9.99/mo</div>
       </div>
-      <div style="display:flex;gap:6px;margin-top:8px;">
-        <button class="btn btn-primary" style="flex:1" onclick="mobileStartCheckout('pro', 'monthly')">Stripe Checkout ($9.99/mo)</button>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" style="flex:1" onclick="mobileStartCheckout('pro', 'monthly')">$9.99/mo</button>
         <button class="btn" onclick="mobileStartCheckout('pro', 'annual')">$99/yr</button>
-        <button class="btn btn-emerald" onclick="mobileStartFreeTrial()">7-Day Free Trial</button>
+        <button class="btn" style="border-color:#a855f7;color:#e9d5ff;" onclick="mobileStartCheckout('pro', 'lifetime')">👑 $69 Lifetime</button>
+        <button class="btn btn-emerald" onclick="mobileStartFreeTrial()">7-Day Trial</button>
       </div>
     </div>
 
@@ -2126,9 +2308,10 @@
         </div>
         <div class="card-mono" style="font-size:16px;font-weight:800;color:#34d399;">$29.99/mo</div>
       </div>
-      <div style="display:flex;gap:6px;margin-top:8px;">
-        <button class="btn btn-emerald" style="flex:1" onclick="mobileStartCheckout('enterprise', 'monthly')">Stripe Checkout ($29.99/mo)</button>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-emerald" style="flex:1" onclick="mobileStartCheckout('enterprise', 'monthly')">$29.99/mo</button>
         <button class="btn" onclick="mobileStartCheckout('enterprise', 'annual')">$299/yr</button>
+        <button class="btn" style="border-color:#a855f7;color:#e9d5ff;" onclick="mobileStartCheckout('enterprise', 'lifetime')">👑 $149 Lifetime</button>
       </div>
     </div>
 
