@@ -25,3 +25,7 @@ android/build/
 dist/
 *.egg-info/
 build/
+
+# Private operator material (never publish)
+docs/VALUATION.md
+operator/*.local.html

@@ -913,18 +913,61 @@ async def serve_launch() -> FileResponse:
     return FileResponse(os.path.join(STATIC_DIR, "launch.html"))
 
 
+# ---------------------------------------------------------------------------
+# Operator console (Business Control Room + Watchtower).
+# These pages are NOT part of the published storefront and are served only to
+# authenticated operators. Installed assets live in a private directory outside
+# the repo (~/.config/netpulse/operator by default); the in-repo `operator/`
+# folder is a fallback for fresh installs. Override with NETPULSE_OPERATOR_DIR.
+# ---------------------------------------------------------------------------
+OPERATOR_DIR = os.environ.get(
+    "NETPULSE_OPERATOR_DIR",
+    os.path.join(os.path.expanduser("~"), ".config", "netpulse", "operator"),
+)
+OPERATOR_DIR_FALLBACK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "operator")
+
+
+def _operator_page(filename: str) -> Optional[str]:
+    """Resolve an operator page from the private dir, falling back to the repo copy."""
+    for base in (OPERATOR_DIR, OPERATOR_DIR_FALLBACK):
+        candidate = os.path.join(base, filename)
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
 @app.get("/admin")
 @app.get("/admin/business")
-async def serve_admin_dashboard() -> FileResponse:
+async def serve_admin_dashboard(request: Request) -> JSONResponse:
     """Operator business control-room (data comes from /api/admin/business)."""
-    return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
+    adm_err = _require_admin(request)
+    if adm_err:
+        return adm_err
+    page = _operator_page("admin.html")
+    if not page:
+        return JSONResponse(
+            {"ok": False, "error": "Operator console assets are not installed on this host. "
+                                   "Copy operator/*.html into the operator directory."},
+            status_code=404,
+        )
+    return FileResponse(page)
 
 
 @app.get("/watchtower")
 @app.get("/watchtower/live")
-async def serve_watchtower() -> FileResponse:
+async def serve_watchtower(request: Request) -> JSONResponse:
     """Live operator telemetry (data comes from /api/admin/watchtower)."""
-    return FileResponse(os.path.join(STATIC_DIR, "watchtower.html"))
+    adm_err = _require_admin(request)
+    if adm_err:
+        return adm_err
+    page = _operator_page("watchtower.html")
+    if not page:
+        return JSONResponse(
+            {"ok": False, "error": "Watchtower assets are not installed on this host. "
+                                   "Copy operator/*.html into the operator directory."},
+            status_code=404,
+        )
+    return FileResponse(page)
 
 
 @app.get("/play-store-assets/{filename}")

@@ -58,15 +58,19 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
-      - name: Copy Play Store screenshots into docs/assets
+      - name: Stage public storefront only (never publish internal docs)
         run: |
-          mkdir -p docs/assets
-          cp -r play_store_assets/* docs/assets/
+          rm -rf .pages_staging
+          mkdir -p .pages_staging/assets
+          cp docs/index.html docs/privacy.html .pages_staging/
+          cp -r play_store_assets/* .pages_staging/assets/
+          cp docs/assets/* .pages_staging/assets/ 2>/dev/null || true
+          echo "Published files:" && ls -R .pages_staging
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "./docs"
+          path: "./.pages_staging"
 
       - name: Deploy to GitHub Pages
         id: deployment

@@ -2,6 +2,8 @@
 Unit tests for NetPulse FastAPI endpoints and API contracts.
 """
 
+import os
+
 from fastapi.testclient import TestClient
 
 from netpulse.server import app
@@ -140,11 +142,29 @@ def test_health_pricing_and_admin_security():
     assert resp_bad_admin.status_code == 403
 
 
+def test_storefront_never_publishes_internal_docs():
+    """The Pages artifact must contain only public storefront files."""
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    workflow = os.path.join(root_dir, ".github", "workflows", "ci-and-pages.yml")
+    with open(workflow, "r", encoding="utf-8") as fh:
+        text = fh.read()
+    assert 'path: "./docs"' not in text, "Pages must not publish the whole docs/ directory"
+    for internal in ("VALUATION.md", "GOLIVE_PAYMENTS.md", "DEMO.md"):
+        assert internal not in text, f"{internal} is internal and must not be referenced by the Pages workflow"
+    # Valuation lives outside the repo, in the operator's private directory.
+    assert not os.path.exists(os.path.join(root_dir, "docs", "VALUATION.md"))
+
+
 def test_watchtower_live_telemetry():
     resp_page = client.get("/watchtower")
     assert resp_page.status_code == 200
     assert "Watchtower" in resp_page.text
     assert "/api/admin/watchtower" in resp_page.text
+
+    # The operator console pages themselves are private: a forged token must not open them.
+    for route in ("/watchtower", "/admin"):
+        resp_forged_page = client.get(route, headers={"X-Admin-Token": "forged"})
+        assert resp_forged_page.status_code == 403, f"{route} must require an admin token"
 
     resp_forbidden = client.get("/api/admin/watchtower", headers={"X-Admin-Token": "forged"})
     assert resp_forbidden.status_code == 403
@@ -470,8 +490,8 @@ def test_every_backend_api_endpoint_is_surfaced_in_ui() -> None:
         os.path.join(root_dir, "static", "mobile.html"),
         os.path.join(root_dir, "static", "pricing.html"),
         os.path.join(root_dir, "static", "launch.html"),
-        os.path.join(root_dir, "static", "admin.html"),
-        os.path.join(root_dir, "static", "watchtower.html"),
+        os.path.join(root_dir, "operator", "admin.html"),
+        os.path.join(root_dir, "operator", "watchtower.html"),
     ]
     combined_ui = "\n".join(open(p, "r", encoding="utf-8").read() for p in ui_files)
 
