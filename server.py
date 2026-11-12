@@ -749,6 +749,69 @@ async def security_headers_middleware(request: Request, call_next):
     return response
 
 
+# ---------------------------------------------------------------------------
+# Watchtower telemetry: who is using the system, right now.
+# In-memory ring buffers (no disk, no external calls) so the operator view is
+# always available and never phones home.
+# ---------------------------------------------------------------------------
+from collections import deque  # noqa: E402
+
+_TELEMETRY_START = time.time()
+_REQUEST_LOG: Deque[Dict[str, Any]] = deque(maxlen=500)
+_CLIENT_STATS: Dict[str, Dict[str, Any]] = {}   # ip -> {hits, last_seen, paths{}, errors}
+_WS_CLIENTS: Dict[str, Dict[str, Any]] = {}     # peer key -> {ip, since}
+_TELEMETRY_LOCK = None
+
+
+def _telemetry_record(method: str, path: str, status: int, duration_ms: float, client_ip: str) -> None:
+    """Record one API request into the watchtower buffers (best-effort, never raises)."""
+    try:
+        if not path.startswith("/api/"):
+            return
+        # Keep the watchtower's own poll out of the feed so the signal stays clean.
+        if path.startswith("/api/admin/watchtower"):
+            return
+        now = time.time()
+        entry = {
+            "ts": now,
+            "method": method,
+            "path": path,
+            "status": int(status),
+            "ms": round(float(duration_ms), 1),
+            "ip": client_ip or "-",
+        }
+        _REQUEST_LOG.appendleft(entry)
+        st = _CLIENT_STATS.get(entry["ip"])
+        if st is None:
+            st = {"hits": 0, "last_seen": now, "paths": {}, "errors": 0}
+            _CLIENT_STATS[entry["ip"]] = st
+        st["hits"] += 1
+        st["last_seen"] = now
+        st["paths"][path] = st["paths"].get(path, 0) + 1
+        if int(status) >= 400:
+            st["errors"] += 1
+        # Bound memory: drop clients unseen for 30 minutes.
+        cutoff = now - 1800
+        for ip in [k for k, v in _CLIENT_STATS.items() if v["last_seen"] < cutoff]:
+            _CLIENT_STATS.pop(ip, None)
+    except Exception:
+        pass
+
+
+@app.middleware("http")
+async def telemetry_middleware(request: Request, call_next):
+    """Capture request telemetry for the Watchtower (never blocks the response)."""
+    started = time.perf_counter()
+    response = await call_next(request)
+    try:
+        host = request.client.host if request.client else "-"
+        _telemetry_record(request.method, request.url.path, response.status_code,
+                          (time.perf_counter() - started) * 1000.0, host)
+    except Exception:
+        pass
+    return response
+
+
 # Lightweight per-IP token-bucket rate limiter for expensive scan/control paths.
 _RATE_BUCKETS: Dict[str, Any] = {}
 _RATE_LOCK = None  # lazy asyncio lock
@@ -856,6 +919,13 @@ async def serve_launch() -> FileResponse:
 async def serve_admin_dashboard() -> FileResponse:
     """Operator business control-room (data comes from /api/admin/business)."""
     return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
+
+
+@app.get("/watchtower")
+@app.get("/watchtower/live")
+async def serve_watchtower() -> FileResponse:
+    """Live operator telemetry (data comes from /api/admin/watchtower)."""
+    return FileResponse(os.path.join(STATIC_DIR, "watchtower.html"))
 
 
 @app.get("/play-store-assets/{filename}")
@@ -2541,6 +2611,110 @@ async def admin_business_metrics_endpoint(request: Request) -> JSONResponse:
     return JSONResponse({"ok": True, **biz})
 
 
+@app.get("/api/admin/watchtower")
+async def admin_watchtower_endpoint(request: Request) -> JSONResponse:
+    """Watchtower: live view of who is using the system right now."""
+    adm_err = _require_admin(request)
+    if adm_err:
+        return adm_err
+
+    now = time.time()
+    snap = state.to_snapshot()
+    biz = await asyncio.to_thread(subscription_engine.business_metrics)
+
+    # Live request feed (most recent first, capped for payload sanity)
+    feed = list(_REQUEST_LOG)[:80]
+
+    # Per-endpoint aggregates
+    by_endpoint: Dict[str, Dict[str, Any]] = {}
+    for e in _REQUEST_LOG:
+        agg = by_endpoint.setdefault(e["path"], {"path": e["path"], "count": 0, "errors": 0, "ms_total": 0.0})
+        agg["count"] += 1
+        agg["ms_total"] += e["ms"]
+        if e["status"] >= 400:
+            agg["errors"] += 1
+    endpoints = sorted(
+        (
+            {
+                "path": a["path"],
+                "count": a["count"],
+                "errors": a["errors"],
+                "avg_ms": round(a["ms_total"] / a["count"], 1) if a["count"] else 0.0,
+            }
+            for a in by_endpoint.values()
+        ),
+        key=lambda a: a["count"],
+        reverse=True,
+    )[:14]
+
+    # Who is using it: distinct clients seen in the buffer window
+    clients = sorted(
+        (
+            {
+                "ip": ip,
+                "hits": st["hits"],
+                "errors": st["errors"],
+                "last_seen": int(st["last_seen"]),
+                "idle_sec": int(now - st["last_seen"]),
+                "top_paths": sorted(st["paths"].items(), key=lambda kv: kv[1], reverse=True)[:3],
+            }
+            for ip, st in _CLIENT_STATS.items()
+        ),
+        key=lambda c: c["last_seen"],
+        reverse=True,
+    )
+
+    rpm = sum(1 for e in _REQUEST_LOG if now - e["ts"] <= 60)
+    threats = snap.get("threats", []) or []
+
+    return JSONResponse({
+        "ok": True,
+        "generated_at": int(now),
+        "system": {
+            "version": snap.get("meta", {}).get("version", ""),
+            "uptime_sec": int(now - _TELEMETRY_START),
+            "scan_count": snap.get("meta", {}).get("scan_count", 0),
+            "devices_total": snap.get("meta", {}).get("total_devices", 0),
+            "sniffer_active": bool(getattr(state.sniffer, "running", False)),
+            "tier": (snap.get("subscription") or {}).get("tier", "free"),
+            "ledger_events": biz.get("ledger_events", 0),
+        },
+        "clients": {
+            "live_ws": len(state.ws_clients),
+            "ws_peers": [{"ip": w["ip"], "since": int(w["since"])} for w in _WS_CLIENTS.values()],
+            "unique_api_clients": len(clients),
+            "recent": clients[:12],
+        },
+        "traffic": {
+            "requests_tracked": len(_REQUEST_LOG),
+            "requests_per_min": rpm,
+            "by_endpoint": endpoints,
+        },
+        "feed": feed,
+        "business": {
+            "paid_customers": biz["customers"]["paid_emails"],
+            "active_licenses": biz["licenses"]["active"],
+            "total_licenses": biz["licenses"]["total"],
+            "lifetime_revenue_usd": biz["revenue"]["lifetime_revenue_usd"],
+            "mrr_estimate_usd": biz["revenue"]["mrr_estimate_usd"],
+            "leads": biz["leads"]["total"],
+            "recent_mints": biz["customers"]["recent"][:8],
+        },
+        "threats": {
+            "total": len(threats),
+            "critical": sum(1 for t in threats if str(t.get("severity", "")).upper() == "CRITICAL"),
+            "latest": [
+                {
+                    "severity": t.get("severity", ""),
+                    "category": t.get("category", ""),
+                    "title": t.get("title", ""),
+                }
+                for t in threats[:6]
+            ],
+        },
+    })
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket) -> None:
     await ws.accept()
@@ -2556,6 +2730,11 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                 pass
             return
     state.ws_clients.add(ws)
+    _ws_peer = f"{id(ws)}"
+    _WS_CLIENTS[_ws_peer] = {
+        "ip": (ws.client.host if ws.client else "-"),
+        "since": time.time(),
+    }
     try:
         await ws.send_json({"type": "full_state", "data": state.to_snapshot()})
         while True:
@@ -2564,5 +2743,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                 await ws.send_json({"type": "pong"})
     except WebSocketDisconnect:
         state.ws_clients.discard(ws)
+        _WS_CLIENTS.pop(_ws_peer, None)
     except Exception:
         state.ws_clients.discard(ws)
+        _WS_CLIENTS.pop(_ws_peer, None)

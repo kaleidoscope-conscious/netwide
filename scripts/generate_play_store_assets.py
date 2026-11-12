@@ -144,7 +144,7 @@ def generate_feature_graphic_1024x500() -> Path:
 
     # Left side branding & value props
     draw.rounded_rectangle([38, 36, 365, 76], radius=10, fill=TINT_CYAN, outline=CYAN, width=2)
-    draw.text((54, 46), "OMNISIGHT TACTICAL ENGINE v4.5", fill=CYAN, font=_font(16, bold=True, mono=True))
+    draw.text((54, 46), "NETPULSE TACTICAL ENGINE v4.5", fill=CYAN, font=_font(16, bold=True, mono=True))
 
     draw.text((38, 92), "NETPULSE", fill=TEXT_MAIN, font=_font(62, bold=True))
     draw.text((38, 166), "HIDDEN WIFI DE-CLOAKER & LAN GUARDIAN", fill=EMERALD, font=_font(21, bold=True, mono=True))

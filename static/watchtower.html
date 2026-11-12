@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title>NetPulse · Watchtower</title>
+    <style>
+      :root {
+        --bg: #070a10;
+        --surface: #0e1420;
+        --card: #131b2b;
+        --border: #1f2b3e;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --sky: #38bdf8;
+        --emerald: #10b981;
+        --purple: #a78bfa;
+        --amber: #f59e0b;
+        --red: #ef4444;
+        --mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+        --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        background: var(--bg); color: var(--text); font-family: var(--sans);
+        min-height: 100vh; padding: 26px clamp(14px, 3.5vw, 44px) 44px;
+      }
+      header { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+      .brand { display: flex; align-items: center; gap: 13px; }
+      .beacon {
+        width: 13px; height: 13px; border-radius: 50%; background: var(--red);
+        box-shadow: 0 0 0 0 rgba(239,68,68,.65); animation: pulse 1.6s infinite;
+      }
+      @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(239,68,68,.55); }
+        70% { box-shadow: 0 0 0 11px rgba(239,68,68,0); }
+        100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+      }
+      h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -.02em; }
+      h1 span { color: var(--sky); }
+      .sub { color: var(--muted); font-size: .8rem; font-family: var(--mono); margin-top: 2px; }
+      .live-box {
+        display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: .76rem;
+        background: var(--surface); border: 1px solid var(--border); padding: 8px 14px; border-radius: 10px;
+        color: var(--muted);
+      }
+      .live-box b { color: var(--emerald); }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 12px; margin-bottom: 16px; }
+      .kpi {
+        background: var(--card); border: 1px solid var(--border); border-radius: 13px; padding: 15px 16px 13px;
+        position: relative; overflow: hidden;
+      }
+      .kpi::after { content: ''; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, var(--sky), transparent 70%); opacity: .5; }
+      .kpi .label { color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .09em; }
+      .kpi .value { font-size: 1.75rem; font-weight: 750; letter-spacing: -.03em; margin-top: 5px; font-variant-numeric: tabular-nums; }
+      .kpi .hint { color: var(--muted); font-size: .72rem; font-family: var(--mono); margin-top: 2px; }
+      .kpi.live .value { color: var(--emerald); }
+      .kpi.warn .value { color: var(--amber); }
+      .kpi.bad .value { color: var(--red); }
+      .kpi.purple .value { color: var(--purple); }
+      .cols { display: grid; grid-template-columns: 1.35fr 1fr; gap: 14px; margin-bottom: 16px; }
+      @media (max-width: 980px) { .cols { grid-template-columns: 1fr; } }
+      .panel { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+      .panel h2 { font-size: .76rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+      .panel h2 .n { font-family: var(--mono); color: var(--sky); }
+      table { width: 100%; border-collapse: collapse; font-size: .79rem; }
+      th { text-align: left; color: var(--muted); font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+      td { padding: 6px 8px; border-bottom: 1px solid rgba(31,43,62,.5); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+      tbody tr:hover td { background: rgba(56,189,248,.05); }
+      .st { padding: 2px 7px; border-radius: 5px; font-size: .68rem; }
+      .st.ok { background: rgba(16,185,129,.13); color: var(--emerald); }
+      .st.warn { background: rgba(245,158,11,.13); color: var(--amber); }
+      .st.bad { background: rgba(239,68,68,.14); color: var(--red); }
+      .st.info { background: rgba(56,189,248,.12); color: var(--sky); }
+      .feed-scroll { max-height: 430px; overflow-y: auto; }
+      .feed-row { display: grid; grid-template-columns: 74px 52px minmax(0,1fr) 46px 58px 104px; gap: 8px; align-items: center; padding: 5px 6px; border-bottom: 1px solid rgba(31,43,62,.45); font-family: var(--mono); font-size: .755rem; }
+      .feed-row:hover { background: rgba(56,189,248,.05); }
+      .feed-row .t { color: var(--muted); }
+      .feed-row .m { color: var(--sky); font-weight: 700; }
+      .feed-row .p { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .feed-row .d { color: var(--muted); text-align: right; }
+      .feed-row .ip { color: var(--purple); text-align: right; }
+      .bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 3px; }
+      .bar > div { height: 100%; background: linear-gradient(90deg, var(--sky), var(--emerald)); }
+      .endpoint { margin-bottom: 9px; }
+      .endpoint .top { display: flex; justify-content: space-between; font-family: var(--mono); font-size: .74rem; }
+      .endpoint .top span:last-child { color: var(--muted); }
+      .threat { display: flex; gap: 8px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid rgba(31,43,62,.5); font-size: .8rem; }
+      .threat .sev { font-family: var(--mono); font-size: .64rem; padding: 2px 6px; border-radius: 5px; flex-shrink: 0; }
+      .sev.CRITICAL { background: rgba(239,68,68,.15); color: var(--red); }
+      .sev.HIGH { background: rgba(245,158,11,.15); color: var(--amber); }
+      .sev.MEDIUM { background: rgba(56,189,248,.13); color: var(--sky); }
+      .sev.LOW, .sev.INFO { background: rgba(148,163,184,.13); color: var(--muted); }
+      .threat .t { color: var(--text); }
+      .empty { color: var(--muted); font-family: var(--mono); font-size: .78rem; padding: 18px; text-align: center; }
+      .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+      .chip { font-family: var(--mono); font-size: .73rem; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); }
+      .chip.ok { color: var(--emerald); border-color: rgba(16,185,129,.35); }
+      .chip.info { color: var(--sky); border-color: rgba(56,189,248,.35); }
+      .chip.warn { color: var(--amber); border-color: rgba(245,158,11,.35); }
+      .chip.bad { color: var(--red); border-color: rgba(239,68,68,.35); }
+      #banner { display: none; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.4); color: #fca5a5; font-family: var(--mono); font-size: .76rem; padding: 11px 14px; border-radius: 10px; margin-bottom: 16px; }
+      footer { margin-top: 22px; color: var(--muted); font-size: .71rem; font-family: var(--mono); text-align: center; }
+      a { color: var(--sky); text-decoration: none; }
+    </style>
+</head>
+<body>
+    <header>
+      <div class="brand">
+        <div class="beacon" id="beacon"></div>
+        <div>
+          <h1>NetPulse <span>Watchtower</span></h1>
+          <div class="sub" id="sub">live operator telemetry · 100% on-device</div>
+        </div>
+      </div>
+      <div class="live-box">
+        <span id="pulse-state">LIVE</span>
+        <span>·</span>
+        <span id="tick">0s ago</span>
+      </div>
+    </header>
+
+    <div id="banner"></div>
+
+    <div class="grid">
+      <div class="kpi live"><div class="label">Live Sessions</div><div class="value" id="k-ws">—</div><div class="hint">websocket clients connected</div></div>
+      <div class="kpi"><div class="label">API Clients</div><div class="value" id="k-clients">—</div><div class="hint">unique IPs, 30 min window</div></div>
+      <div class="kpi purple"><div class="label">Req / Minute</div><div class="value" id="k-rpm">—</div><div class="hint">rolling 60s</div></div>
+      <div class="kpi green"><div class="label">Paid Customers</div><div class="value" id="k-paid">—</div><div class="hint" id="k-lic">—</div></div>
+      <div class="kpi warn"><div class="label">Alerts</div><div class="value" id="k-threats">—</div><div class="hint" id="k-critical">—</div></div>
+      <div class="kpi"><div class="label">Uptime</div><div class="value" id="k-uptime">—</div><div class="hint" id="k-scan">—</div></div>
+    </div>
+
+    <div class="cols">
+      <div class="panel">
+        <h2>Live Request Feed <span class="n" id="feed-count">0</span></h2>
+        <div class="feed-scroll" id="feed"></div>
+      </div>
+      <div>
+        <div class="panel" style="margin-bottom:14px">
+          <h2>Who Is Using It</h2>
+          <div id="clients"></div>
+        </div>
+        <div class="panel" style="margin-bottom:14px">
+          <h2>Top Endpoints</h2>
+          <div id="endpoints"></div>
+        </div>
+        <div class="panel">
+          <h2>Systems</h2>
+          <div class="chips" id="sys-chips"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Active Alerts <span class="n" id="alert-count">0</span></h2>
+      <div id="threats"></div>
+    </div>
+
+    <footer>NetPulse Watchtower · local telemetry only, nothing leaves this machine · <a href="/admin">Business</a> · <a href="/">Workbench</a></footer>
+
+    <script>
+      let lastFetch = 0;
+      let adminToken = sessionStorage.getItem('np_admin_token') || '';
+
+      function ago(sec) {
+        if (sec < 60) return sec + 's ago';
+        if (sec < 3600) return Math.floor(sec / 60) + 'm ago';
+        if (sec < 86400) return Math.floor(sec / 3600) + 'h ago';
+        return Math.floor(sec / 86400) + 'd ago';
+      }
+      function clock(ts) { return new Date(ts * 1000).toLocaleTimeString(); }
+      function dur(sec) {
+        const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+        if (d) return d + 'd ' + h + 'h';
+        if (h) return h + 'h ' + m + 'm';
+        return m + 'm ' + (sec % 60) + 's';
+      }
+      function money(v) { return '$' + Number(v || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+
+      function renderFeed(feed) {
+        const el = document.getElementById('feed');
+        document.getElementById('feed-count').textContent = feed.length + ' tracked';
+        if (!feed.length) { el.innerHTML = '<div class="empty">no API traffic recorded yet</div>'; return; }
+        el.innerHTML = feed.slice(0, 60).map(e => {
+          const cls = e.status >= 500 ? 'bad' : e.status >= 400 ? 'warn' : e.status >= 300 ? 'info' : 'ok';
+          return '<div class="feed-row">'
+            + '<span class="t">' + clock(e.ts) + '</span>'
+            + '<span class="m">' + e.method + '</span>'
+            + '<span class="p" title="' + e.path + '">' + e.path + '</span>'
+            + '<span class="st ' + cls + '">' + e.status + '</span>'
+            + '<span class="d">' + e.ms + 'ms</span>'
+            + '<span class="ip">' + e.ip + '</span>'
+            + '</div>';
+        }).join('');
+      }
+
+      function renderClients(c) {
+        const rows = c.recent || [];
+        if (!rows.length) { document.getElementById('clients').innerHTML = '<div class="empty">no API clients yet</div>'; return; }
+        let html = '<table><thead><tr><th>Client</th><th>Hits</th><th>Idle</th><th>Top route</th></tr></thead><tbody>';
+        rows.forEach(r => {
+          html += '<tr><td>' + r.ip + '</td><td>' + r.hits + '</td>'
+            + '<td>' + (r.idle_sec < 5 ? '<span class="st ok">now</span>' : ago(r.idle_sec)) + '</td>'
+            + '<td>' + ((r.top_paths && r.top_paths[0]) ? r.top_paths[0][0] : '—') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        const peers = (c.ws_peers || []).map(p => '<span class="chip ok">WS ' + p.ip + '</span>').join(' ');
+        document.getElementById('clients').innerHTML = html + (peers ? '<div class="chips" style="margin-top:10px">' + peers + '</div>' : '');
+      }
+
+      function renderEndpoints(list) {
+        if (!list.length) { document.getElementById('endpoints').innerHTML = '<div class="empty">no traffic</div>'; return; }
+        const max = Math.max(...list.map(e => e.count));
+        document.getElementById('endpoints').innerHTML = list.map(e =>
+          '<div class="endpoint"><div class="top"><span>' + e.path + '</span><span>' + e.count + ' · ' + e.avg_ms + 'ms</span></div>'
+          + '<div class="bar"><div style="width:' + Math.round((e.count / max) * 100) + '%"></div></div></div>'
+        ).join('');
+      }
+
+      function renderThreats(t) {
+        document.getElementById('alert-count').textContent = t.total + ' total';
+        if (!t.latest || !t.latest.length) { document.getElementById('threats').innerHTML = '<div class="empty">no active alerts</div>'; return; }
+        document.getElementById('threats').innerHTML = t.latest.map(x =>
+          '<div class="threat"><span class="sev ' + (x.severity || 'LOW') + '">' + (x.severity || '?') + '</span>'
+          + '<span class="t">' + x.title + '</span></div>'
+        ).join('');
+      }
+
+      function render(d) {
+        const s = d.system, c = d.clients, tr = d.traffic, b = d.business, th = d.threats;
+        document.getElementById('k-ws').textContent = c.live_ws;
+        document.getElementById('k-clients').textContent = c.unique_api_clients;
+        document.getElementById('k-rpm').textContent = tr.requests_per_min;
+        document.getElementById('k-paid').textContent = b.paid_customers;
+        document.getElementById('k-lic').textContent = b.active_licenses + ' active licenses · ' + money(b.lifetime_revenue_usd) + ' lifetime';
+        document.getElementById('k-threats').textContent = th.total;
+        document.getElementById('k-critical').textContent = th.critical + ' critical';
+        document.getElementById('k-uptime').textContent = dur(s.uptime_sec);
+        document.getElementById('k-scan').textContent = 'v' + s.version + ' · ' + s.devices_total + ' devices · scan #' + s.scan_count;
+        document.getElementById('sub').textContent = 'tier: ' + s.tier + ' · ' + s.ledger_events + ' ledger events · sniffer ' + (s.sniffer_active ? 'active' : 'idle');
+
+        const chips = [
+          s.sniffer_active ? '<span class="chip ok">SNIFFER ACTIVE</span>' : '<span class="chip warn">SNIFFER IDLE</span>',
+          '<span class="chip info">MRR ' + money(b.mrr_estimate_usd) + '</span>',
+          '<span class="chip">LEADS ' + b.leads + '</span>',
+          '<span class="chip ' + (tr.requests_tracked ? 'ok' : 'warn') + '">' + tr.requests_tracked + ' REQUESTS TRACKED</span>'
+        ];
+        document.getElementById('sys-chips').innerHTML = chips.join(' ');
+
+        renderFeed(d.feed || []);
+        renderClients(c);
+        renderEndpoints(tr.by_endpoint || []);
+        renderThreats(th);
+      }
+
+      async function tick() {
+        try {
+          const headers = {};
+          if (adminToken) headers['X-Admin-Token'] = adminToken;
+          const res = await fetch('/api/admin/watchtower', {headers, cache: 'no-store'});
+          if (res.status === 403) {
+            const t = prompt('Sovereign Admin Master Token:');
+            if (t) { adminToken = t; sessionStorage.setItem('np_admin_token', t); return tick(); }
+            document.getElementById('banner').style.display = 'block';
+            document.getElementById('banner').textContent = '403 — Watchtower needs the Sovereign Admin token when accessed remotely. Open it on the host (localhost) or enter the token.';
+            document.getElementById('pulse-state').textContent = 'LOCKED';
+            document.getElementById('beacon').style.background = 'var(--amber)';
+            return;
+          }
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          document.getElementById('banner').style.display = 'none';
+          const d = await res.json();
+          if (d.ok) render(d);
+          lastFetch = Date.now();
+          document.getElementById('tick').textContent = 'updated just now';
+          document.getElementById('pulse-state').textContent = 'LIVE';
+          document.getElementById('beacon').style.background = 'var(--red)';
+        } catch (e) {
+          document.getElementById('beacon').style.background = 'var(--amber)';
+          document.getElementById('pulse-state').textContent = 'DEGRADED';
+          document.getElementById('tick').textContent = 'daemon unreachable';
+        }
+      }
+
+      tick();
+      setInterval(tick, 3000);
+    </script>
+</body>
+</html>

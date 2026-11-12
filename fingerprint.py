@@ -1296,14 +1296,22 @@ def audit_network_threats(
                 })
         for f in d.get("security_findings", []):
             if f.get("severity") in ("CRITICAL", "HIGH"):
+                device_online = bool(d.get("is_online", True))
+                details = f.get("description", "")
+                if not device_online:
+                    details += (
+                        "  [Device is currently OFFLINE — this finding reflects its last-seen port state; "
+                        "re-verify once the host is reachable.]"
+                    )
                 threats.append({
                     "severity": f["severity"],
                     "category": "LAN_VULNERABILITY",
                     "title": f"{d.get('ip')} ({d.get('display_name')}): {f.get('title')}",
-                    "details": f.get("description", ""),
+                    "details": details,
                     "device_key": d.get("device_key") or d.get("mac") or "",
                     "ip": d.get("ip", ""),
                     "mac": d.get("mac", ""),
+                    "device_online": device_online,
                 })
 
     return threats
