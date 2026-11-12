@@ -710,7 +710,7 @@ def main(argv: List[str] | None = None) -> None:
     p_auth = sub.add_parser("authority", help="Ed25519 License Authority key management")
     p_auth.add_argument(
         "action",
-        choices=["show", "init", "rotate"],
+        choices=["show", "init", "rotate", "backup"],
         default="show",
         nargs="?",
         help="Authority action",
@@ -837,6 +837,38 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
                     f"Without it, this node can only verify its own legacy HMAC keys.[/dim]",
                     title="Netwide License Authority",
                     border_style="cyan",
+                )
+            )
+        elif act == "backup":
+            src_path = license_authority.private_key_path()
+            if not src_path.exists():
+                console.print("[bold red]No private key found on this host — nothing to back up.[/bold red]")
+                raise SystemExit(1)
+            import hashlib as _hashlib
+            import shutil as _shutil
+            from datetime import datetime as _dt
+            raw = src_path.read_bytes()
+            stamp = _dt.now().strftime("%Y%m%d-%H%M%S")
+            dest_dir = src_path.parent / "backups"
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            dest = dest_dir / f"authority_ed25519-{stamp}.key"
+            _shutil.copy2(src_path, dest)
+            try:
+                dest.chmod(0o600)
+            except OSError:
+                pass
+            fingerprint = _hashlib.sha256(raw).hexdigest()[:32]
+            console.print(
+                Panel(
+                    f"[bold green]Authority private key backed up[/bold green]\n"
+                    f"Source:  [white]{src_path}[/white]\n"
+                    f"Backup:  [bold cyan]{dest}[/bold cyan] (mode 600)\n"
+                    f"SHA-256: [dim]{fingerprint}[/dim]\n\n"
+                    f"[yellow]Store this offline (password manager / encrypted drive).[/yellow]\n"
+                    f"[dim]Losing the private key means every licence you issued stops verifying.\n"
+                    f"Never commit it and never send it over chat.[/dim]",
+                    title="Licence Authority Backup",
+                    border_style="green",
                 )
             )
         else:

@@ -196,6 +196,40 @@ Master Token. The operator node opts into loopback admin with
 `NETWIDE_ALLOW_LOOPBACK_ADMIN=1` (set in the systemd unit); a customer node
 without that variable cannot self-issue licenses.
 
+## 4h. Identity & asset paths (post-rebrand, 2026-11-12)
+
+| Thing | Path / URL |
+| :--- | :--- |
+| Product name | **Netwide** (was NetPulse) |
+| Python package / CLI | `netwide` — `pip install netwide`, `netwide <cmd>` |
+| Repo | https://github.com/kaleidoscope-conscious/netwide |
+| Storefront (Pages) | https://kaleidoscope-conscious.github.io/netwide/ |
+| Container | `ghcr.io/kaleidoscope-conscious/netwide` |
+| Working dir | `/home/jg/netwide` |
+| Config dir | `~/.config/netwide/` (legacy `~/.config/netpulse/` still read) |
+| DB | `netwide_intel.db` (legacy file still honoured) |
+| Service | `netwide-guardian.service` |
+| Launchers | `~/.local/bin/netwide`, `Netwide*.desktop` |
+
+Old `netpulse` URLs still **301-redirect** to the new ones.
+
+### Renaming the GitHub *organisation* (optional)
+GitHub silently refuses organisation renames through the API (it returns 200 and
+keeps the old login), so it must be done in the browser:
+**Org → Settings → Profile → Rename organization** (requires 2FA).
+Candidates that are free: `netwide-hq`, `netwidehq`, `netwide-labs`.
+After renaming, re-point the Pages URL, OG tags, sitemap, promo gist and the
+share engine — `scripts/flip_to_netwide.py` already performs the in-tree sweep.
+
+### Backing up the licence authority key
+```bash
+netwide authority backup      # writes ~/.config/netwide/backups/authority_ed25519-<stamp>.key (mode 600)
+netwide authority show        # prints the public key + private key fingerprint
+```
+**Losing the private key means every licence ever issued stops verifying.**
+Keep at least one offline copy (password manager / encrypted drive). Never commit
+it, never paste it into chat.
+
 ## 5. Prettier org handle (optional polish)
 
 `netwide` is globally taken (EGYM, 2011). **`netwide-hq`** is verified
