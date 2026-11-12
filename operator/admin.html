@@ -137,9 +137,9 @@
     <div id="error-banner"></div>
 
     <div class="grid" id="kpi-grid">
-      <div class="kpi green"><div class="label">Paid Customers</div><div class="value" id="k-paid">—</div><div class="hint">distinct emails, active license</div></div>
+      <div class="kpi green"><div class="label">Paid Customers</div><div class="value" id="k-paid">—</div><div class="hint" id="k-paid-hint">paying customers (excl. operator)</div></div>
       <div class="kpi sky"><div class="label">Active Licenses</div><div class="value" id="k-active">—</div><div class="hint" id="k-active-hint">—</div></div>
-      <div class="kpi green"><div class="label">Lifetime Revenue</div><div class="value" id="k-lifetime">—</div><div class="hint">one-time purchases (active)</div></div>
+      <div class="kpi green"><div class="label">Lifetime Revenue</div><div class="value" id="k-lifetime">—</div><div class="hint" id="k-lifetime-hint">customer sales (excl. operator)</div></div>
       <div class="kpi purple"><div class="label">MRR Estimate</div><div class="value" id="k-mrr">—</div><div class="hint" id="k-arr-hint">ARR: —</div></div>
       <div class="kpi amber"><div class="label">Leads / Trials</div><div class="value" id="k-leads">—</div><div class="hint">marketing_leads captured</div></div>
       <div class="kpi sky"><div class="label">Ledger Events</div><div class="value" id="k-ledger">—</div><div class="hint">hash-chained audit trail</div></div>
@@ -219,9 +219,11 @@
         const lic = d.licenses || {}, cust = d.customers || {}, rev = d.revenue || {}, leads = d.leads || {},
               stripe = d.stripe || {}, sys = d.system || {};
         document.getElementById('k-paid').textContent = cust.paid_emails ?? 0;
+        document.getElementById('k-paid-hint').textContent = (cust.operator_emails ?? 0) + ' operator license (excluded)';
         document.getElementById('k-active').textContent = lic.active ?? 0;
-        document.getElementById('k-active-hint').textContent = (lic.total ?? 0) + ' issued · ' + (lic.revoked ?? 0) + ' revoked';
+        document.getElementById('k-active-hint').textContent = (lic.customer_active ?? 0) + ' customer · ' + (lic.operator_active ?? 0) + ' operator';
         document.getElementById('k-lifetime').textContent = money(rev.lifetime_revenue_usd);
+        document.getElementById('k-lifetime-hint').textContent = 'operator license worth ' + money(rev.operator_license_value_usd) + ' (not a sale)';
         document.getElementById('k-mrr').textContent = money(rev.mrr_estimate_usd);
         document.getElementById('k-arr-hint').textContent = 'ARR: ' + money(rev.arr_estimate_usd);
         document.getElementById('k-leads').textContent = leads.total ?? 0;

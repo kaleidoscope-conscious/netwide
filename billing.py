@@ -578,14 +578,26 @@ class SubscriptionManager:
         active = [r for r in lic_rows if not r.get("revoked")]
         revoked = [r for r in lic_rows if r.get("revoked")]
 
+        # The operator's own license is not a sale. Split it out so the dashboard
+        # reports real customer revenue instead of flattering itself.
+        operator_email = (
+            os.environ.get("NETPULSE_OPERATOR_EMAIL")
+            or self._get_config("operator_email", "")
+            or "founder@netpulse.io"
+        ).strip().lower()
+        is_operator = lambda r: str(r.get("email") or "").strip().lower() == operator_email
+        operator_active = [r for r in active if is_operator(r)]
+        customer_active = [r for r in active if not is_operator(r)]
+
         def _price(r: Dict[str, Any]) -> float:
             return self._PRICE_TABLE.get((r.get("tier"), r.get("plan")), 0.0)
 
-        lifetime_revenue = sum(_price(r) for r in active if r.get("plan") in ("lifetime",))
+        lifetime_revenue = sum(_price(r) for r in customer_active if r.get("plan") in ("lifetime",))
         mrr_estimate = sum(
             _price(r) / (12.0 if r.get("plan") == "annual" else 1.0)
-            for r in active if r.get("plan") in ("monthly", "annual")
+            for r in customer_active if r.get("plan") in ("monthly", "annual")
         )
+        operator_value = sum(_price(r) for r in operator_active)
 
         by_tier: Dict[str, int] = {}
         by_plan: Dict[str, int] = {}
@@ -594,7 +606,8 @@ class SubscriptionManager:
             by_plan[r.get("plan") or "?"] = by_plan.get(r.get("plan") or "?", 0) + 1
 
         distinct_emails = {r.get("email") for r in lic_rows if r.get("email")}
-        paid_emails = {r.get("email") for r in active if r.get("email")}
+        paid_emails = {r.get("email") for r in customer_active if r.get("email")}
+        operator_emails = {r.get("email") for r in operator_active if r.get("email")}
 
         # Last-30-day mint timeline
         import collections
@@ -625,18 +638,23 @@ class SubscriptionManager:
                 "total": len(lic_rows),
                 "active": len(active),
                 "revoked": len(revoked),
+                "operator_active": len(operator_active),
+                "customer_active": len(customer_active),
                 "by_tier": by_tier,
                 "by_plan": by_plan,
             },
             "customers": {
                 "distinct_emails": len(distinct_emails),
                 "paid_emails": len(paid_emails),
+                "operator_emails": len(operator_emails),
+                "operator_email": operator_email,
                 "recent": recent,
             },
             "revenue": {
                 "lifetime_revenue_usd": round(lifetime_revenue, 2),
                 "mrr_estimate_usd": round(mrr_estimate, 2),
                 "arr_estimate_usd": round(mrr_estimate * 12.0, 2),
+                "operator_license_value_usd": round(operator_value, 2),
             },
             "leads": {
                 "total": len(leads),

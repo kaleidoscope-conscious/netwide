@@ -2778,6 +2778,8 @@ async def admin_watchtower_endpoint(request: Request) -> JSONResponse:
         "feed": feed,
         "business": {
             "paid_customers": biz["customers"]["paid_emails"],
+            "operator_licenses": biz["licenses"].get("operator_active", 0),
+            "customer_licenses": biz["licenses"].get("customer_active", 0),
             "active_licenses": biz["licenses"]["active"],
             "total_licenses": biz["licenses"]["total"],
             "lifetime_revenue_usd": biz["revenue"]["lifetime_revenue_usd"],

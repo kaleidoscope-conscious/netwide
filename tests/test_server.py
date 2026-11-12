@@ -244,6 +244,14 @@ def test_admin_dashboard_page_and_business_metrics():
     assert "recent" in d["customers"]
     assert "version" in d["system"]
 
+    # Operator licenses must never be counted as customer revenue.
+    assert "operator_active" in d["licenses"]
+    assert "customer_active" in d["licenses"]
+    assert "operator_license_value_usd" in d["revenue"]
+    assert d["licenses"]["active"] == (
+        d["licenses"]["customer_active"] + d["licenses"]["operator_active"]
+    )
+
 
 def test_google_play_bundle_privacy_and_launch_hub():
     resp_aab = client.get("/download/NetPulse-Mobile-PlayStore.aab")
