@@ -84,8 +84,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ github.repository }}:${{ steps.ver.outputs.version }}
-            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository_owner }}/netwide:${{ steps.ver.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/netwide:latest
 
       - name: Build and push image to Docker Hub (if logged in)
         uses: docker/build-push-action@v6
@@ -122,6 +122,6 @@ jobs:
       - name: Summary
         run: |
           echo "### Published v${{ steps.ver.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- GHCR: \`ghcr.io/${{ github.repository }}:${{ steps.ver.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- GHCR: \`ghcr.io/${{ github.repository_owner }}/netwide:${{ steps.ver.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Docker Hub: \`${{ secrets.DOCKERHUB_USERNAME }}/netwide\` (skipped without credentials)" >> "$GITHUB_STEP_SUMMARY"
           echo "- PyPI: \`pip install netwide\` (skipped without PYPI_API_TOKEN)" >> "$GITHUB_STEP_SUMMARY"
