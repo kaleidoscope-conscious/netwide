@@ -230,6 +230,41 @@ netwide authority show        # prints the public key + private key fingerprint
 Keep at least one offline copy (password manager / encrypted drive). Never commit
 it, never paste it into chat.
 
+## 4i. Automatic licence delivery (email)
+
+When a buyer pays through a hosted Payment Link and their own node cannot
+verify the payment (no Stripe key on their machine), the licence is minted on
+the operator node and **emailed to them automatically** — no manual step.
+
+Configure one provider (first match wins):
+
+```bash
+# Option A — Resend (simplest)
+export RESEND_API_KEY=re_xxxxxxxx
+export RESEND_FROM="Netwide <licences@yourdomain.com>"
+
+# Option B — plain SMTP
+export NETWIDE_SMTP_HOST=smtp.yourdomain.com
+export NETWIDE_SMTP_PORT=587
+export NETWIDE_SMTP_USER=licences@yourdomain.com
+export NETWIDE_SMTP_PASSWORD=...
+export NETWIDE_SMTP_FROM=licences@yourdomain.com
+```
+
+Put these in the systemd unit as `Environment=` lines (do not commit secrets).
+
+Behaviour:
+- The 5-minute paid-session sync mints the licence **and** emails the key.
+- Delivery is **idempotent per Stripe session id** — a repeated sync never
+  re-emails the same buyer.
+- With no provider configured the sync still mints the key and reports
+  `sent: false` — it never fails the sync.
+- Manual re-send for a specific order:
+  ```bash
+  netwide license deliver --session cs_live_... --email buyer@example.com
+  ```
+  This verifies the payment with Stripe, mints the key, and emails it.
+
 ## 5. Prettier org handle (optional polish)
 
 `netwide` is globally taken (EGYM, 2011). **`netwide-hq`** is verified

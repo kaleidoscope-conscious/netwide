@@ -202,3 +202,30 @@ def test_license_signature_scheme_is_recorded_in_payload():
     payload = _json.loads(_b64url_decode(parts[2]).decode("utf-8"))
     assert payload.get("sk") in ("ed25519", "hmac")
     assert payload.get("jti") and payload.get("tier") == "pro"
+
+
+def test_license_delivery_builds_a_message_and_skips_without_a_provider():
+    """Delivery must build a correct email and never fail hard when unconfigured."""
+    import os as _os
+    from netwide import license_delivery as _delivery
+
+    for key in ("RESEND_API_KEY", "NETWIDE_SMTP_HOST"):
+        _os.environ.pop(key, None)
+
+    subject, body = _delivery.build_message(
+        "buyer@example.com", "NP1-PRO-abc-def", "pro", "lifetime", "cs_live_test_1")
+    assert "Pro Guardian" in subject
+    assert "NP1-PRO-abc-def" in body
+    assert "netwide license activate" in body
+    assert "cs_live_test_1" in body
+
+    result = _delivery.deliver_license("buyer@example.com", "NP1-PRO-abc-def", "pro", "lifetime")
+    assert result["ok"] is True
+    assert result["sent"] is False
+    assert result["provider"] == "none"
+    assert "RESEND_API_KEY" in result["error"]
+
+    # An invalid address must be reported, never sent.
+    bad = _delivery.deliver_license("not-an-email", "NP1-PRO-x", "pro", "lifetime")
+    assert bad["ok"] is False
+    assert bad["sent"] is False

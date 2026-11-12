@@ -22,6 +22,7 @@ import urllib.parse
 import urllib.request
 
 from netwide import license_authority
+from netwide import license_delivery
 from contextlib import closing
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -996,6 +997,8 @@ class SubscriptionManager:
 
         minted_count = 0
         issued: List[str] = []
+        delivered: List[Dict[str, Any]] = []
+        delivery_notes: List[Dict[str, Any]] = []
         for sess in payload.get("data", []) or []:
             if sess.get("payment_status") != "paid":
                 continue
@@ -1032,8 +1035,29 @@ class SubscriptionManager:
             if minted.get("license_key"):
                 minted_count += 1
                 issued.append(session_id)
+                # Deliver the key to the buyer automatically when possible.
+                try:
+                    sent_key = f"license_delivered_{session_id}"
+                    if not self._get_config(sent_key, ""):
+                        result = license_delivery.deliver_license(
+                            email, minted["license_key"], tier, plan, session_id)
+                        if result.get("sent"):
+                            self._set_config(sent_key, str(int(time.time())))
+                            delivered.append({"session_id": session_id, "email": email,
+                                              "provider": result.get("provider")})
+                        elif result.get("error"):
+                            delivery_notes.append({"session_id": session_id, "email": email,
+                                                   "error": result.get("error")})
+                except Exception:
+                    pass
 
-        return {"ok": True, "minted": minted_count, "sessions": issued}
+        return {
+            "ok": True,
+            "minted": minted_count,
+            "sessions": issued,
+            "delivered": delivered,
+            "delivery_notes": delivery_notes,
+        }
 
     def handle_stripe_webhook(self, raw_body: bytes, sig_header: str) -> Dict[str, Any]:
         """

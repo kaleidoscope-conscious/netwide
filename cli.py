@@ -696,7 +696,7 @@ def main(argv: List[str] | None = None) -> None:
     p_lic = sub.add_parser("license", help="Sovereign Cryptographic License & Subscription Manager")
     p_lic.add_argument(
         "action",
-        choices=["status", "mint", "activate", "deactivate", "list", "revoke", "checkout", "verify"],
+        choices=["status", "mint", "activate", "deactivate", "list", "revoke", "checkout", "verify", "deliver"],
         default="status",
         nargs="?",
         help="License action",
@@ -938,6 +938,46 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
                     border_style="green",
                 )
             )
+        elif act == "deliver":
+            from netwide import license_delivery
+            session_id = (args.session or "").strip()
+            if not session_id:
+                console.print("[bold red]--session cs_live_... is required for deliver.[/bold red]")
+                raise SystemExit(1)
+            target_email = (args.email or "").strip()
+            if not target_email or "@" not in target_email:
+                console.print("[bold red]--email <buyer@address> is required for deliver.[/bold red]")
+                raise SystemExit(1)
+            res = subscription_engine.verify_stripe_session_and_activate(session_id)
+            if not res.get("ok"):
+                console.print(f"[bold red]Could not verify the session:[/bold red] {res.get('error', '')}")
+                raise SystemExit(1)
+            minted = res.get("minted_license") or {}
+            key = minted.get("license_key", "")
+            result = license_delivery.deliver_license(
+                target_email, key, minted.get("tier", "pro"), minted.get("plan", "monthly"), session_id)
+            if result.get("sent"):
+                console.print(
+                    Panel(
+                        f"[bold green]Licence emailed[/bold green]\n"
+                        f"To:      [white]{target_email}[/white]\n"
+                        f"Via:     [bold cyan]{result.get('provider')}[/bold cyan]\n"
+                        f"Tier:    [bold yellow]{minted.get('tier_name', '')}[/bold yellow]\n"
+                        f"Session: [dim]{session_id}[/dim]",
+                        title="Licence Delivery",
+                        border_style="green",
+                    )
+                )
+            else:
+                console.print(
+                    Panel(
+                        f"[bold yellow]Key minted but not emailed[/bold yellow]\n"
+                        f"Reason:  [white]{result.get('error', 'unknown')}[/white]\n\n"
+                        f"Signed key (deliver manually):\n[bold emerald]{key}[/bold emerald]",
+                        title="Licence Delivery",
+                        border_style="yellow",
+                    )
+                )
         elif act == "verify":
             session_id = (args.session or args.key or "").strip()
             if not session_id:
