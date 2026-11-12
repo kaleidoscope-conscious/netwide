@@ -31,7 +31,7 @@ def test_health_and_verify_limit():
     assert "node_budget" in h
 
 def test_demo_exists():
-    assert open(str(pathlib.Path(__file__).resolve().parents[1] / "docs/DEMO.md"), encoding="utf-8").read().__len__() > 200
+    assert open(str(pathlib.Path(__file__).resolve().parents[1] / "runbook/DEMO.md"), encoding="utf-8").read().__len__() > 200
 
 def test_cli_serve_default_loopback():
     import pathlib

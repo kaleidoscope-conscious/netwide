@@ -153,6 +153,14 @@ def test_storefront_never_publishes_internal_docs():
         assert internal not in text, f"{internal} is internal and must not be referenced by the Pages workflow"
     # Valuation lives outside the repo, in the operator's private directory.
     assert not os.path.exists(os.path.join(root_dir, "docs", "VALUATION.md"))
+    # The published docs/ tree must contain only public storefront files.
+    published = sorted(os.listdir(os.path.join(root_dir, "docs")))
+    assert published == [".nojekyll", "assets", "index.html", "privacy.html"], (
+        f"docs/ is published to the storefront and must stay public-only, found: {published}"
+    )
+    # Internal runbooks live outside the published tree.
+    for internal in ("GOLIVE_PAYMENTS.md", "DEMO.md"):
+        assert os.path.exists(os.path.join(root_dir, "runbook", internal))
 
 
 def test_watchtower_live_telemetry():
