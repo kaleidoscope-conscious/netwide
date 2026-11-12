@@ -41,11 +41,11 @@ ENV_FILE = Path(os.path.expanduser("~")) / ".config" / "netwide" / "social.env"
 # Launch kit — every link here is live and verified.
 # --------------------------------------------------------------------------
 KIT = {
-    "repo": "https://github.com/kaleidoscope-conscious/netpulse",
-    "storefront": "https://kaleidoscope-conscious.github.io/netpulse/",
-    "release": "https://github.com/kaleidoscope-conscious/netpulse/releases/tag/v4.7.0",
-    "discussions": "https://github.com/kaleidoscope-conscious/netpulse/discussions",
-    "demo": "https://kaleidoscope-conscious.github.io/netpulse/",
+    "repo": "https://github.com/kaleidoscope-conscious/netwide",
+    "storefront": "https://kaleidoscope-conscious.github.io/netwide/",
+    "release": "https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.7.0",
+    "discussions": "https://github.com/kaleidoscope-conscious/netwide/discussions",
+    "demo": "https://kaleidoscope-conscious.github.io/netwide/",
     "sponsor": "https://github.com/sponsors/kaleidoscopeAI",
     "paypal": "https://paypal.me/jgraham1000",
     "buy_pro_lifetime": "https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19",

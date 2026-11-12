@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin
 Disallow: /watchtower
 
-Sitemap: https://kaleidoscope-conscious.github.io/netpulse/sitemap.xml
+Sitemap: https://kaleidoscope-conscious.github.io/netwide/sitemap.xml

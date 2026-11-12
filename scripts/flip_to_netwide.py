@@ -59,17 +59,26 @@ def main() -> int:
     print(f"\nNetwide repo flip: {old_repo} -> {new_repo}\n")
 
     # 1. Rename the repository (needs admin:org for org-owned repos)
+    renamed = False
     check = subprocess.run(["gh", "api", f"repos/{old_repo}", "--jq", ".name"],
                            cwd=str(ROOT), capture_output=True, text=True)
     if check.returncode == 0:
-        res = run(["gh", "api", "-X", "PUT", f"repos/{old_repo}", "-f", f"name={NEW_NAME}"])
+        # PATCH, not PUT: GitHub rejects PUT for organisation-owned repo renames.
+        res = run(["gh", "api", "-X", "PATCH", f"repos/{old_repo}", "-f", f"name={NEW_NAME}"])
         if res.returncode != 0:
             print("\n! Rename refused. If you renamed an organisation-owned repo, refresh the token first:\n"
                   "    gh auth refresh -h github.com -s admin:org\n")
             return 1
+        renamed = True
         print(f"  -> renamed to {new_repo}")
     else:
-        print(f"  -> repository is already {new_repo} (or missing); skipping rename")
+        # Already renamed (or renamed by hand) — verify and continue.
+        probe = subprocess.run(["gh", "api", f"repos/{new_repo}", "--jq", ".name"],
+                               cwd=str(ROOT), capture_output=True, text=True)
+        if probe.returncode != 0:
+            print(f"! Neither {old_repo} nor {new_repo} is reachable — check the owner name.")
+            return 1
+        print(f"  -> repository is already {new_repo}; skipping rename")
 
     # 2. Rewrite URLs in the working tree
     changed = 0

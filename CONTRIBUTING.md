@@ -12,7 +12,7 @@ the operator's own Stripe webhook flow) will not be merged.
 ## Quick start
 
 ```bash
-git clone https://github.com/kaleidoscope-conscious/netpulse.git && cd netwide
+git clone https://github.com/kaleidoscope-conscious/netwide.git && cd netwide
 ./install.sh
 python3 -m pytest tests/ -q     # 139 tests, ~45s
 python3 -m pyflakes .            # must be clean

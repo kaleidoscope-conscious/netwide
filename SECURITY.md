@@ -18,7 +18,7 @@ DNS sinkhole). It is designed to be safe to run on your own network, but bugs ha
 
 Report privately via GitHub's security advisory form:
 **Security → Report a vulnerability** on this repository
-(or `https://github.com/kaleidoscope-conscious/netpulse/security/advisories/new`).
+(or `https://github.com/kaleidoscope-conscious/netwide/security/advisories/new`).
 
 Please include:
 

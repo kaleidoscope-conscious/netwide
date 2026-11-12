@@ -1,14 +1,14 @@
 # Netwide v4.7.0
 
-[![Release v4.7.0](https://img.shields.io/badge/release-v4.7.0-10b981?style=for-the-badge)](https://github.com/kaleidoscope-conscious/netpulse/releases/tag/v4.7.0)
-[![Tests](https://img.shields.io/badge/pytest-139%2F139_passing-34d399?style=for-the-badge)](https://github.com/kaleidoscope-conscious/netpulse/actions)
+[![Release v4.7.0](https://img.shields.io/badge/release-v4.7.0-10b981?style=for-the-badge)](https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.7.0)
+[![Tests](https://img.shields.io/badge/pytest-139%2F139_passing-34d399?style=for-the-badge)](https://github.com/kaleidoscope-conscious/netwide/actions)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776ab?style=for-the-badge)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-source--available%20%2B%20commercial_tiers-crimson?style=for-the-badge)](LICENSE.md)
-[![Storefront](https://img.shields.io/badge/Storefront-Founder's_Lifetime_%24149-7c3aed?style=for-the-badge)](https://kaleidoscope-conscious.github.io/netpulse/)
-[![Android APK](https://img.shields.io/badge/Android-15-APK-0284c7?style=for-the-badge&logo=android)](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.7.0/Netwide-Mobile-v4.7.0.apk)
+[![Storefront](https://img.shields.io/badge/Storefront-Founder's_Lifetime_%24149-7c3aed?style=for-the-badge)](https://kaleidoscope-conscious.github.io/netwide/)
+[![Android APK](https://img.shields.io/badge/Android-15-APK-0284c7?style=for-the-badge&logo=android)](https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.7.0/Netwide-Mobile-v4.7.0.apk)
 [![PyPI](https://img.shields.io/badge/pypi-netPulse-4.6.0-3775ab?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/netwide/)
-[![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fkaleidoscope-conscious%2Fnetwide-2496ed?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/kaleidoscope-conscious/netpulse/pkgs/container/netwide)
-[![Discussions](https://img.shields.io/badge/discussions-Q%26A%20%2B%20roadmap-6e40c9?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kaleidoscope-conscious/netpulse/discussions)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fkaleidoscope-conscious%2Fnetwide-2496ed?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/kaleidoscope-conscious/netwide/pkgs/container/netwide)
+[![Discussions](https://img.shields.io/badge/discussions-Q%26A%20%2B%20roadmap-6e40c9?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kaleidoscope-conscious/netwide/discussions)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor_♥-GitHub-db61fc?style=for-the-badge&logo=githubsponsors)](https://github.com/sponsors/kaleidoscopeAI)
 [![Donate via PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?style=for-the-badge&logo=paypal)](https://paypal.me/jgraham1000)
 
@@ -31,7 +31,7 @@
 ## ⚡ Quick Start
 
 ```bash
-git clone https://github.com/kaleidoscope-conscious/netpulse.git && cd netwide && ./install.sh
+git clone https://github.com/kaleidoscope-conscious/netwide.git && cd netwide && ./install.sh
 ```
 
 ```bash
@@ -45,8 +45,8 @@ python3 -m netwide serve --host 0.0.0.0 --port 8765
 docker compose up -d
 ```
 
-📱 **Android:** [Netwide-Mobile-v4.7.0.apk](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.7.0/Netwide-Mobile-v4.7.0.apk) ·
-[Google Play .AAB](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.7.0/Netwide-Mobile-PlayStore-v4.7.0.aab)
+📱 **Android:** [Netwide-Mobile-v4.7.0.apk](https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.7.0/Netwide-Mobile-v4.7.0.apk) ·
+[Google Play .AAB](https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.7.0/Netwide-Mobile-PlayStore-v4.7.0.aab)
 
 ---
 
@@ -55,11 +55,11 @@ docker compose up -d
 | Channel | Command / link |
 | :--- | :--- |
 | 🐍 **PyPI** | `pip install netwide` |
-| 🐳 **Docker (GHCR)** | `docker pull ghcr.io/kaleidoscope-conscious/netpulse:latest` |
+| 🐳 **Docker (GHCR)** | `docker pull ghcr.io/kaleidoscope-conscious/netwide:latest` |
 | 🐳 **Docker Compose** | `docker compose up -d` |
-| 🖥️ **Source** | `git clone https://github.com/kaleidoscope-conscious/netpulse.git && cd netwide && ./install.sh` |
-| 📦 **Release bundle** | [tar.gz · APK · AAB · wheel](https://github.com/kaleidoscope-conscious/netpulse/releases/tag/v4.7.0) |
-| 📱 **Android** | [signed APK](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.7.0/Netwide-Mobile-v4.7.0.apk) · [Play .AAB](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.7.0/Netwide-Mobile-PlayStore-v4.7.0.aab) |
+| 🖥️ **Source** | `git clone https://github.com/kaleidoscope-conscious/netwide.git && cd netwide && ./install.sh` |
+| 📦 **Release bundle** | [tar.gz · APK · AAB · wheel](https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.7.0) |
+| 📱 **Android** | [signed APK](https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.7.0/Netwide-Mobile-v4.7.0.apk) · [Play .AAB](https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.7.0/Netwide-Mobile-PlayStore-v4.7.0.aab) |
 | 🧾 **Verified checksums** | `SHA256SUMS.txt` on every release |
 
 > Publishing to Docker Hub, PyPI and Flathub is one secret away — see
@@ -79,7 +79,7 @@ Licenses are **Ed25519-signed** (public key ships with the app, private key neve
 
 **How activation works:** buy on the web (Stripe Payment Link) or inside the app → Stripe confirms payment → Netwide verifies the session against Stripe and mints + activates your signed key automatically. No email round-trip, no waiting.
 
-📖 Full operations runbook: [`runbook/GOLIVE_PAYMENTS.md`](runbook/GOLIVE_PAYMENTS.md) · 🌐 Live storefront: **https://kaleidoscope-conscious.github.io/netpulse/**
+📖 Full operations runbook: [`runbook/GOLIVE_PAYMENTS.md`](runbook/GOLIVE_PAYMENTS.md) · 🌐 Live storefront: **https://kaleidoscope-conscious.github.io/netwide/**
 
 ---
 
@@ -182,9 +182,9 @@ python3 -m netwide authority show        # Ed25519 license authority status
 
 ## 📣 Share Netwide
 
-- 🌐 **Storefront & docs**: https://kaleidoscope-conscious.github.io/netpulse/
-- 💬 **Discussions**: https://github.com/kaleidoscope-conscious/netpulse/discussions
-- 🐛 **Issues & roadmap**: https://github.com/kaleidoscope-conscious/netpulse/issues
+- 🌐 **Storefront & docs**: https://kaleidoscope-conscious.github.io/netwide/
+- 💬 **Discussions**: https://github.com/kaleidoscope-conscious/netwide/discussions
+- 🐛 **Issues & roadmap**: https://github.com/kaleidoscope-conscious/netwide/issues
 - 📋 **Promo kit (copy-paste posts + share links)**: https://gist.github.com/kaleidoscope-conscious/8d5adee1d7fb31ef81522dca0f7506e9
 - 🐦 **[Share on X](https://twitter.com/intent/tweet?text=Netwide%20-%20see%20every%20device%20on%20your%20Wi-Fi%2C%20unmask%20hidden%20gadgets%2C%20quarantine%20freeloaders.%20100%25%20on-device.&url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F)** · **[Reddit](https://www.reddit.com/submit?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F&title=Netwide%3A%20see%20every%20device%20on%20your%20network)** · **[LinkedIn](https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F)** · **[HN](https://news.ycombinator.com/submitlink?u=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F&t=Netwide%3A%20see%20every%20device%20on%20your%20network)** · **[Telegram](https://t.me/share/url?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F&text=Netwide%3A%20see%20every%20device%20on%20your%20network)** · **[WhatsApp](https://wa.me/?text=Netwide%3A%20see%20every%20device%20on%20your%20network%20-%20https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F)**
 
@@ -196,7 +196,7 @@ Development is sovereign-funded by the community:
 
 - **[Become a GitHub Sponsor](https://github.com/sponsors/kaleidoscopeAI)** — monthly or one-time
 - **[Donate via PayPal](https://paypal.me/jgraham1000)** — one-time tip, any amount
-- **[Buy a Pro or Enterprise license](https://kaleidoscope-conscious.github.io/netpulse/)** — the strongest support there is
+- **[Buy a Pro or Enterprise license](https://kaleidoscope-conscious.github.io/netwide/)** — the strongest support there is
 
 ---
 

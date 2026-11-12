@@ -59,7 +59,7 @@ def build() -> pathlib.Path:
     # Footer bar
     draw.rectangle([0, H - 62, W, H], fill=(8, 13, 24))
     draw.line([(0, H - 62), (W, H - 62)], fill=CYAN_DIM, width=2)
-    draw.text((54, H - 44), "kaleidoscope-conscious.github.io/netpulse", fill=CYAN, font=_font(17, bold=True, mono=True))
+    draw.text((54, H - 44), "kaleidoscope-conscious.github.io/netwide", fill=CYAN, font=_font(17, bold=True, mono=True))
     draw.text((640, H - 44), "LINUX · DOCKER · ANDROID · FREE TIER FOREVER", fill=(148, 163, 184),
               font=_font(14, mono=True))
     draw.text((1090, H - 44), "v4.6", fill=PURPLE, font=_font(16, bold=True, mono=True))
