@@ -140,6 +140,30 @@ def test_health_pricing_and_admin_security():
     assert resp_bad_admin.status_code == 403
 
 
+def test_admin_dashboard_page_and_business_metrics():
+    # Operator dashboard page serves and references its data API
+    resp_page = client.get("/admin")
+    assert resp_page.status_code == 200
+    assert "Business Control Room" in resp_page.text
+    assert "/api/admin/business" in resp_page.text
+
+    # Metrics endpoint: loopback TestClient is admin by design; forged token rejected
+    resp_forbidden = client.get("/api/admin/business", headers={"X-Admin-Token": "forged"})
+    assert resp_forbidden.status_code == 403
+
+    resp = client.get("/api/admin/business")
+    assert resp.status_code == 200
+    d = resp.json()
+    assert d["ok"] is True
+    for section in ("licenses", "customers", "revenue", "leads", "stripe", "system"):
+        assert section in d
+    assert "mints_timeline" in d and isinstance(d["mints_timeline"], dict)
+    assert "lifetime_revenue_usd" in d["revenue"]
+    assert "active" in d["licenses"]
+    assert "recent" in d["customers"]
+    assert "version" in d["system"]
+
+
 def test_google_play_bundle_privacy_and_launch_hub():
     resp_aab = client.get("/download/NetPulse-Mobile-PlayStore.aab")
     assert resp_aab.status_code == 200
@@ -424,6 +448,7 @@ def test_every_backend_api_endpoint_is_surfaced_in_ui() -> None:
         os.path.join(root_dir, "static", "mobile.html"),
         os.path.join(root_dir, "static", "pricing.html"),
         os.path.join(root_dir, "static", "launch.html"),
+        os.path.join(root_dir, "static", "admin.html"),
     ]
     combined_ui = "\n".join(open(p, "r", encoding="utf-8").read() for p in ui_files)
 

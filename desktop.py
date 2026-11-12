@@ -260,6 +260,10 @@ def launch_desktop_app() -> None:
     act_launch.triggered.connect(lambda: webview.setUrl(QUrl(f"{DAEMON_URL}/launch")))
     toolbar.addAction(act_launch)
 
+    act_business = QAction("📊 Business", win)
+    act_business.triggered.connect(lambda: webview.setUrl(QUrl(f"{DAEMON_URL}/admin")))
+    toolbar.addAction(act_business)
+
     def _export_csv_to_desktop() -> None:
         status_bar.showMessage("Exporting CSV Inventory to ~/Desktop…")
 

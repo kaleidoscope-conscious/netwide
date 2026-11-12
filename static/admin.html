@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title>NetPulse · Business Control Room</title>
+    <style>
+      :root {
+        --bg: #070a10;
+        --surface: #0e1420;
+        --card: #131b2b;
+        --border: #1f2b3e;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --sky: #38bdf8;
+        --emerald: #10b981;
+        --purple: #a78bfa;
+        --amber: #f59e0b;
+        --red: #ef4444;
+        --mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+        --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        background: var(--bg); color: var(--text); font-family: var(--sans);
+        min-height: 100vh; padding: 28px clamp(16px, 4vw, 48px) 48px;
+      }
+      header {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 16px; flex-wrap: wrap; margin-bottom: 24px;
+      }
+      .brand { display: flex; align-items: center; gap: 14px; }
+      .pulse-dot {
+        width: 12px; height: 12px; border-radius: 50%; background: var(--emerald);
+        box-shadow: 0 0 0 0 rgba(16,185,129,.6); animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(16,185,129,.55); }
+        70% { box-shadow: 0 0 0 10px rgba(16,185,129,0); }
+        100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+      }
+      h1 { font-size: 1.45rem; font-weight: 700; letter-spacing: -.02em; }
+      h1 span { color: var(--sky); }
+      .sub { color: var(--muted); font-size: .82rem; font-family: var(--mono); margin-top: 2px; }
+      .refresh-box {
+        display: flex; align-items: center; gap: 10px; font-family: var(--mono);
+        font-size: .78rem; color: var(--muted);
+        background: var(--surface); border: 1px solid var(--border);
+        padding: 8px 14px; border-radius: 10px;
+      }
+      .refresh-box button {
+        background: var(--sky); border: none; color: #04121d; font-weight: 700;
+        font-family: var(--mono); font-size: .75rem; padding: 5px 12px;
+        border-radius: 7px; cursor: pointer;
+      }
+      .refresh-box button:hover { filter: brightness(1.12); }
+      .grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 14px; margin-bottom: 18px;
+      }
+      .kpi {
+        background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+        padding: 18px 18px 16px; position: relative; overflow: hidden;
+      }
+      .kpi::after {
+        content: ''; position: absolute; inset: 0 0 auto 0; height: 2px;
+        background: linear-gradient(90deg, var(--sky), transparent 70%); opacity: .55;
+      }
+      .kpi .label { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .09em; }
+      .kpi .value { font-size: 1.9rem; font-weight: 750; letter-spacing: -.03em; margin-top: 6px; font-variant-numeric: tabular-nums; }
+      .kpi .hint { color: var(--muted); font-size: .74rem; margin-top: 3px; font-family: var(--mono); }
+      .kpi.sky .value { color: var(--sky); }
+      .kpi.green .value { color: var(--emerald); }
+      .kpi.purple .value { color: var(--purple); }
+      .kpi.amber .value { color: var(--amber); }
+      .row-2 {
+        display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 18px;
+      }
+      @media (max-width: 860px) { .row-2 { grid-template-columns: 1fr; } }
+      .panel {
+        background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+        padding: 18px;
+      }
+      .panel h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin-bottom: 14px; }
+      .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+      .chip {
+        font-family: var(--mono); font-size: .74rem; padding: 6px 11px;
+        border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
+      }
+      .chip.ok { color: var(--emerald); border-color: rgba(16,185,129,.35); }
+      .chip.warn { color: var(--amber); border-color: rgba(245,158,11,.35); }
+      .chip.bad { color: var(--red); border-color: rgba(239,68,68,.35); }
+      .chip.info { color: var(--sky); border-color: rgba(56,189,248,.35); }
+      svg text { font-family: var(--mono); }
+      table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+      th {
+        text-align: left; color: var(--muted); font-size: .7rem; text-transform: uppercase;
+        letter-spacing: .08em; padding: 8px 10px; border-bottom: 1px solid var(--border);
+      }
+      td { padding: 8px 10px; border-bottom: 1px solid rgba(31,43,62,.5); font-variant-numeric: tabular-nums; }
+      tr:hover td { background: rgba(56,189,248,.05); }
+      .tag { font-family: var(--mono); font-size: .7rem; padding: 3px 8px; border-radius: 6px; }
+      .tag.pro { background: rgba(56,189,248,.12); color: var(--sky); }
+      .tag.ent { background: rgba(167,139,250,.14); color: var(--purple); }
+      .tag.lifetime { background: rgba(16,185,129,.12); color: var(--emerald); }
+      .tag.monthly, .tag.annual { background: rgba(245,158,11,.12); color: var(--amber); }
+      .tag.stripe { background: rgba(16,185,129,.1); color: var(--emerald); }
+      .tag.manual { background: rgba(148,163,184,.12); color: var(--muted); }
+      .tag.revoked { background: rgba(239,68,68,.14); color: var(--red); }
+      .tag.active { background: rgba(16,185,129,.12); color: var(--emerald); }
+      .empty { color: var(--muted); font-family: var(--mono); font-size: .8rem; padding: 22px; text-align: center; }
+      #error-banner {
+        display: none; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.4);
+        color: #fca5a5; font-family: var(--mono); font-size: .78rem;
+        padding: 12px 16px; border-radius: 10px; margin-bottom: 18px;
+      }
+      footer { margin-top: 26px; color: var(--muted); font-size: .72rem; font-family: var(--mono); text-align: center; }
+      a { color: var(--sky); text-decoration: none; }
+    </style>
+</head>
+<body>
+    <header>
+      <div class="brand">
+        <div class="pulse-dot" id="live-dot"></div>
+        <div>
+          <h1>NetPulse <span>Business Control Room</span></h1>
+          <div class="sub" id="sub-line">operator dashboard · data from local daemon</div>
+        </div>
+      </div>
+      <div class="refresh-box">
+        <span id="refresh-in">syncing…</span>
+        <button onclick="loadData(true)">Refresh</button>
+      </div>
+    </header>
+
+    <div id="error-banner"></div>
+
+    <div class="grid" id="kpi-grid">
+      <div class="kpi green"><div class="label">Paid Customers</div><div class="value" id="k-paid">—</div><div class="hint">distinct emails, active license</div></div>
+      <div class="kpi sky"><div class="label">Active Licenses</div><div class="value" id="k-active">—</div><div class="hint" id="k-active-hint">—</div></div>
+      <div class="kpi green"><div class="label">Lifetime Revenue</div><div class="value" id="k-lifetime">—</div><div class="hint">one-time purchases (active)</div></div>
+      <div class="kpi purple"><div class="label">MRR Estimate</div><div class="value" id="k-mrr">—</div><div class="hint" id="k-arr-hint">ARR: —</div></div>
+      <div class="kpi amber"><div class="label">Leads / Trials</div><div class="value" id="k-leads">—</div><div class="hint">marketing_leads captured</div></div>
+      <div class="kpi sky"><div class="label">Ledger Events</div><div class="value" id="k-ledger">—</div><div class="hint">hash-chained audit trail</div></div>
+    </div>
+
+    <div class="row-2">
+      <div class="panel">
+        <h2>Mints — last 30 days</h2>
+        <div id="timeline"></div>
+      </div>
+      <div class="panel">
+        <h2>Systems</h2>
+        <div class="chips" id="sys-chips"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:18px">
+      <h2>Recent Licenses</h2>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Issued</th><th>Email</th><th>Tier</th><th>Plan</th><th>Source</th><th>Status</th></tr></thead>
+          <tbody id="cust-rows"><tr><td colspan="6" class="empty">loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer>NetPulse Business Control Room · <a href="/">Workbench</a> · <a href="/pricing">Pricing</a> · auto-syncs every 15s</footer>
+
+    <script>
+      const REFRESH_SEC = 15;
+      let countdown = REFRESH_SEC;
+      let adminToken = sessionStorage.getItem('np_admin_token') || '';
+
+      function money(v) {
+        return '$' + Number(v || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      }
+
+      function chip(text, cls) { return '<span class="chip ' + cls + '">' + text + '</span>'; }
+
+      function renderTimeline(tl) {
+        const days = Object.entries(tl || {});
+        if (!days.length) { document.getElementById('timeline').innerHTML = '<div class="empty">no data</div>'; return; }
+        const max = Math.max(1, ...days.map(d => d[1]));
+        const W = 720, H = 120, bw = W / days.length;
+        let bars = '', labels = '';
+        days.forEach(([day, n], i) => {
+          const h = Math.max(n > 0 ? 4 : 1, (n / max) * (H - 26));
+          const x = i * bw + 2, y = H - 18 - h;
+          bars += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + (bw - 4).toFixed(1)
+            + '" height="' + h.toFixed(1) + '" rx="2" fill="' + (n > 0 ? '#38bdf8' : '#1f2b3e') + '">'
+            + '<title>' + day + ': ' + n + ' mint(s)</title></rect>';
+          if (i % 5 === 0 || i === days.length - 1) {
+            labels += '<text x="' + (x + bw / 2 - 8).toFixed(1) + '" y="' + (H - 4) + '" fill="#94a3b8" font-size="9">' + day.slice(5) + '</text>';
+          }
+        });
+        document.getElementById('timeline').innerHTML =
+          '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto">' + bars + labels + '</svg>';
+      }
+
+      function tierTag(t) { return '<span class="tag ' + (t === 'enterprise' ? 'ent' : 'pro') + '">' + (t || '?') + '</span>'; }
+      function planTag(p) { return '<span class="tag ' + (p === 'lifetime' ? 'lifetime' : p) + '">' + (p || '?') + '</span>'; }
+
+      function renderRows(recent) {
+        const tb = document.getElementById('cust-rows');
+        if (!recent || !recent.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">no licenses yet</td></tr>'; return; }
+        tb.innerHTML = recent.map(r =>
+          '<tr><td>' + r.issued_human + '</td>'
+          + '<td style="font-family:var(--mono)">' + (r.email || '—') + '</td>'
+          + '<td>' + tierTag(r.tier) + '</td>'
+          + '<td>' + planTag(r.plan) + '</td>'
+          + '<td><span class="tag ' + (r.source === 'stripe' ? 'stripe' : 'manual') + '">' + r.source + '</span></td>'
+          + '<td><span class="tag ' + (r.revoked ? 'revoked' : 'active') + '">' + (r.revoked ? 'revoked' : 'active') + '</span></td></tr>'
+        ).join('');
+      }
+
+      function render(d) {
+        const lic = d.licenses || {}, cust = d.customers || {}, rev = d.revenue || {}, leads = d.leads || {},
+              stripe = d.stripe || {}, sys = d.system || {};
+        document.getElementById('k-paid').textContent = cust.paid_emails ?? 0;
+        document.getElementById('k-active').textContent = lic.active ?? 0;
+        document.getElementById('k-active-hint').textContent = (lic.total ?? 0) + ' issued · ' + (lic.revoked ?? 0) + ' revoked';
+        document.getElementById('k-lifetime').textContent = money(rev.lifetime_revenue_usd);
+        document.getElementById('k-mrr').textContent = money(rev.mrr_estimate_usd);
+        document.getElementById('k-arr-hint').textContent = 'ARR: ' + money(rev.arr_estimate_usd);
+        document.getElementById('k-leads').textContent = leads.total ?? 0;
+        document.getElementById('k-ledger').textContent = (d.ledger_events ?? 0).toLocaleString();
+        document.getElementById('sub-line').textContent = 'v' + (sys.version || '?') + ' · tier: ' + (sys.tier || 'free')
+          + ' · ' + (sys.devices_total ?? 0) + ' devices · scan #' + (sys.scan_count ?? 0);
+
+        const chips = [
+          stripe.configured ? chip('STRIPE LIVE', 'ok') : chip('STRIPE NOT CONFIGURED', 'bad'),
+          chip('webhooks processed: ' + (stripe.webhook_events_processed ?? 0), stripe.webhook_events_processed ? 'ok' : 'warn'),
+          sys.sniffer_active ? chip('SNIFFER ACTIVE', 'ok') : chip('SNIFFER OFFLINE', 'warn'),
+          Object.entries(lic.by_tier || {}).map(([t, n]) => chip(t + ': ' + n, t === 'enterprise' ? 'info' : 'ok')).join(''),
+          Object.entries(lic.by_plan || {}).map(([p, n]) => chip(p + ': ' + n, '')).join(''),
+          leads.trials_claimed ? chip('trials claimed: ' + leads.trials_claimed, 'ok') : chip('no trials claimed yet', 'warn'),
+        ];
+        document.getElementById('sys-chips').innerHTML = chips.join(' ');
+
+        renderTimeline(d.mints_timeline);
+        renderRows(cust.recent);
+        document.getElementById('live-dot').style.background = 'var(--emerald)';
+      }
+
+      function showError(msg) {
+        const b = document.getElementById('error-banner');
+        b.style.display = 'block';
+        b.textContent = msg;
+      }
+
+      async function loadData(manual) {
+        try {
+          const headers = {};
+          if (adminToken) headers['X-Admin-Token'] = adminToken;
+          const res = await fetch('/api/admin/business', {headers, cache: 'no-store'});
+          if (res.status === 403) {
+            if (!manual && adminToken === '') { showError('403 — this dashboard needs the Sovereign Admin token when accessed non-locally. Open it on the host machine (localhost), or enter the admin token.'); }
+            else {
+              const t = prompt('Sovereign Admin Master Token:');
+              if (t) { adminToken = t; sessionStorage.setItem('np_admin_token', t); return loadData(manual); }
+            }
+            document.getElementById('live-dot').style.background = 'var(--amber)';
+            return;
+          }
+          if (!res.ok) { showError('API error ' + res.status); document.getElementById('live-dot').style.background = 'var(--red)'; return; }
+          document.getElementById('error-banner').style.display = 'none';
+          const d = await res.json();
+          if (d.ok) render(d);
+        } catch (e) {
+          showError('daemon unreachable: ' + e.message);
+          document.getElementById('live-dot').style.background = 'var(--red)';
+        }
+      }
+
+      setInterval(() => {
+        countdown -= 1;
+        if (countdown <= 0) { countdown = REFRESH_SEC; loadData(false); }
+        document.getElementById('refresh-in').textContent = 'next sync in ' + countdown + 's';
+      }, 1000);
+
+      loadData(false);
+    </script>
+</body>
+</html>

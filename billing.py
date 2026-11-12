@@ -504,6 +504,118 @@ class SubscriptionManager:
                 out.append(d)
             return out
 
+    # Unit prices mirroring TIER_CATALOG (pro 9.99/99/69 · enterprise 29.99/299/149).
+    _PRICE_TABLE = {
+        ("pro", "monthly"): 9.99,
+        ("pro", "annual"): 99.00,
+        ("pro", "lifetime"): 69.00,
+        ("enterprise", "monthly"): 29.99,
+        ("enterprise", "annual"): 299.00,
+        ("enterprise", "lifetime"): 149.00,
+    }
+
+    def business_metrics(self) -> Dict[str, Any]:
+        """Aggregated commercial + usage metrics for the operator dashboard."""
+        with closing(self._connect()) as conn:
+            lic_rows = [dict(r) for r in conn.execute(
+                "SELECT license_key, tier, plan, email, issued_at, expires_at,"
+                " stripe_session_id, revoked FROM minted_licenses ORDER BY issued_at DESC"
+            ).fetchall()]
+            leads = [dict(r) for r in conn.execute(
+                "SELECT email, source, use_case, trial_jti, created_at FROM marketing_leads"
+                " ORDER BY created_at DESC LIMIT 100"
+            ).fetchall()]
+            ledger_events = conn.execute("SELECT COUNT(*) FROM events_ledger").fetchone()[0]
+            webhook_keys = conn.execute(
+                "SELECT COUNT(*) FROM subscription_config WHERE key LIKE 'webhook_processed_%'"
+            ).fetchone()[0]
+
+        active = [r for r in lic_rows if not r.get("revoked")]
+        revoked = [r for r in lic_rows if r.get("revoked")]
+
+        def _price(r: Dict[str, Any]) -> float:
+            return self._PRICE_TABLE.get((r.get("tier"), r.get("plan")), 0.0)
+
+        lifetime_revenue = sum(_price(r) for r in active if r.get("plan") in ("lifetime",))
+        mrr_estimate = sum(
+            _price(r) / (12.0 if r.get("plan") == "annual" else 1.0)
+            for r in active if r.get("plan") in ("monthly", "annual")
+        )
+
+        by_tier: Dict[str, int] = {}
+        by_plan: Dict[str, int] = {}
+        for r in active:
+            by_tier[r.get("tier") or "?"] = by_tier.get(r.get("tier") or "?", 0) + 1
+            by_plan[r.get("plan") or "?"] = by_plan.get(r.get("plan") or "?", 0) + 1
+
+        distinct_emails = {r.get("email") for r in lic_rows if r.get("email")}
+        paid_emails = {r.get("email") for r in active if r.get("email")}
+
+        # Last-30-day mint timeline
+        import collections
+        today = time.localtime()
+        tl = collections.OrderedDict()
+        for i in range(29, -1, -1):
+            day = time.strftime("%Y-%m-%d", time.localtime(time.mktime(today) - i * 86400))
+            tl[day] = 0
+        for r in lic_rows:
+            day = time.strftime("%Y-%m-%d", time.localtime(r.get("issued_at") or 0))
+            if day in tl:
+                tl[day] += 1
+
+        recent = [
+            {
+                "issued_human": time.strftime("%Y-%m-%d %H:%M", time.localtime(r.get("issued_at") or 0)),
+                "email": r.get("email"),
+                "tier": r.get("tier"),
+                "plan": r.get("plan"),
+                "source": "stripe" if r.get("stripe_session_id") else "manual",
+                "revoked": bool(r.get("revoked")),
+            }
+            for r in lic_rows[:25]
+        ]
+
+        return {
+            "licenses": {
+                "total": len(lic_rows),
+                "active": len(active),
+                "revoked": len(revoked),
+                "by_tier": by_tier,
+                "by_plan": by_plan,
+            },
+            "customers": {
+                "distinct_emails": len(distinct_emails),
+                "paid_emails": len(paid_emails),
+                "recent": recent,
+            },
+            "revenue": {
+                "lifetime_revenue_usd": round(lifetime_revenue, 2),
+                "mrr_estimate_usd": round(mrr_estimate, 2),
+                "arr_estimate_usd": round(mrr_estimate * 12.0, 2),
+            },
+            "leads": {
+                "total": len(leads),
+                "trials_claimed": sum(1 for l in leads if l.get("trial_jti")),
+                "recent": [
+                    {
+                        "email": l.get("email"),
+                        "source": l.get("source"),
+                        "use_case": l.get("use_case"),
+                        "human": time.strftime("%Y-%m-%d", time.localtime(l.get("created_at") or 0)),
+                    }
+                    for l in leads[:10]
+                ],
+            },
+            "stripe": {
+                "configured": bool(
+                    os.environ.get("STRIPE_SECRET_KEY") or self._get_config("stripe_secret_key", "")
+                ),
+                "webhook_events_processed": webhook_keys,
+            },
+            "ledger_events": ledger_events,
+            "mints_timeline": tl,
+        }
+
     def get_subscription_status(self) -> Dict[str, Any]:
         active_key = self._get_config("active_license_key", "")
         stripe_sk = os.environ.get("STRIPE_SECRET_KEY") or self._get_config("stripe_secret_key", "")

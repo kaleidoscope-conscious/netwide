@@ -851,6 +851,13 @@ async def serve_launch() -> FileResponse:
     return FileResponse(os.path.join(STATIC_DIR, "launch.html"))
 
 
+@app.get("/admin")
+@app.get("/admin/business")
+async def serve_admin_dashboard() -> FileResponse:
+    """Operator business control-room (data comes from /api/admin/business)."""
+    return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
+
+
 @app.get("/play-store-assets/{filename}")
 async def serve_play_store_asset(filename: str) -> FileResponse:
     safe_name = os.path.basename(filename)
@@ -2514,6 +2521,24 @@ async def admin_list_leads_endpoint(request: Request) -> JSONResponse:
         return adm_err
     leads = await asyncio.to_thread(subscription_engine.list_marketing_leads)
     return JSONResponse({"ok": True, "leads": leads})
+
+
+@app.get("/api/admin/business")
+async def admin_business_metrics_endpoint(request: Request) -> JSONResponse:
+    """Operator control-room: licenses, revenue estimates, leads, usage."""
+    adm_err = _require_admin(request)
+    if adm_err:
+        return adm_err
+    biz = await asyncio.to_thread(subscription_engine.business_metrics)
+    snap = state.to_snapshot()
+    biz["system"] = {
+        "version": snap.get("meta", {}).get("version", ""),
+        "scan_count": snap.get("meta", {}).get("scan_count", 0),
+        "devices_total": snap.get("meta", {}).get("total_devices", len(state.devices)),
+        "sniffer_active": bool(getattr(state.sniffer, "running", False)),
+        "tier": (snap.get("subscription") or {}).get("tier", "free"),
+    }
+    return JSONResponse({"ok": True, **biz})
 
 
 @app.websocket("/ws")
