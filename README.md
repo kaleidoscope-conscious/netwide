@@ -57,6 +57,19 @@ docker compose up -d
 - **Spectral Overlap Channel Optimizer**: Computes adjacent-channel interference scores across 2.4 GHz (Channels 1–11) and 5 GHz (Channels 36–165) to recommend optimal non-overlapping channels.
 - **Mobile Walk-Around RF Geiger Counter & Dual-Node Triangulation (`/api/mobile/telemetry`)**: Fuses live Android handset Wi-Fi RSSI (with 802.11ax/be channel width & Wi-Fi 7/6/5 standard detection), 3-axis hardware Magnetometer (`µT`), and Compass Azimuth (`°`) with the stationary `wlo1` node, plus standalone on-phone 28-port TCP banner auditing and SSDP multicast discovery.
 
+### Why-this-verdict, Identity Graph & Threat Field (new)
+- **Provenance**: every identity + threat links to packets/evidence (`/api/device/{key}/evidence`, `Evidence` / `Why?` in UI). No black-box scores.
+- **Identity Graph**: `graph_nodes / graph_edges` (`/api/graph`, `/api/graph/spore`, Kibana NDJSON) — `same_radio / talks_to / controls / observed_by` with confidence.
+- **Threat Field**: Boltzmann hypotheses continuously collapsed (`/api/hypotheses`, `/api/threat-field`) — `EV = probability × impact`, coherence metric per device.
+- **BLE Continuity Stage 11 + Tether Stage 12 + Passive Stage 13**: Apple `0x004C` decode, hotspot rate-profile, dwell-cycle census table `passive_frames` (`/api/ble/scan`, `/api/passive/census`).
+- **Firmware exposure**: consent-gated, RFC1918-only, SSRF-safe (`/api/action/firmware-audit`) — binwalk sigs, entropy, version, CVE hints.
+- **Adaptive scans**: UCB1 bandit learns which probers matter per network (`/api/scan-strategy`, `netpulse scan-strategy home`).
+- **Copilot**: `POST /api/explain` — plain-English + suggested fix, `confirm_required=True, auto_executed=False`.
+- **Control plane + UNDO**: `POST /api/control/{key}` maps `power/media/lighting/network` to Roku/Sonos/Kasa/gateway; every action journalized with inverse (`/api/actions`, `POST /api/actions/{id}/undo`).
+- **Enforcement**: Guardian Shield quarantine attempts `iptables/nft` L3 DROP (RST fallback) + OpenWrt `ubus` (`/api/gateway/ubus/*`) + DNS sinkhole (`/api/net/dns/sinkhole`, dnsmasq drop-in preview).
+- **Observability**: Prometheus (`/api/metrics`), daily digest + WS (`/api/posture/diff`, `/api/digest`), AR room estimate (`/api/ar/room`), detection-rule compiler (`/api/rules` + SHA-256 manifest).
+- **Simple / Expert UI**: verdict bar answers "Am I safe?" + top fix; per-device `OK / Check / Fix now` badges; accordions instead of 10 stacked panels.
+
 ---
 
 ## 2. Commercial 3-Tier Subscription & Founder's Lifetime Licensing
@@ -81,5 +94,17 @@ python3 -m netpulse sockets               # Audit local workstation listening po
 python3 -m netpulse cidr 192.168.12.0/24  # IPv4 / IPv6 Subnet & CIDR Calculator
 python3 -m netpulse oui Sonos             # Search 47,035+ IEEE OUI prefixes or unmask IPv6 EUI-64
 python3 -m netpulse speedtest             # Multi-stream WAN download/upload & Bufferbloat benchmark
+python3 -m netpulse graph                 # Unified Device Identity Graph
+python3 -m netpulse ble                   # BLE Continuity census (Stage 11)
+python3 -m netpulse passive               # Passive census dwell schedule + frames
+python3 -m netpulse metrics               # Prometheus exposition
+python3 -m netpulse threat                # Threat Field (collapse)
+python3 -m netpulse digest                # Daily posture digest
+python3 -m netpulse explain <key>         # Copilot: why this verdict?
+python3 -m netpulse control <key> power status # Universal control
+python3 -m netpulse scan-strategy home    # Adaptive bandit state
+python3 -m netpulse sinkhole bad.example  # DNS sinkhole add
+python3 -m netpulse rules                 # Detection rules list/compile
+python3 -m netpulse ar <bssid>            # AR room estimate
 python3 -m netpulse license status        # View or mint cryptographic NP1-* licenses
 ```

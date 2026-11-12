@@ -11,11 +11,13 @@ Synthesizes 12 layers of hardware, link-layer, transport, and application teleme
 from __future__ import annotations
 
 import concurrent.futures
+import logging
 import socket
 import time
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
+logger = logging.getLogger(__name__)
 from netpulse.oui import MACIntelligence, oui_db, unmask_eui64_ipv6_mac
 from netpulse.probers import (
     NetworkInterfaceInfo,
@@ -282,7 +284,8 @@ def synthesize_device_profile(
                     f"{proto_v.get('model') or proto_v.get('room_name') or proto_v.get('version') or 'Active'}"
                 )
 
-    # OS family inference from TTL first
+    # OS family inference from TTL: normalize to 64/128/255 initial TTL
+    # (observed TTL decrements per hop; 63→64, 127→128, 254→255).
     if ttl is not None:
         if ttl <= 64:
             profile.os_family = "Linux / Embedded / UNIX (TTL=64)"
@@ -613,7 +616,7 @@ def synthesize_device_profile(
         plx = ext_iot["plex"]
         profile.brand = profile.vendor if "Unknown" not in profile.vendor else "Plex Media Server"
         profile.model = f"Plex Media Server v{plx.get('version', '')}"
-        profile.serial_number = plx.get("machine_identifier", "")[:24]
+        profile.serial_number = (plx.get("machine_identifier") or plx.get("machine_id") or "")[:24]
         profile.firmware_version = plx.get("version", "")
         profile.display_name = f"Plex Media Server ({ip} • v{plx.get('version', '')})"
         profile.category = "Media Streaming Server"
@@ -1086,7 +1089,9 @@ def synthesize_device_profile(
     if ext_iot.get("sonos"):
         sn = ext_iot["sonos"]
         specs["Sonos Room & ZonePlayer"] = f"{sn.get('roomName') or sn.get('room_name', '')} • {sn.get('modelName') or sn.get('model', '')} ({sn.get('modelNumber') or sn.get('model_number', '')})"
-        specs["Sonos Software & Serial"] = f"SW {sn.get('software_version', '')} • SN {sn.get('serial_num', '')}"
+        sn_sw = sn.get("softwareVersion") or sn.get("software_version", "")
+        sn_ser = sn.get("serialNum") or sn.get("serial_num", "")
+        specs["Sonos Software & Serial"] = f"SW {sn_sw} • SN {sn_ser}"
         controls.insert(0, "Sonos UPnP AVTransport & Volume Controller (:1400)")
 
     if ext_iot.get("philips_hue"):
@@ -1188,10 +1193,11 @@ def run_full_network_scan(
             fut_to_ip[fut] = ip
 
         for fut in concurrent.futures.as_completed(fut_to_ip):
+            ip_failed = fut_to_ip[fut]
             try:
                 profiles.append(fut.result())
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("synthesize_device_profile failed for %s: %s", ip_failed, exc)
 
     # Sort by IP address numerically (with Gateway first)
     def _sort_key(p: DeviceProfile) -> Any:
@@ -1230,6 +1236,10 @@ def audit_network_threats(
                 "category": "ARP_SPOOFING_MITM",
                 "title": f"Duplicate Hardware MAC Detected ({mac})",
                 "details": f"Multiple IPv4 addresses ({', '.join(ips)}) resolve to the same Layer-2 MAC {mac}. Potential ARP cache poisoning / MITM.",
+                "device_key": mac,
+                "ip": ips[0],
+                "mac": mac,
+                "bssid": mac,
             })
 
     # 2. Check 802.11 Spectrum for Evil Twins & Close-Proximity Unencrypted Transmitters
@@ -1244,6 +1254,10 @@ def audit_network_threats(
                     "category": "EVIL_TWIN_AP",
                     "title": f"Unencrypted Evil Twin Broadcasting '{connected_ssid}' ({a.get('bssid')})",
                     "details": f"BSSID {a.get('bssid')} on Ch {a.get('channel')} is advertising '{connected_ssid}' with OPEN encryption.",
+                    "device_key": str(a.get("bssid") or ""),
+                    "ip": "RF",
+                    "bssid": str(a.get("bssid") or ""),
+                    "mac": str(a.get("bssid") or ""),
                 })
 
     for a in aps:
@@ -1260,6 +1274,10 @@ def audit_network_threats(
                     f"({a.get('signal_dbm')} dBm, ~{a.get('est_distance_m')}m on Ch {a.get('channel')}). "
                     "Common signature of Wi-Fi pinhole cameras, IoT provisioning hotspots, or rogue APs."
                 ),
+                "device_key": str(a.get("bssid") or ""),
+                "ip": "RF",
+                "bssid": str(a.get("bssid") or ""),
+                "mac": str(a.get("bssid") or ""),
             })
 
     # 3. Include high-risk LAN endpoint findings
@@ -1272,6 +1290,9 @@ def audit_network_threats(
                     "category": "GATEWAY_ARP_SPOOF",
                     "title": f"Gateway MAC Address Changed ({gw_verify.get('locked_gateway_mac')} -> {gw_verify.get('observed_mac')})",
                     "details": gw_verify.get("alert", ""),
+                    "device_key": d.get("device_key") or d.get("mac") or "",
+                    "ip": d.get("ip", ""),
+                    "mac": d.get("mac", ""),
                 })
         for f in d.get("security_findings", []):
             if f.get("severity") in ("CRITICAL", "HIGH"):
@@ -1280,6 +1301,9 @@ def audit_network_threats(
                     "category": "LAN_VULNERABILITY",
                     "title": f"{d.get('ip')} ({d.get('display_name')}): {f.get('title')}",
                     "details": f.get("description", ""),
+                    "device_key": d.get("device_key") or d.get("mac") or "",
+                    "ip": d.get("ip", ""),
+                    "mac": d.get("mac", ""),
                 })
 
     return threats

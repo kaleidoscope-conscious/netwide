@@ -86,6 +86,7 @@ def test_stripe_webhook_hmac_verification():
             "data": {
                 "object": {
                     "id": "cs_test_999",
+                    "payment_status": "paid",
                     "customer": "cus_test_888",
                     "customer_email": "stripe_buyer@netpulse.io",
                     "metadata": {
@@ -123,3 +124,26 @@ def test_stripe_webhook_hmac_verification():
         assert res_unsigned["ok"] is False
         assert "signature" in res_unsigned["error"].lower()
         assert mgr.get_subscription_status()["tier"] == "enterprise"
+
+        # Webhook rejection on unpaid or missing payment_status
+        unpaid_payload = {
+            "id": "evt_unpaid_1",
+            "type": "checkout.session.completed",
+            "data": {
+                "object": {
+                    "id": "cs_test_unpaid",
+                    "payment_status": "unpaid",
+                    "customer": "cus_test_unpaid",
+                    "metadata": {"netpulse_tier": "enterprise"},
+                }
+            },
+        }
+        raw_unpaid = json.dumps(unpaid_payload).encode("utf-8")
+        sig_unpaid = hmac.new(
+            wh_secret.encode("utf-8"),
+            f"{t_str}.".encode("utf-8") + raw_unpaid,
+            hashlib.sha256,
+        ).hexdigest()
+        res_unpaid = mgr.handle_stripe_webhook(raw_unpaid, f"t={t_str},v1={sig_unpaid}")
+        assert res_unpaid["ok"] is False
+        assert "payment_status must be 'paid'" in res_unpaid["error"]

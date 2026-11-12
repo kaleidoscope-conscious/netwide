@@ -13,9 +13,14 @@ Commands:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 from typing import List
+
+_parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _parent not in sys.path:
+    sys.path.insert(0, _parent)
 
 import uvicorn
 from rich import box
@@ -335,6 +340,286 @@ def cmd_cidr(cidr_str: str) -> None:
     )
 
 
+def cmd_graph() -> None:
+    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    import urllib.request, json
+    ensure_daemon_running()
+    with urllib.request.urlopen(f"{DAEMON_URL}/api/graph", timeout=15) as resp:
+        res = json.loads(resp.read().decode())
+    console.print(Panel(
+        f"[bold cyan]Nodes:[/bold cyan] {res.get('count_nodes')} • [bold yellow]Edges:[/bold yellow] {res.get('count_edges')}",
+        title="NETPULSE // Unified Device Identity Graph", border_style="cyan"))
+    tbl = Table(title="Identity Graph Nodes", show_lines=True)
+    tbl.add_column("Node ID", style="bold white"); tbl.add_column("Kind", style="cyan"); tbl.add_column("Label", style="green")
+    for n in res.get("nodes", [])[:40]:
+        tbl.add_row(str(n.get("node_id")), str(n.get("kind")), str(n.get("label") or ""))
+    console.print(tbl)
+
+
+def cmd_ble() -> None:
+    from netpulse.ble_census import scan_ble_census
+    res = scan_ble_census()
+    console.print(Panel(
+        f"[bold cyan]BLE Devices:[/bold cyan] {res.get('count')} • Backend: {res.get('backend')} • Stage 11",
+        title="NETPULSE // BLE Continuity Census", border_style="cyan"))
+    tbl = Table(title="BLE Advertisers", show_lines=True)
+    tbl.add_column("Addr", style="bold white"); tbl.add_column("Name/Vendor", style="green")
+    for d in res.get("devices", [])[:40]:
+        tbl.add_row(str(d.get("addr")), str(d.get("name") or d.get("vendor") or ""))
+    console.print(tbl)
+
+
+def cmd_metrics() -> None:
+    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    import urllib.request
+    ensure_daemon_running()
+    with urllib.request.urlopen(f"{DAEMON_URL}/api/metrics", timeout=15) as resp:
+        console.print(resp.read().decode(), style="")
+    console.print("[dim]Scrape this with Prometheus.[/dim]")
+
+
+def cmd_threat() -> None:
+    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    import urllib.request, json
+    ensure_daemon_running()
+    with urllib.request.urlopen(f"{DAEMON_URL}/api/threat-field", timeout=15) as resp:
+        res = json.loads(resp.read().decode())
+    console.print(Panel(
+        f"[bold cyan]Coherence:[/bold cyan] {res.get('coherence')} • Devices in field: {res.get('devices_in_field')}",
+        title="NETPULSE // Threat Field (Collapse)", border_style="cyan"))
+    tbl = Table(title="Per-Device Field Strength", show_lines=True)
+    tbl.add_column("Device", style="bold white"); tbl.add_column("Field Strength", style="yellow")
+    for f in res.get("field", [])[:25]:
+        tbl.add_row(str(f.get("device_key")), str(f.get("field_strength")))
+    console.print(tbl)
+
+
+def cmd_explain(device_key: str) -> None:
+    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    import urllib.request, json
+    ensure_daemon_running()
+    payload = json.dumps({"device_key": device_key, "question": "why am I seeing this?"}).encode()
+    req = urllib.request.Request(f"{DAEMON_URL}/api/explain", data=payload, headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        res = json.loads(resp.read().decode())
+    console.print(Panel(res.get("explanation", ""), title="NETPULSE // Copilot Explanation (Confirm-gated)", border_style="cyan"))
+    for s in res.get("suggested_commands", []):
+        console.print(f" • {s}")
+    console.print("[dim]Nothing executed — pass confirm via control plane to act.[/dim]")
+
+
+def cmd_posture() -> None:
+    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    import urllib.request, json
+    ensure_daemon_running()
+    with urllib.request.urlopen(f"{DAEMON_URL}/api/posture/diff", timeout=15) as resp:
+        res = json.loads(resp.read().decode())
+    console.print(res.get("diff") or res)
+
+
+def cmd_passive(mode: str = "") -> None:
+    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    import urllib.request, json
+    ensure_daemon_running()
+    if mode == "run":
+        req = urllib.request.Request(f"{DAEMON_URL}/api/passive/census/run", data=b"{}", headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            res = json.loads(resp.read().decode())
+        console.print(res)
+        return
+    with urllib.request.urlopen(f"{DAEMON_URL}/api/passive/census", timeout=15) as resp:
+        res = json.loads(resp.read().decode())
+    console.print(Panel(
+        f"[bold cyan]Channels:[/bold cyan] {res.get('budget', {}).get('channels')} • Total dwell: {res.get('budget', {}).get('total_dwell_s')}s • Frames: {res.get('frames_total')}",
+        title="NETPULSE // Passive Census (Stage 13)", border_style="cyan"))
+
+
+def cmd_digest() -> None:
+    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    import urllib.request, json
+    ensure_daemon_running()
+    with urllib.request.urlopen(f"{DAEMON_URL}/api/digest", timeout=15) as resp:
+        res = json.loads(resp.read().decode())
+    console.print(Panel(res.get("text", ""), title="NETPULSE // Daily Digest", border_style="cyan"))
+
+
+def cmd_ar(bssid: str) -> None:
+    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    import urllib.request, json, urllib.parse
+    ensure_daemon_running()
+    url = f"{DAEMON_URL}/api/ar/room?bssid={urllib.parse.quote(bssid)}"
+    with urllib.request.urlopen(url, timeout=15) as resp:
+        res = json.loads(resp.read().decode())
+    console.print(res)
+
+
+def cmd_scan_strategy(env: str = "home") -> None:
+    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    import urllib.request, json, urllib.parse
+    ensure_daemon_running()
+    with urllib.request.urlopen(f"{DAEMON_URL}/api/scan-strategy?env={urllib.parse.quote(env)}", timeout=15) as resp:
+        res = json.loads(resp.read().decode())
+    console.print(res)
+
+
+def cmd_sinkhole(domain: str = "") -> None:
+    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    import urllib.request, json
+    ensure_daemon_running()
+    if domain:
+        payload = json.dumps({"domain": domain, "action": "sinkhole"}).encode()
+        req = urllib.request.Request(f"{DAEMON_URL}/api/net/dns/sinkhole", data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            res = json.loads(resp.read().decode())
+        console.print(res)
+    else:
+        with urllib.request.urlopen(f"{DAEMON_URL}/api/net/dns/sinkhole", timeout=15) as resp:
+            res = json.loads(resp.read().decode())
+        console.print(res)
+
+
+def cmd_rules(json_arg: str = "") -> None:
+    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    import urllib.request, json
+    ensure_daemon_running()
+    if json_arg:
+        payload = json.loads(json_arg)
+        body = json.dumps(payload).encode()
+        req = urllib.request.Request(f"{DAEMON_URL}/api/rules", data=body, headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            res = json.loads(resp.read().decode())
+        console.print(res)
+    else:
+        with urllib.request.urlopen(f"{DAEMON_URL}/api/rules", timeout=15) as resp:
+            res = json.loads(resp.read().decode())
+        console.print(res)
+
+
+def cmd_control(device_key: str, capability: str, action: str) -> None:
+    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    import urllib.request, json
+    ensure_daemon_running()
+    payload = json.dumps({"capability": capability, "action": action}).encode()
+    req = urllib.request.Request(
+        f"{DAEMON_URL}/api/control/{device_key}", data=payload,
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        res = json.loads(resp.read().decode())
+    console.print(res)
+
+
+def cmd_accuracy() -> None:
+    from netpulse.accuracy import evaluate_accuracy
+    res = evaluate_accuracy()
+    gate_status = "PASSED" if res["brier_gate_passed"] else "FAILED"
+    gate_color = "green" if res["brier_gate_passed"] else "red"
+    console.print(Panel(
+        f"[bold cyan]S12 Accuracy Harness & Confusion-Cost Report[/bold cyan]\n"
+        f"Overall Accuracy:  [bold green]{res['overall_accuracy']*100:.1f}%[/bold green]\n"
+        f"Brier Score:       [{gate_color}]{res['brier_score']:.4f}[/{gate_color}] (Gate < 0.15: {gate_status})\n"
+        f"Confusion Cost:    [yellow]{res['total_confusion_cost']}[/yellow] (FP_verified=10x, FP_weak=1x, FN=3x)\n"
+        f"Vectors Catalog:   [white]16 Independent Vectors (vs Fing's 2)[/white]\n"
+        f"Pipeline Stages:   [white]16 De-Cloaking & Intelligence Stages[/white]",
+        border_style="cyan",
+        title="Accuracy Harness",
+    ))
+    t = Table(title="16-Stage Pipeline Performance", box=box.ROUNDED)
+    t.add_column("Stage", style="cyan")
+    t.add_column("Name", style="white")
+    t.add_column("Precision", style="green")
+    t.add_column("Recall", style="green")
+    t.add_column("F1", style="yellow")
+    t.add_column("Cost Penalty", style="dim")
+    for s_id, s in res["stage_metrics"].items():
+        t.add_row(f"Stage {s_id}", s["name"], f"{s['precision']*100:.1f}%", f"{s['recall']*100:.1f}%", f"{s['f1_score']:.3f}", str(s["confusion_cost"]))
+    console.print(t)
+
+
+def cmd_evidence_export(device_key: str, out_path: str = "") -> None:
+    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    import urllib.request, json
+    ensure_daemon_running()
+    req = urllib.request.Request(
+        f"{DAEMON_URL}/api/evidence/bundle",
+        data=json.dumps({"device_key": device_key, "window_hours": 24.0}).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        res = json.loads(resp.read().decode())
+        if not res.get("ok"):
+            console.print(f"[red]Export failed: {res.get('error')}[/red]")
+            raise SystemExit(1)
+        bundle = res["bundle"]
+        target_path = out_path or f"netpulse_evidence_{device_key.replace(':', '')}.jsonld"
+        with open(target_path, "w", encoding="utf-8") as f:
+            json.dump(bundle, f, indent=2)
+        console.print(Panel(
+            f"[bold green]Exported CASE/UCO 1.3 Admissible Evidence Bundle[/bold green]\n"
+            f"Device:       [bold cyan]{device_key}[/bold cyan]\n"
+            f"Bundle ID:    [white]{bundle.get('@id')}[/white]\n"
+            f"Signature:    [dim]{bundle.get('netpulse:signature', {}).get('signature_hex', '')[:32]}...[/dim]\n"
+            f"Saved to:     [bold yellow]{target_path}[/bold yellow]",
+            border_style="green",
+            title="CASE / UCO Forensic Export",
+        ))
+
+
+def cmd_evidence_verify(file_path: str) -> None:
+    from netpulse.evidence_bundle import verify_evidence_bundle
+    from netpulse.billing import subscription_engine
+    import json
+    with open(file_path, "r", encoding="utf-8") as f:
+        bundle = json.load(f)
+    secret = subscription_engine.get_signing_secret()
+    res = verify_evidence_bundle(bundle, signing_secret=secret)
+    if res.get("valid"):
+        console.print(Panel(
+            f"[bold green]CASE/UCO Evidence Bundle Cryptographically VALID[/bold green]\n"
+            f"Bundle ID:     [cyan]{res.get('bundle_id')}[/cyan]\n"
+            f"Created Time:  [white]{res.get('created_time')}[/white]\n"
+            f"Verdict Grade: [bold yellow]{res.get('verdict_grade')}[/bold yellow] (p={res.get('calibrated_probability')})\n"
+            f"Vectors Count: [green]{res.get('evidence_vector_count')} verified vectors[/green]\n"
+            f"Signature:     [bold green]VERIFIED[/bold green] (tamper-evident SHA-256 match)",
+            border_style="green",
+            title="Evidence Verifier",
+        ))
+    else:
+        console.print(f"[bold red]Evidence Bundle Verification FAILED:[/bold red] {res.get('error')}")
+        raise SystemExit(1)
+
+
+def cmd_chronicle(wrapped: bool = False) -> None:
+    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    import urllib.request, json
+    ensure_daemon_running()
+    endpoint = f"{DAEMON_URL}/api/chronicle/wrapped" if wrapped else f"{DAEMON_URL}/api/chronicle"
+    req = urllib.request.Request(endpoint)
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        res = json.loads(resp.read().decode())
+        if wrapped:
+            console.print(Panel(
+                f"[bold magenta]NetPulse Wrapped — Year-End Local Intelligence[/bold magenta]\n"
+                f"Year:               [bold cyan]{res.get('year')}[/bold cyan]\n"
+                f"Devices Tracked:    [bold yellow]{res.get('total_devices_tracked')}[/bold yellow]\n"
+                f"Top Ecosystem:      [bold green]{res.get('top_hardware_ecosystem')}[/bold green]\n"
+                f"Vendors Count:      [white]{res.get('vendor_diversity_count')} distinct hardware vendors[/white]\n"
+                f"Scans Completed:    [white]{res.get('total_scans_completed')}[/white]\n"
+                f"Privacy Guarantee:  [dim]{res.get('sovereign_privacy_guarantee')}[/dim]",
+                border_style="magenta",
+                title="The Network Remembers",
+            ))
+        else:
+            console.print(Panel(
+                f"[bold cyan]Weekly Network Chronicle & Longitudinal Rhythm[/bold cyan]\n\n"
+                f"{res.get('narrative')}\n\n"
+                f"Recorded Events: [white]{res.get('total_events')}[/white] | Actions: [green]{res.get('action_count')}[/green]",
+                border_style="cyan",
+                title="Longitudinal Chronicle",
+            ))
+
+
 def main(argv: List[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="netpulse",
@@ -371,11 +656,42 @@ def main(argv: List[str] | None = None) -> None:
     p_roku.add_argument("key", help="Key name (Home, PowerOff, PowerOn, VolumeUp, VolumeDown, VolumeMute, FindRemote, etc.)")
 
     p_serve = sub.add_parser("serve", help="Launch the Sovereign Real-Time Web Command Center")
-    p_serve.add_argument("--host", default="0.0.0.0", help="Bind host (default 0.0.0.0)")
+    p_serve.add_argument("--host", default=os.environ.get("NETPULSE_HOST", "127.0.0.1"), help="Bind host (default 127.0.0.1; set NETPULSE_HOST=0.0.0.0 for LAN/Docker)")
     p_serve.add_argument("--port", type=int, default=8765, help="Bind port (default 8765)")
 
     sub.add_parser("desktop", help="Launch the Native PyQt6 Desktop App + System Tray Guardian")
     sub.add_parser("export", help="Export Forensic Network & RF Intelligence Report to ~/Desktop")
+    sub.add_parser("graph", help="Show Unified Device Identity Graph (nodes/edges)")
+    sub.add_parser("ble", help="BLE Continuity census (Stage 11, Apple 0x004C decode)")
+    sub.add_parser("metrics", help="Print Prometheus exposition from the daemon")
+    sub.add_parser("threat", help="Show Threat Field (collapse) over hypotheses")
+    sub.add_parser("posture", help="Posture diff digest (what changed)")
+    sub.add_parser("digest", help="Daily posture digest (diff + top hypotheses)")
+    p_pass = sub.add_parser("passive", help="Passive census (schedule + frames; 'run' for survey)")
+    p_pass.add_argument("mode", nargs="?", default="", choices=["", "run"], help="run = trigger quick survey")
+    p_ss = sub.add_parser("scan-strategy", help="Adaptive scan strategy (bandit)")
+    p_ss.add_argument("env", nargs="?", default="home", help="Env fingerprint")
+    p_sink = sub.add_parser("sinkhole", help="DNS sinkhole rules (list or add <domain>)")
+    p_sink.add_argument("domain", nargs="?", default="", help="Domain to sinkhole (empty lists)")
+    p_rules = sub.add_parser("rules", help="Detection rules (list or add <json>)")
+    p_rules.add_argument("json_arg", nargs="?", default="", help="Rule JSON to compile")
+    p_ar = sub.add_parser("ar", help="AR room estimate for a BSSID")
+    p_ar.add_argument("bssid", help="BSSID to locate")
+    p_exp = sub.add_parser("explain", help="Copilot explanation for a device (confirm-gated)")
+    p_exp.add_argument("device_key", help="Device key / MAC / IP")
+    p_ctrl = sub.add_parser("control", help="Universal control: netpulse control <device_key> <capability> <action>")
+    p_ctrl.add_argument("device_key", help="Device key / MAC / IP")
+    p_ctrl.add_argument("capability", help="power | media | lighting | network")
+    p_ctrl.add_argument("action", help="status | on | off | play | pause | volume | reboot")
+
+    sub.add_parser("accuracy", help="S12 Accuracy Harness & Confusion-Cost Report")
+    p_ev_exp = sub.add_parser("evidence-export", help="Bet 1 CASE/UCO 1.3 Admissible Evidence Bundle exporter")
+    p_ev_exp.add_argument("device_key", help="Device key / MAC / IP to export")
+    p_ev_exp.add_argument("--out", default="", help="Output JSON-LD file path")
+    p_ev_ver = sub.add_parser("evidence-verify", help="Bet 1 Standalone FOSS verifier for CASE/UCO evidence bundles")
+    p_ev_ver.add_argument("file", help="Path to evidence bundle JSON-LD")
+    p_chr = sub.add_parser("chronicle", help="Bet 4 Longitudinal Network Chronicle & Wrapped summary")
+    p_chr.add_argument("--wrapped", action="store_true", help="Print NetPulse Wrapped summary")
 
     p_lic = sub.add_parser("license", help="Sovereign Cryptographic License & Subscription Manager")
     p_lic.add_argument(
@@ -385,14 +701,27 @@ def main(argv: List[str] | None = None) -> None:
         nargs="?",
         help="License action",
     )
-    p_lic.add_argument("--tier", default="enterprise", choices=["pro", "enterprise"], help="Subscription tier to mint")
+    p_lic.add_argument("--tier", default="enterprise", choices=["free", "pro", "enterprise"], help="Subscription tier to mint")
     p_lic.add_argument("--plan", default="lifetime", choices=["monthly", "annual", "lifetime", "trial"], help="Billing cycle")
     p_lic.add_argument("--email", default="founder@netpulse.local", help="Subscriber email or organization")
     p_lic.add_argument("--key", default="", help="License key to activate or JTI to revoke")
     p_lic.add_argument("--no-activate", action="store_true", help="Mint key without auto-activating on local node")
 
     args = parser.parse_args(argv)
-    cmd = args.command or "desktop"
+    cmd = args.command
+    if not cmd:
+        parser.print_help()
+        raise SystemExit(2)
+    try:
+        _dispatch_cli(parser, cmd, args)
+    except SystemExit:
+        raise
+    except Exception as exc:
+        console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise SystemExit(1)
+
+
+def _dispatch_cli(parser, cmd: str, args) -> None:
 
     if cmd == "scan":
         cmd_scan()
@@ -425,6 +754,40 @@ def main(argv: List[str] | None = None) -> None:
     elif cmd == "desktop":
         from netpulse.desktop import launch_desktop_app
         launch_desktop_app()
+    elif cmd == "graph":
+        cmd_graph()
+    elif cmd == "ble":
+        cmd_ble()
+    elif cmd == "metrics":
+        cmd_metrics()
+    elif cmd == "threat":
+        cmd_threat()
+    elif cmd == "posture":
+        cmd_posture()
+    elif cmd == "digest":
+        cmd_digest()
+    elif cmd == "passive":
+        cmd_passive(getattr(args, "mode", "") or "")
+    elif cmd == "scan-strategy":
+        cmd_scan_strategy(getattr(args, "env", "home") or "home")
+    elif cmd == "sinkhole":
+        cmd_sinkhole(getattr(args, "domain", "") or "")
+    elif cmd == "rules":
+        cmd_rules(getattr(args, "json_arg", "") or "")
+    elif cmd == "ar":
+        cmd_ar(args.bssid)
+    elif cmd == "explain":
+        cmd_explain(args.device_key)
+    elif cmd == "control":
+        cmd_control(args.device_key, args.capability, args.action)
+    elif cmd == "accuracy":
+        cmd_accuracy()
+    elif cmd == "evidence-export":
+        cmd_evidence_export(args.device_key, getattr(args, "out", "") or "")
+    elif cmd == "evidence-verify":
+        cmd_evidence_verify(args.file)
+    elif cmd == "chronicle":
+        cmd_chronicle(getattr(args, "wrapped", False))
     elif cmd == "export":
         from netpulse.desktop import ensure_daemon_running, DAEMON_URL
         import urllib.request, json
@@ -432,6 +795,9 @@ def main(argv: List[str] | None = None) -> None:
         req = urllib.request.Request(f"{DAEMON_URL}/api/export/report", data=b"{}", headers={"Content-Type": "application/json"}, method="POST")
         with urllib.request.urlopen(req, timeout=20) as resp:
             res = json.loads(resp.read().decode())
+            if not res.get("ok"):
+                console.print(f"[red]Export failed: {res.get('error', res)}[/red]")
+                raise SystemExit(1)
             console.print(f"[bold green]{res.get('summary')}[/bold green]")
     elif cmd == "serve":
         host = getattr(args, "host", "0.0.0.0")

@@ -13,7 +13,7 @@ echo "======================================================================"
 #    (install.sh previously started the service WITHOUT installing Python deps —
 #    guaranteed crash on any clean machine).
 VENV_DIR="$APP_DIR/.venv"
-RUNTIME_DEPS=( "fastapi>=0.110.0" "uvicorn[standard]>=0.29.0" "pydantic>=2.6.0" "rich>=13.7.0" "qrcode>=7.4.2" )
+RUNTIME_DEPS=( "fastapi>=0.110.0" "uvicorn[standard]>=0.29.0" "pydantic>=2.6.0" "rich>=13.7.0" "qrcode>=7.4.2" "PyQt6>=6.6.0" "PyQt6-WebEngine>=6.6.0" )
 if "$PYTHON_BIN" -m venv "$VENV_DIR" 2>/dev/null; then
     echo "[*] Installing runtime dependencies into $VENV_DIR ..."
     "$VENV_DIR/bin/pip" install --quiet --upgrade pip

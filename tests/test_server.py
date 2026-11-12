@@ -28,6 +28,30 @@ def test_api_mobile_qr():
     assert "mobile_qr_svg" in data
     assert "apk_qr_svg" in data
     assert "<svg" in data["mobile_qr_svg"]
+    assert "<svg" in data["apk_qr_svg"]
+
+
+def test_vendored_leaflet_assets_served_same_origin():
+    """The WAN map library must be vendored same-origin (CSP has no CDN origins)."""
+    resp = client.get("/vendor/leaflet.js")
+    assert resp.status_code == 200
+    assert "Leaflet" in resp.text
+    assert resp.headers["content-type"].split(";")[0].strip() in ("application/javascript", "text/javascript")
+    css = client.get("/vendor/leaflet.css")
+    assert css.status_code == 200
+    assert "leaflet-pane" in css.text
+
+
+def test_index_html_references_vendored_assets_only():
+    """index.html must not load scripts/styles from third-party CDNs."""
+    import os
+
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(root_dir, "static", "index.html"), encoding="utf-8") as fh:
+        html = fh.read()
+    assert "/vendor/leaflet.js" in html
+    assert "/vendor/leaflet.css" in html
+    assert "unpkg.com" not in html
 
 
 def test_api_action_wol_validation():
@@ -310,6 +334,12 @@ def test_all_registered_endpoints_and_websocket_functional():
         ("POST", "/api/subscription/webhook", {}, [200, 400]),
         ("GET", "/api/subscription/admin/keys", None, [200]),
         ("POST", "/api/subscription/activate", {"license_key": minted_key}, [200]),
+        ("GET", "/api/accuracy", None, [200]),
+        ("GET", "/api/chronicle", None, [200]),
+        ("GET", "/api/chronicle/wrapped", None, [200]),
+        ("POST", "/api/evidence/bundle", {"device_key": "127.0.0.1"}, [200]),
+        ("POST", "/api/evidence/verify", {"bundle": {"@graph": []}}, [200, 400]),
+        ("GET", "/api/device/127.0.0.1/proof", None, [200, 404]),
     ]
 
     for method, path, body, expected_codes in endpoint_matrix:

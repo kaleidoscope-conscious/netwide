@@ -440,6 +440,7 @@
         <span id="connText">Connecting Node...</span>
         <span id="nativeBadge" class="pill pill-emerald" style="display:none;padding:1px 5px;font-size:9px;">ANDROID HW</span>
       </div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Tap <strong>Scan</strong> → check <strong>Hidden Wi-Fi</strong> &amp; <strong>Map &amp; alert</strong> for what to fix.</div>
     </div>
   </div>
   <div class="top-actions">
@@ -453,6 +454,10 @@
 
   <!-- ==================== TAB 1: UNIVERSAL HIDDEN DE-CLOAKER ==================== -->
   <section id="view-decloaker" class="tab-view active">
+    <div class="m-card highlight-sky" style="padding:10px 12px;margin-bottom:8px;" id="mobileVerdictCard">
+      <div style="font-weight:700;"><span id="mobileVerdictScore">—</span> <span id="mobileVerdictText" style="font-weight:500;color:var(--text-dim);">Press Scan to check if your network is OK.</span></div>
+      <button class="btn btn-primary" style="margin-top:6px;" onclick="triggerFullMobileScan()">⚡ Scan now</button>
+    </div>
     <div class="kpi-grid">
       <div class="kpi-box">
         <div class="kpi-label">Hidden Unmasked</div>
@@ -725,6 +730,11 @@
         <button class="btn btn-primary" onclick="exportDesktopReport()">📄 Export Forensic Report</button>
       </div>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn" onclick="refreshMobileGraph()">🕸 Identity Graph (/api/graph)</button>
+        <button class="btn" onclick="refreshMobileBle()">📶 BLE Census (/api/ble/scan)</button>
+      </div>
+      <div id="mobileGraphBleOut" style="margin-top:8px;font-size:11px;color:var(--text-dim);"></div>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
         <a href="/pricing" class="btn" style="flex:1;text-decoration:none;text-align:center;">💎 Commercial Storefront</a>
         <a href="/launch" class="btn" style="flex:1;text-decoration:none;text-align:center;">🚀 Play Store &amp; Launch Hub</a>
         <a href="/?desktop=1" class="btn" style="flex:1;text-decoration:none;text-align:center;">🖥 Desktop Workbench</a>
@@ -824,23 +834,23 @@
 <nav class="bottom-nav">
   <button class="nav-item active" onclick="switchMobileTab('decloaker', this)">
     <span class="nav-icon">👁</span>
-    <span>De-Cloaker</span>
+    <span>Hidden Wi-Fi</span>
   </button>
   <button class="nav-item" onclick="switchMobileTab('geiger', this)">
     <span class="nav-icon">◎</span>
-    <span>Geiger Finder</span>
+    <span>Find signal</span>
   </button>
   <button class="nav-item" onclick="switchMobileTab('devices', this)">
     <span class="nav-icon">⌘</span>
-    <span>LAN & Control</span>
+    <span>Devices</span>
   </button>
   <button class="nav-item" onclick="switchMobileTab('areascan', this)">
     <span class="nav-icon">◈</span>
-    <span>Area Scan</span>
+    <span>Map &amp; alert</span>
   </button>
   <button class="nav-item" onclick="switchMobileTab('setup', this)">
     <span class="nav-icon">⚙</span>
-    <span>Node & APK</span>
+    <span>Connect</span>
   </button>
 </nav>
 
@@ -1014,6 +1024,14 @@
     document.getElementById('kpiClusterSub').textContent = clusters.length + ' Physical Radios';
     document.getElementById('kpiLanCount').textContent = devs.length;
     document.getElementById('kpiSubnetSub').textContent = (appState.interface && appState.interface.cidr) || 'LAN';
+    // Verdict hero (answers "Am I safe?" on mobile)
+    const _vs = document.getElementById('mobileVerdictScore'), _vt = document.getElementById('mobileVerdictText');
+    if (_vs && _vt) {
+      const _score = (appState.security_posture && appState.security_posture.score) ?? (appState.meta && appState.meta.security_score);
+      _vs.textContent = (_score ?? '—') + '/100';
+      _vt.textContent = (_score >= 80 ? 'All good.' : _score >= 60 ? 'Check soon — see Map & alert.' : 'Fix now — see Map & alert.');
+      _vs.parentElement.onclick = () => switchMobileTab('areascan', document.querySelector('.nav-item[data-tab]') || document.querySelectorAll('.nav-item')[3]);
+    }
 
     // Subscription badge update
     const sub = appState.subscription || {};
@@ -1636,6 +1654,24 @@
     } catch (e) {
       listEl.innerHTML = '<div style="font-size:11.5px;color:var(--text-muted);">Connect to stationary node to load hypotheses.</div>';
     }
+  }
+
+  async function refreshMobileGraph() {
+    const out = document.getElementById('mobileGraphBleOut');
+    try {
+      const d = await apiFetch('/api/graph');
+      if (out) out.textContent = 'Graph: ' + d.count_nodes + ' nodes, ' + d.count_edges + ' edges';
+      showToast('Identity Graph: ' + d.count_nodes + ' nodes');
+    } catch (e) { if (out) out.textContent = 'Graph unavailable'; }
+  }
+
+  async function refreshMobileBle() {
+    const out = document.getElementById('mobileGraphBleOut');
+    try {
+      const d = await apiFetch('/api/ble/scan');
+      if (out) out.textContent = 'BLE: ' + (d.count || 0) + ' devices, backend=' + (d.backend || '');
+      showToast('BLE census: ' + (d.count || 0) + ' devices');
+    } catch (e) { if (out) out.textContent = 'BLE unavailable (tier-gated)'; }
   }
 
   async function mobileCameraSweep() {

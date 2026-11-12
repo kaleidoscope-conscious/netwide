@@ -252,9 +252,9 @@ def measure_single_host_latency(ip: str, is_local: bool = False) -> Tuple[Option
             dt_ms = (time.perf_counter() - t0) * 1000.0
             s.close()
             if err == 0:
-                return (round(dt_ms, 2), f"TCP SYN-ACK (:{port})", 64)
+                return (round(dt_ms, 2), f"TCP SYN-ACK (:{port})", None)
             if err == errno.ECONNREFUSED:
-                return (round(dt_ms, 2), f"TCP SYN-RST (:{port})", 64)
+                return (round(dt_ms, 2), f"TCP SYN-RST (:{port})", None)
         except Exception:
             s.close()
 
@@ -312,6 +312,8 @@ def probe_mdns_services(interface: str = "wlo1") -> Dict[str, List[Dict[str, Any
             svc_entry = {
                 "instance": instance_name,
                 "service": service_type,
+                "service_type": service_type,
+                "instance_name": instance_name,
                 "hostname": hostname,
                 "port": port,
                 "txt": txt_dict,
@@ -2254,7 +2256,13 @@ def probe_mqtt_broker(ip: str, port: int = 1883, timeout: float = 0.9) -> Option
     try:
         s.connect((ip, port))
         s.sendall(pkt)
-        resp = s.recv(16)
+        # Robust CONNACK read: loop until 4 bytes (fixed header 2 + variable 2).
+        resp = b""
+        while len(resp) < 4:
+            chunk = s.recv(16)
+            if not chunk:
+                break
+            resp += chunk
         # Disconnect cleanly
         try:
             s.sendall(b"\xe0\x00")
@@ -2311,6 +2319,16 @@ def probe_extended_iot_and_infra(ip: str, open_ports: List[int]) -> Dict[str, An
                 if tag in ("roomName", "displayName", "modelName", "modelNumber", "softwareVersion", "hardwareVersion", "serialNum", "MACAddress", "swGen") and val:
                     sonos[tag] = val
             if sonos.get("roomName") or sonos.get("modelName"):
+                if "softwareVersion" in sonos:
+                    sonos["software_version"] = sonos["softwareVersion"]
+                if "serialNum" in sonos:
+                    sonos["serial_num"] = sonos["serialNum"]
+                if "roomName" in sonos:
+                    sonos["room_name"] = sonos["roomName"]
+                if "modelName" in sonos:
+                    sonos["model"] = sonos["modelName"]
+                if "modelNumber" in sonos:
+                    sonos["model_number"] = sonos["modelNumber"]
                 ext["sonos"] = sonos
         except Exception:
             pass
@@ -2351,9 +2369,11 @@ def probe_extended_iot_and_infra(ip: str, open_ports: List[int]) -> Dict[str, An
                 xml_txt = r.read(16384).decode("utf-8", errors="ignore")
                 m_ver = re.search(r'version="([^"]+)"', xml_txt)
                 m_id = re.search(r'machineIdentifier="([^"]+)"', xml_txt)
+                mid = m_id.group(1) if m_id else ""
                 ext["plex"] = {
                     "version": m_ver.group(1) if m_ver else "Active",
-                    "machine_id": m_id.group(1) if m_id else "",
+                    "machine_id": mid,
+                    "machine_identifier": mid,
                 }
         except Exception:
             pass
@@ -3050,6 +3070,43 @@ class HostQuarantineManager:
                 ),
             }
 
+    def _set_firewall_drop(self, ip: str, drop: bool) -> Dict[str, Any]:
+        """Best-effort L3 drop via iptables/nftables. Returns backend + result; never raises."""
+        import shutil as _sh
+        actions: List[str] = []
+        backend = "rst-only"
+        for tool in ("iptables", "nft"):
+            if _sh.which(tool):
+                backend = tool
+                try:
+                    if tool == "iptables":
+                        for chain in ("FORWARD", "INPUT"):
+                            if drop:
+                                exists = subprocess.run(["iptables", "-C", chain, "-s", ip, "-j", "DROP"], capture_output=True, timeout=2.0)
+                                if exists.returncode == 0:
+                                    actions.append(f"iptables -C {chain} already present (skip)")
+                                    continue
+                                cmd_base = ["iptables", "-A", chain, "-s", ip, "-j", "DROP"]
+                            else:
+                                cmd_base = ["iptables", "-D", chain, "-s", ip, "-j", "DROP"]
+                            r = subprocess.run(cmd_base, capture_output=True, timeout=2.0)
+                            actions.append(f"{' '.join(cmd_base)} -> rc={r.returncode}")
+                    else:  # nft
+                        table = "netpulse_quarantine"
+                        if drop:
+                            subprocess.run(["nft", "add", "table", "ip", table], capture_output=True, timeout=2.0)
+                            subprocess.run(["nft", "add", "chain", "ip", table, "fwd", "{ type filter hook forward priority 0; }"], capture_output=True, timeout=2.0)
+                            r = subprocess.run(["nft", "add", "rule", "ip", table, "fwd", "ip", "saddr", ip, "drop"], capture_output=True, timeout=2.0)
+                            actions.append(f"nft add rule saddr {ip} drop -> rc={r.returncode}")
+                        else:
+                            r = subprocess.run(["nft", "flush", "table", "ip", table], capture_output=True, timeout=2.0)
+                            actions.append(f"nft flush table -> rc={r.returncode}")
+                    return {"backend": backend, "actions": actions, "ok": True}
+                except Exception as exc:
+                    actions.append(str(exc)[:120])
+                break
+        return {"backend": backend, "actions": actions, "ok": False, "note": "no iptables/nft or insufficient privilege; RST loop fallback"}
+
     def engage(
         self,
         ip: str,
@@ -3058,6 +3115,7 @@ class HostQuarantineManager:
         target_ports: Optional[List[int]] = None,
     ) -> Dict[str, Any]:
         ports = sorted(set((target_ports or []) + [80, 443, 8080, 22, 445, 554, 3389, 8008, 8060]))
+        fw = self._set_firewall_drop(ip, True)
         with self._lock:
             self.quarantined[ip] = {
                 "ip": ip,
@@ -3067,6 +3125,7 @@ class HostQuarantineManager:
                 "engaged_at": time.strftime("%Y-%m-%d %H:%M:%S"),
                 "timestamp": time.time(),
                 "pulses_sent": 0,
+                "firewall": fw,
             }
             if not self.running:
                 self.running = True
@@ -3075,6 +3134,7 @@ class HostQuarantineManager:
             return dict(self.quarantined[ip])
 
     def release(self, ip: str) -> bool:
+        self._set_firewall_drop(ip, False)
         with self._lock:
             removed = self.quarantined.pop(ip, None) is not None
             if not self.quarantined:
@@ -3082,7 +3142,8 @@ class HostQuarantineManager:
             return removed
 
     def is_quarantined(self, ip: str) -> bool:
-        return ip in self.quarantined
+        with self._lock:
+            return ip in self.quarantined
 
     def list_quarantined(self) -> List[Dict[str, Any]]:
         with self._lock:
@@ -3381,6 +3442,35 @@ def probe_domain_and_wan_target(target: str) -> Dict[str, Any]:
                 a_recs = [primary_ip]
         except Exception:
             pass
+
+    if not (primary_ip or a_recs or aaaa_recs or ns_recs or mx_recs):
+        elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 1)
+        return {
+            "ok": False,
+            "error": f"Failed to resolve host or DNS records for '{clean_t}'",
+            "target": clean_t,
+            "domain": clean_t,
+            "primary_ipv4": "",
+            "reverse_ptr": "",
+            "ipv4_addresses": [],
+            "ipv6_addresses": [],
+            "mx_records": [],
+            "ns_records": [],
+            "txt_records": [],
+            "spf_record": "",
+            "spf_present": False,
+            "dmarc_record": "",
+            "dmarc_present": False,
+            "security_score": 0,
+            "security_grade": "F",
+            "findings": ["Host does not resolve to any IPv4 or IPv6 address"],
+            "elapsed_ms": elapsed_ms,
+            "dns_records": {"A": [], "AAAA": [], "MX": [], "NS": [], "TXT": [], "SPF": "", "DMARC": "", "email_spoofing_posture": "UNRESOLVED"},
+            "tls": {},
+            "tls_certificate": {},
+            "http": {},
+            "https_posture": {},
+        }
 
     spf_rec = next((t for t in txt_recs if "v=spf1" in t.lower()), "")
     dmarc_rec = next((d for d in dmarc_recs if "v=dmarc1" in d.lower()), "")

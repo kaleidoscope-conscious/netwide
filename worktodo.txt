@@ -921,14 +921,22 @@ S0 — ENGINEERING FIXES (Section 1.1 blockers)
   [DONE] S0.5  nmcli signal scale ambiguity: new wireless.parse_signal_value()
                auto-detects dBm (<=0) vs percent (>0), converts via (pct/2)-100
                calibration; scan merge uses iw dBm when present, else fallback.
-  [DONE] S0.6  MQTT CONNACK: return code is byte 2 (v3.1.1), not byte 3;
-               v5 note documented. probers.py mqtt probe.
-  [PARTIAL] S0.7 Producer/consumer key drift: fixed all fingerprint.py
-               consumers — Sonos camelCase (roomName/modelName/modelNumber/
-               serialNum/softwareVersion/hardwareVersion), Hue (name/modelid/
-               bridgeid), Ollama (ollama_ai keyed "models"), MQTT
+  [DONE→REVISED] S0.6  MQTT probe: byte-2 change made in the first session was a
+               REGRESSION (session-present flag, not return code) — reverted by
+               commit 083904a. Correct v3.1.1 layout is [type, rem_len, flags,
+               ret_code] → ret_code = resp[3]; also rem_len=21 single-varint is
+               valid. Remaining robustness nits: no resp[1]==0x02 sanity check,
+               single unbuffered recv(16). probers.py:2263-2269.
+  [PARTIAL] S0.7 Producer/consumer key drift: fixed most fingerprint.py
+               consumers — Sonos 5f branch (roomName/modelName/modelNumber/
+               serialNum/softwareVersion/hardwareVersion dual-spelling), Hue
+               (name/modelid/bridgeid), Ollama (ollama_ai keyed "models"), MQTT
                (anonymous_allowed/connack_code), SMB (signing_enabled instead
-               of nonexistent security_mode). Full profile_keys.py schema
+               of nonexistent security_mode). STILL OPEN after commit review
+               2026-11-08: fingerprint.py Plex consumes "machine_identifier" vs
+               prober key "machine_id"; fingerprint.py ~1089 "Sonos Software &
+               Serial" spec line still reads snake_case software_version/
+               serial_num vs camelCase producer. Full profile_keys.py schema
                module still OPEN (see S8).
   [DONE] S0.8  subprocess timeout gaps: all ip/iw route-addr-neigh call sites
                now carry timeout=5.0; PassiveWireSniffer.stop() terminates,
@@ -1013,3 +1021,359 @@ NEXT (suggested order — Section 3)
      hypotheses_top badges on the dashboard header.
 
 END OF SECTION 4
+
+================================================================================
+SECTION 5 — POWER & ACCURACY ROADMAP: "BEST OF ITS KIND" (2026-11-08)
+================================================================================
+Guiding thesis: Fing wins UX via a cloud DB of billions of scans; its device ID
+is explicitly "an inference, not a proof" (their own docs). NetPulse can define
+the category where competitors cannot follow: LOCAL-ONLY RF FORENSICS WITH
+PROOF-GRADE ATTRIBUTION. Accuracy = provable cross-validated claims. Power =
+more independent sensing vectors + automated action. Everything below is
+local-first (no cloud DB required to be superior).
+
+COMPETITIVE POSITION (2026 landscape)
+  Fing          cloud device-DB, blocking via Fingbox HW, free=3 scans/day
+  Nmap/Zenmap   deepest raw scanning, zero monitoring/attribution UX
+  DeviceShelf   local-first, AI chat w/ own key, MCP server, Fingerbank DHCP DB
+  Domotz        multi-site collectors, enterprise topology + alerts
+  NetPulse gap  RF de-cloaking (10-stage), TSF clock forensics, hypothesis
+  engine, tamper-evident ledger, phone sensor bridge, active countermeasures
+  (quarantine/WoL/Roku/Kasa/Sonos — Fing needs hardware for blocking)  — none of
+  the above have ANY of these. Weaknesses to close: no JA4+, no topology map, no
+  syslog/agent story, scan speed, fingerprint DB scale (OUI-only today).
+
+--------------------------------------------------------------------------------
+S11 — PROOF MODE: EVIDENCE-GRADED ATTRIBUTION (ACCURACY CORE)
+--------------------------------------------------------------------------------
+  - Grade EVERY claim presentable to the user into VERIFIED (>=2 independent
+    vectors agree) / PROBABLE (1 strong vector) / WEAK (inference only). Reuse
+    the 10-stage verdicts + a new fusion layer, netpulse/fusion.py:
+    vectors = {oui_burn, unl_mask, tsf_clock_delta, qbss_count, rssi_covariance,
+    rate_profile, he_phy_cap, dhcp_opt55, dhcp_vendor60, ja3/ja4, mdns_model,
+    upnp_model, snmp_sysoid, wps_manuf/model, smb_serverguid, ssh_hassh}.
+  - Per-vector reliability weights (measured agreement rates, not hand-waved);
+    fusion = weighted majority vote w/ disagreement penalty -> calibrated
+    probability replaces raw flags in UI (P(claim) via logistic recalibration
+    using ledger history outcomes from S17).
+  - UI: "Proof" disclosure per device/attribution — the chain of vectors that
+    fired, each VERIFIED/PROBABLY/WEAK (workbench + mobile). This is the
+    anti-Fing pitch: we show WHY, and it stays on your disk.
+  - Accuracy gate: attribution_confidence values must be calibrated (Brier
+    score < 0.15 on the S12 lab corpus) before any stage promises numbers.
+
+--------------------------------------------------------------------------------
+S12 — ACCURACY HARNESS: MAKE "ACCURATE" MEASURABLE, NOT MARKETING
+--------------------------------------------------------------------------------
+  - Golden fixture corpus: replayable iw/nmcli/tshark dumps (incl. malformed
+    MAC rows, stripped-BSS, CONNACK v3/v5, SMB 3.1.1 w/ + w/o contexts) — CI
+    runs them through every parser on every commit (extends Section 3 S10).
+  - Synthetic adversarial scenarios end-to-end: evil twin, hidden twin,
+    LAA tether, ARP spoof burst, DHCP opt55 spoof — assert detection AND
+    correct confidence band (not just "found").
+  - Confusion-cost matrix: false-VERIFIED is 10x worse than false-WEAK; report
+    precision/recall PER STAGE (12 stages) into GET /api/accuracy + a workbench
+    "Accuracy" modal. Ship the score publicly — competitors cannot.
+  - Device-lab: use known OWNED devices as ground truth for held-out validation
+    on the real LAN (router, laptop, 2 phones, TV, IoT box): 8-point checklist
+    asserting right vendor/model class/stage verdict/confidence.
+
+--------------------------------------------------------------------------------
+S13 — FINGERPRINT UPGRADE WAVE (MORE INDEPENDENT VECTORS)
+--------------------------------------------------------------------------------
+  - JA4+ suite (JA4, JA4S, JA4H) replaces legacy JA3 (weak/locally deprecated):
+    tshark source + OWN TCP-SYN/ClientHello parser fallback in
+    PassiveWireSniffer; feeds S11 vectors directly.
+  - DHCPv6 (option 21/24 vendor class) + IPv6 SLAAC ID5 marking; correlate
+    with the randomized-MAC ledger for cross-family device linking.
+  - mDNS deep TXT: HomeKit/Chromecast/Govee/ESP models, Thread/Matter node
+    identities; build the IoT-service taxonomy table (untapped info source).
+  - LLDP/CDP passive listener + NPF parse -> PHYSICAL TOPOLOGY MAP (switch
+    <-> port links). DevicesShelf wins on this today; pure-wire passive close.
+  - Fingerbank-style DHCPv4 opt55/60/12 fingerprint DB: seed from public
+    fingerprint sets + own corpus; grow via hits (ledger-de-duplicated).
+  - RDP/TLS-alpn/QUIC (UDP:443) presence vector; WireGuard endpoint pattern.
+  - SMB 3.1.1 negotiate context apparatus (fix AFTER the P0 batch) so SMB
+    ServerGUID works on hardened hosts (server_guid vector for S11).
+
+--------------------------------------------------------------------------------
+S14 — PASSIVE-FIRST CENSUS + ADAPTIVE PROBE SCHEDULING (SPEED x COVERAGE)
+--------------------------------------------------------------------------------
+  - Passive census (old S1.13): the wire sniffer already sees joins/leaves/
+    DHCP/mDNS between active scans — promote to a real inventory source with
+    confidence marks; active scan re-verifies (vectors for S11).
+  - Adaptive probing (silicone_wave adaptive_router UCB1 pattern): each probe
+    type gets a reward = unique-info-per-second learned over time; scheduler
+    picks the next probe per device budget -> scan wall-clock shrinks while
+    coverage grows. Report "coverage %" (ports+services seen / expected) per
+    device so users SEE why a device's model is trusted or thin.
+  - Multi-scan sweep across 2.4/5 GHz on dual-bland radios (already there) —
+    add 6 GHz (PSC channels) + 802.11be beacon additional IE fields when the
+    local NIC reports them (iw already exposes; parse full-band spectrum).
+
+--------------------------------------------------------------------------------
+S15 — PHONE AS SENSOR ARRAY (ar_sensor_fusion + silent_wave patterns)
+--------------------------------------------------------------------------------
+  - Android bridge already posts BSSIDs + magnetometer + azimuth; formalize:
+    WiFi-Walk mode — user walks toward ambiguities while phone reports RF +
+    inertial pose; server kalmans-fuses RSSI gradients (silent_wave_radar per
+    silicon model) + magnetometer to close attribution from WEAK to VERIFIED
+    (Stage-14 flourish; halves manual triage time).
+  - BLE census via phone (old S1.11): Airdrop-adjacent, Tile/SmartTag,
+    AirTag-clone detection map; cross-reference with LAN census.
+  - All telemetry on-device only by default (privacy-first; opt-in upload
+    switch with a red banner) — differentiator vs cloud IMEI scanners.
+
+--------------------------------------------------------------------------------
+S16 — 802.11bf WI-FI SENSING FORWARD-COMPAT LAYER
+--------------------------------------------------------------------------------
+  - 802.11bf-2025 published 2025-09; ZERO commodity silicon today. Build the
+    typed report schema + ingestion pipeline NOW (opportunistic CSI bridge
+    pattern): /api/sensing CSI stream typed to the standard SME reporting
+    shape; source adapters: (1) iwlwifi CSI debugfs hack (Intel AX200/210),
+    (2) ESP32 CSI feeder doc for members' side, (3) null adapter.
+  - Deliverable on current hardware: motion/presence confidence per room via
+    RSSI variance + packet-timing entropy already in the sniffer (no CSI
+    needed) -> new hypothesis signal class: "human presence anomaly" used with
+    the visitor ledger.
+  - When silicon lands, flip capture adapter only — detectors keep working.
+
+--------------------------------------------------------------------------------
+S17 — LEARNING LOOP + AI OVERLORD (MAKE IT SMARTER OVER TIME)
+--------------------------------------------------------------------------------
+  - Hypothesis engine v2: priors learned from ledger outcomes (finding X
+    repaired by user within 24h N times -> coherence-up), device identity
+    tensor memory (per-device: connect-hour histogram, protocol mix, domains,
+    entropy, silence windows) with drift detection -> anomaly hypotheses
+    ("printer suddenly port-scanning") are RECALL lifts competitors lack.
+  - UNRAVEL-AI scoring pattern generalized: ensemble of cheap detectors over
+    tensor memory, Boltzmann-tempered fusion; all scores replayable from
+    ledger for post-hoc audit (tamper-evident feedback loop).
+  - Opt-in LLM copilot (local Ollama or BYO key; hard budget cap per tier):
+    narrative incident reports from evidence bundles (ledger + vectors +
+    timeline) -> "one-paragraph command brief". Strict NO-device-control
+    boundary; only summarize what ledger proves.
+
+--------------------------------------------------------------------------------
+S18 — MULTI-NODE FEDERATION (silicone_wave raft_consensus pattern)
+--------------------------------------------------------------------------------
+  - 2+ NetPulse nodes (server, Pi, NAS) sync MINIMAL signed deltas of
+    device inventory + ledger heads via raft-lite quorum; RF triangulation
+    becomes TRUE 3-axis when two nodes share RF views — desktop "RF Geiger"
+    panel (currently dead end /api/rf-geiger) becomes a real dual-node feature
+    instead of being ripped out.
+  - Quarantine decisions propagate with quorum (undo-capable via S3.2).
+  - This is the Domotz competitor no consumer scanner offers, at local scale.
+
+--------------------------------------------------------------------------------
+S19 — PLATFORM PARITY LADDER (where we visibly lose today)
+--------------------------------------------------------------------------------
+  - MCP server (standard AI-assistant surface; DeviceShelf ships one): expose
+    inventory/ledger/hypotheses tools so "https://claude or any MCP client"
+    can query evidence read-only — huge differentiator for power users.
+  - Headless agent mode: Docker/Pi agent = Fing Agent equivalent (our compose
+    DB fix from Section 4 already paves the way); multi-network dashboard.
+  - Syslog + alerting out: device joins/quarantines/anomalies as RFC3164 or
+    structured JSON posts (SIEM integration sells enterprise tier).
+  - OpenAPI table export + /docs polish: auditable feature completeness.
+  - Performance budget: full subnet scan < 30s on 1GBASE LAN w/ < 10 pps avg;
+    adaptive scheduler (S14) + parallel prober pool deliver it.
+
+--------------------------------------------------------------------------------
+EXECUTION ORDER (maximum "power x accuracy per hour" first)
+--------------------------------------------------------------------------------
+  P0  fix batch (XSS + dead ends + conftest DB isolation + scan-loop try/except
+      + SMB 0x0311 decision) — ships BEFORE any headline claim (1 session).
+  P1  S11 fusion.py + Proof UI (the core differentiator)          (3 sessions)
+  P1  S12 harness corpus + /api/accuracy scoring                (2 sessions)
+  P2  S13 JA4+ + mDNS TXT + DHCP DB (biggest vector adds)      (2-3 sessions)
+  P2  S14 passive census + UCB1 scheduling                      (2 sessions)
+  P3  S17 tensor memory + engine v2 priors                      (3 sessions)
+  P3  S18 federation + RF Geiger completion                     (3 sessions)
+  P4  S15 sensor array; S16 802.11bf layer; S19 MCP/server/swell (parallel ops)
+
+END OF SECTION 5
+
+================================================================================
+SECTION 6 — THE GROUND-BREAKING BETS: CATEGORY CREATION, NOT FEATURE RACING
+================================================================================
+Section 5 makes NetPulse best-in-class. Section 6 makes it something the market
+has no word for. Six bets, each: the insight, why nobody has it, the build path
+inside THIS repo, and the demo that tells the story. Honesty flags kept inline.
+
+--------------------------------------------------------------------------------
+BET 1 — ADMISSIBLE EVIDENCE (the business moat)
+"NetPulse is the first network scanner whose output holds up in formal review."
+--------------------------------------------------------------------------------
+  INSIGHT: The events_ledger (SHA-256 chain, append-only, Section "15ca816") +
+  S11 graded evidence + hypothesis inferences = a chain-of-custody apparatus.
+  CASE / UCO (caseontology.org) is THE international standard for expressing
+  cyber-investigation evidence — used by EU e-CODEX cross-border exchange,
+  Linux Foundation project, DFRWS-maintained — and CASE is actively developing
+  the representation for INFERENCE binding ("conclusions to supporting evidence
+  and associated chain of custody"), i.e., exactly our Proof Mode semantics.
+  NO consumer or prosumer network scanner speaks CASE. Autopsy/Axiom territory
+  — we bring it to the LAN in one click.
+
+  BUILD (grounded, 3-4 sessions):
+  - netpulse/evidence_bundle.py: CASE/UCO-compatible JSON-LD exporter — devices
+    as UCO ObservableObjects, scans as InvestigativeActions, attribution verdicts
+    and hypothesis items as CASE Inferences bound to evidence (our vectors) and
+    custody (ledger head hash + license-key-signed bundle).
+  - CLI: netpulse evidence-export --device <key> --window 24h -> .jsonld bundle;
+    plus netpulse/netpulse-verify FOSS verifier anyone (police/insurer/MSP) can
+    run offline: recompute chain, check signature, print evidence grade table.
+  - Workbench: "Share Evidence Bundle" (per device / per incident) with a
+    red-banner privacy reminder; Pro tier export, Enterprise tier CASE validate.
+
+  DEMO MOMENT: Export a 24h bundle → drop it into a public CASE validator →
+  valid, chain intact. Fing says "we saw a device"; NetPulse says "here is a
+  court-grade record that it was on your network, checkable by third parties."
+
+  HONESTY: no scanner does this (verified today); alignment to CASE spec is
+  real engineering but the spec is ontology-techy — scope the profile FIRST.
+
+--------------------------------------------------------------------------------
+BET 2 — THE SCANNER THAT THINKS (the crown jewel)
+"Sequential Bayesian experiment design: NetPulse asks the NEXT best question."
+--------------------------------------------------------------------------------
+  INSIGHT: Fixed pipeline probes EVERY device with EVERY probe (300+ packets).
+  Route identification as active inference: maintain posterior P(class |
+  evidence-so-far) per device; each candidate probe scored by expected
+  information gain (EIG) per packet; ask minimum-cost probes until the
+  posterior crosses the VERIFIED threshold or budget dies. Literature is solid
+  (Rish et al. NOMS'04 ~70% probe reduction; IBM Brodie IBM Sys.J.; FIM-based
+  tomography) — it has NEVER crossed into a productized scanner. 2024 Bayesian
+  NN Wi-Fi fingerprinting work validates the uncertainty-first posture.
+
+  BUILD (4-5 sessions; scaffold already exists!):
+  - Probe catalog graph: {arp, tcp_syn port set, upnp/mDNS/SSDP, dhcp finger,
+    smb, ssh, snmp sysoid, wps ie, tsf sample} each with cost+priors + which
+    S11 evidence vectors it discriminates.
+  - Posterior from tensor memory + OUI + stage confidences; EIG via fast
+    Monte-Carlo branch enumeration (approx is fine); scheduler replaces the
+    naive probe waterfall in run_full_network_scan; UCB1 (adaptive_router
+    pattern) becomes the cold-start fallback, EIG takes over once priors form.
+  - Ship the metric: "packets per identification" dashboard + /api/accuracy
+    comparison vs fixed pipeline. Target: -60% packets at equal accuracy
+    (literature says we should beat that with per-device budgets).
+  - UX killer detail: the UI shows WHY it asked a probe ("asking UPnP next:
+    separates router-vs-printer, P(class|evidence) 0.42→0.9 expected").
+    An evidence-native transparency no audit-log competitor has.
+
+  DEMO MOMENT: side-by-side race vs Nmap/Fing pipeline: same device IDs, 5x
+  fewer packets, on-screen reasoning trace. Abstract customers love it;
+  IoT networks (thousands of sleepy devices) actually need it.
+
+  HONESTY: biggest engineering swing; needs throttling on device burst +
+  careful prior data hygiene or the posterior lies (tie to S12 harness).
+
+--------------------------------------------------------------------------------
+BET 3 — ZERO-HARDWARE RADAR (the viral demo)
+"Your Wi-Fi card is already a radar. Nobody turned it on."
+--------------------------------------------------------------------------------
+  INSIGHT: 802.11bf ships Sept 2025 but NO consumer silicon exists (Section 5
+  S16). Skip the wait: presence/movement is extractable TODAY from what every
+  laptop/phone hears passively — beacon TSF jitter, QBSS station-count deltas
+  (both ALREADY captured in wireless.py), RSSI variance + walking correlation
+  across visible APs, calibrated by phone inertial feed (S15 bridge exists).
+  No CSI required on mainstream hardware; bf layer slots underneath later.
+
+  BUILD (3 sessions):
+  - Presence feature stream in the sniffer path (TSF drift, QBSS, RSSI band
+    energy) -> UNRAVEL-style detector ensemble w/ Boltzmann tempering ->
+    motion zones, NOT identities (privacy by construction).
+  - Workbench "Aura" view: draw your floorplan (2-min tool), see live presence
+    blips (room granularity), no audio/no camera ever, privacy banner visible.
+  - Feeds hypothesis engine: "sensor anomaly: movement at 03:14 while ledger
+    says household asleep" -> ties to Bet 4 retention loop.
+
+  DEMO MOMENT: 25s video: person walks the apartment, dot moves through drawn
+  rooms — from a laptop in the rack + phone in pocket. Share button = the ad.
+
+  HONESTY: coarse (room-level, not skeleton); raw RF environments vary;
+  we need the S12 lab to publish honest accuracy bands before claiming.
+
+--------------------------------------------------------------------------------
+BET 4 — THE NETWORK REMEMBERS (retention is the unsolved metric)
+"Scanners list devices. NetPulse remembers lives of devices — and tells stories."
+--------------------------------------------------------------------------------
+  INSIGHT: Scanners are opened twice a year (seasonality of Fing free tier);
+  revenue needs DAU. The ledger + tensor memory IS a longitudinal model of the
+  household. A weekly chronicle ("Three new names this week; Tue 02:00 the
+  PS5 woke and downloaded 4GB") turns surveillance dashboards into a
+  narrative product — and Wrapped-style sharing is organic marketing no
+  security vendor has pulled off via emotional resonance.
+
+  BUILD (2 sessions — cheapest wow per hour):
+  - Chronicle generator over ledger deltas (+ optional local-LLM narrative,
+    budget-capped, evidence-cited per Bet 6).
+  - Rhythm profiles (arrival hours, quiet windows) as a device field; drift
+    detector emits rhythm-break hypotheses into the engine.
+  - "NetPulse Wrapped" year-end export: device-fied Wi-Fi year (top talker,
+    biggest guest invasion, longest outage), fully local.
+
+  DEMO MOMENT: December — shareable Wi-Fi year. Executives get it instantly.
+
+  HONESTY: "stories" must stay factual (ledger-only statements); LLM may
+  phrase but NOT add claims (audit path enforced).
+
+--------------------------------------------------------------------------------
+BET 5 — MESH BRAIN: FEDERATED IMMUNITY WITHOUT SURVEILLANCE
+--------------------------------------------------------------------------------
+  INSIGHT: Fing's power = crowd corpus at privacy cost (cloud uploads). Flip
+  it: raft-lite node federation (S18) — YOUR nodes sync ledger heads/device
+  deltas natively; OPTIONAL community gossip layer shares SIGNED, minimzed
+  threat signatures (vector shapes, MAC-masked, no names/geography) with
+  differential noise. Community defense = community fingerprint corpus
+  without community surveillance. Groundbreaking inversion of the cloud-DB
+  business model (Fing's moat) into a trust-local protocol.
+
+  BUILD (3 sessions on top of S18): signature schema + raft sync + gossip
+  signer; "what left your node" preview UI (privacy audit of the share).
+
+  DEMO MOMENT: two flashes: threat appears on node A (lab evlistener) then
+  appears pre-flagged on untouched node B seconds later. The crowd without
+  the cloud.
+
+  HONESTY: gossip abuse/replay risk — pick conservative: only
+  signed-with-timestamp signatures, node reputation, opt-in only.
+
+--------------------------------------------------------------------------------
+BET 6 — AUDITABLE AI: ANSWERS WITH RECEIPTS (S19 superpower)
+"Most AI answers about your network are vibes. Ours come with ledger hashes."
+--------------------------------------------------------------------------------
+  INSIGHT: AI chat exists (DeviceShelf); citation-free. Bind the copilot to
+  the ledger: EVERY sentence must cite ledger entry ids + evidence grade;
+  below-WEAK evidence → explicit refusal with "what would prove it" (ties to
+  Proof Mode). "Auditable AI" for the home SOC — a category-new claim.
+
+  BUILD (2 sessions on S19 MCP): MCP server tools read-only over
+  inventory/ledger/hypotheses; answer composer w/ mandatory citation blocks;
+  refusal path as a first-class feature ("not provable from your ledger").
+
+  DEMO MOMENT: "Who was on my network Tuesday 2am?" -> answer + three
+  hash-cited ledger entries + confidence grades; follow-up "show proofs"
+  opens evidence chain in the verifier CLI.
+
+  HONESTY: keep NO device-control through AI (S5.4 boundary) — citation-only.
+
+--------------------------------------------------------------------------------
+THE META-MOVE: OWN THE VOCABULARY (how all bets compound)
+--------------------------------------------------------------------------------
+  Publish "NPE v1 — Network Proof Evidence" spec: the NetPulse bundle format
+  as a documented CASE profile + FOSS verifier + other tools invited to export
+  into NPE. Vocabulary ownership is category authorship (MITRE ATT&CK playbook):
+  competitors then either support YOUR evidence format (free marketing) or
+  visibly ignore provable evidence (positioning capture). Section 5's Proof
+  Mode becomes the industry's expectation before others notice the race.
+
+--------------------------------------------------------------------------------
+EXECUTION RELATIONSHIP (Section 5)
+  P0 fixes and S11/S12 UNBLOCK everything. Then by wow-per-hour:
+  1. Bet 4 (retain)  2. Bet 2 (differentiation engine)  3. Bet 1 (moat)
+  4. Bet 3 (viral)   5. Bet 6                          6. Bet 5 (network effect)
+  Bets 2/1 must ship with S12 hard bands; never promise accuracy without the
+  harness. All bets star in /threat-model updates and docs/ evidence claims.
+
+END OF SECTION 6

@@ -134,7 +134,7 @@ class SubscriptionManager:
 
     def __init__(self, db_path: str = DB_DEFAULT_PATH) -> None:
         self.db_path = db_path
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._init_tables()
 
     def _connect(self) -> sqlite3.Connection:
@@ -246,6 +246,10 @@ class SubscriptionManager:
         self._set_config("signing_secret", generated)
         return generated.encode("utf-8")
 
+    def get_signing_secret(self) -> str:
+        """Return the persistent node HMAC signing secret for cryptographic bundle verification."""
+        return self._signing_secret().decode("utf-8", errors="replace")
+
     def get_admin_token(self) -> str:
         env_admin = os.environ.get("NETPULSE_ADMIN_TOKEN", "").strip()
         if env_admin:
@@ -261,18 +265,20 @@ class SubscriptionManager:
     def start_free_trial(self, email: str = "trial@netpulse.io") -> Dict[str, Any]:
         """
         Issue a one-time 7-day Pro Guardian evaluation license key for this node.
+        Check-and-claim is serialized on RLock (no TOCTOU between concurrent POSTs).
         """
-        already_claimed = self._get_config("trial_claimed", "")
-        if already_claimed:
-            return {
-                "ok": False,
-                "error": "The 7-day Pro Guardian free trial has already been used on this node. Please subscribe or activate a full license key.",
-            }
-        minted = self.mint_license_key(tier="pro", plan="trial", email=email, days=7)
-        self._set_config("trial_claimed", str(int(time.time())))
-        act = self.activate_license_key(minted["license_key"])
-        act["trial_license"] = minted
-        return act
+        with self._lock:
+            already_claimed = self._get_config("trial_claimed", "")
+            if already_claimed:
+                return {
+                    "ok": False,
+                    "error": "The 7-day Pro Guardian free trial has already been used on this node. Please subscribe or activate a full license key.",
+                }
+            minted = self.mint_license_key(tier="pro", plan="trial", email=email, days=7)
+            self._set_config("trial_claimed", str(int(time.time())))
+            act = self.activate_license_key(minted["license_key"])
+            act["trial_license"] = minted
+            return act
 
     # ==================== CRYPTOGRAPHIC LICENSE MINTING & VERIFICATION ====================
 
@@ -548,6 +554,34 @@ class SubscriptionManager:
             "entitlements": self._build_entitlement_map("free"),
             "catalog": TIER_CATALOG,
         }
+
+    def get_max_nodes(self) -> int:
+        return int(self.get_subscription_status().get("max_nodes") or 1)
+
+    def check_node_budget(self, current_nodes: int) -> Dict[str, Any]:
+        limit = self.get_max_nodes()
+        used = int(current_nodes or 0)
+        return {
+            "ok": used <= limit,
+            "used": used,
+            "limit": limit,
+            "remaining": max(0, limit - used),
+            "note": "Nodes beyond budget are inventoried read-only; upgrade to control them." if used > limit else "within budget",
+        }
+
+    def prune_webhook_idempotency(self, days: int = 90) -> int:
+        cutoff = int(time.time() - days * 86400)
+        pruned = 0
+        try:
+            with self._lock, closing(self._connect()) as conn, conn:
+                cur = conn.execute(
+                    "DELETE FROM subscription_config WHERE key LIKE 'webhook_processed_%' AND CAST(value AS INTEGER) < ?",
+                    (cutoff,),
+                )
+                pruned = int(cur.rowcount or 0)
+        except Exception:
+            pruned = 0
+        return pruned
 
     def _build_entitlement_map(self, current_tier: str) -> Dict[str, bool]:
         cur_rank = TIER_RANK.get(current_tier, 0)
@@ -826,11 +860,12 @@ class SubscriptionManager:
                     self._set_config(f"webhook_processed_{ev_id}", str(int(time.time())))
                 return {"ok": True, "event": ev_type, "duplicate_session": True, "activated": act}
 
-            payment_status = obj.get("payment_status")
-            if payment_status == "no_payment_required":
-                return {"ok": False, "error": "Refusing to mint a paid license for a free (no_payment_required) checkout session."}
-            if payment_status is not None and payment_status != "" and payment_status != "paid":
-                return {"ok": False, "error": f"Checkout session not paid yet (payment={payment_status})."}
+            payment_status = str(obj.get("payment_status") or "").strip()
+            if payment_status != "paid":
+                return {
+                    "ok": False,
+                    "error": f"Refusing to mint: payment_status must be 'paid' (got '{payment_status}').",
+                }
 
             meta = obj.get("metadata") or {}
             tier = meta.get("netpulse_tier", "pro")

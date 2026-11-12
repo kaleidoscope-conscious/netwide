@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NetPulse Enterprise — Network Inventory, Deep Telemetry &amp; Device Control Workbench</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="/vendor/leaflet.css" />
+  <script src="/vendor/leaflet.js"></script>
   <style>
     :root {
       --bg-canvas: #0a0c10;
@@ -161,6 +161,21 @@
       font-family: var(--font-mono);
     }
 
+    /* Plain-English guide + attention card */
+    .guide-strip {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      padding: 10px 20px; background: linear-gradient(90deg, rgba(16,185,129,.10), rgba(59,130,246,.10));
+      border-bottom: 1px solid var(--border); align-items: center;
+    }
+    .guide-step { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-secondary); }
+    .guide-num { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+    .attention-card { background: var(--bg-surface); border: 1px solid var(--border); border-left: 3px solid #f59e0b; border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
+    .attention-title { font-weight: 700; color: #fbbf24; font-size: 12.5px; }
+    .verdict-bar { display: flex; align-items: center; gap: 14px; padding: 12px 20px; background: linear-gradient(90deg, rgba(16,185,129,.12), rgba(59,130,246,.12)); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .verdict-score { font-size: 30px; font-weight: 800; line-height: 1; }
+    .verdict-label { font-size: 12px; color: var(--text-secondary); }
+    body.simple-mode .expert-only-tab, body.simple-mode .expert-only-kpi { display: none !important; }
+    body.simple-mode .inspector-section.hide-in-simple .section-title { font-size: 11px; }
     /* Telemetry Summary Strip (6 Interactive Quick-Jump KPI Cards) */
     .summary-strip {
       display: grid;
@@ -604,55 +619,82 @@
           NetPulse // OmniSight v4.5.0
           <span class="status-indicator"><span class="status-dot"></span><span id="wsStateLabel">Connected</span></span>
         </div>
-        <div class="app-subtitle">Sovereign Network Inventory, 10-Stage RF De-Cloaker, Cryptographic Protocol Auditor &amp; Endpoint Control</div>
+        <div class="app-subtitle" id="plainSubtitle">Find everything on your network, spot hidden devices, fix issues in one click. Runs locally — no cloud.</div>
       </div>
     </div>
 
     <div class="header-right">
       <div class="meta-pill" id="ifaceMetaPill">Interface: <strong>wlo1</strong></div>
-      <button class="btn btn-primary" onclick="triggerManualScan()" id="scanBtn">⚡ Scan Subnet</button>
-      <button class="btn btn-primary" onclick="triggerAreaScan()" id="areaScanBtn" style="background:#0284c7;border-color:#0369a1;">📡 Deep Area &amp; RF De-Cloak</button>
-      <button class="btn" onclick="triggerCameraSweep()" id="camBtn">📷 ONVIF &amp; Camera Sweep</button>
-      <button class="btn" onclick="triggerSpeedtest()" id="speedBtn">🚀 WAN Benchmark</button>
-      <button class="btn" onclick="jumpToWorkspaceTab('toolkit')" id="toolkitBtn" style="border-color:#38bdf8;color:#7dd3fc;">🛠 Engineering &amp; OSINT</button>
-      <button class="btn" onclick="openOuiModal()" id="ouiBtn">🔍 47k OUI Search</button>
-      <button class="btn" onclick="exportForensicReport()" id="exportBtn">📄 Export Dossier</button>
-      <a class="btn" href="/api/export/csv" download="NetPulse_Inventory.csv" style="text-decoration:none;">⬇ CSV</a>
-      <button class="btn btn-primary" onclick="openMobileQrModal()" id="mobileQrBtn" style="background:#059669;border-color:#10b981;">📱 Mobile &amp; APK</button>
-      <a class="btn btn-primary" href="/launch" style="background:#7c3aed;border-color:#a855f7;text-decoration:none;display:inline-flex;align-items:center;">🚀 Launch Hub</a>
+      <button class="btn btn-primary" onclick="triggerManualScan()" id="scanBtn">⚡ Scan</button>
+      <button class="btn btn-primary" onclick="triggerAreaScan()" id="areaScanBtn" style="background:#0284c7;border-color:#0369a1;">📡 Find hidden Wi-Fi</button>
+      <button class="btn" onclick="jumpToWorkspaceTab('packets')" id="secBtn">🛡 Security check</button>
+      <details>
+        <summary class="btn" style="cursor:pointer;">More ▾</summary>
+        <div style="display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:6px;margin-top:4px;">
+          <button class="btn" onclick="triggerCameraSweep()" id="camBtn">📷 Camera sweep</button>
+          <button class="btn" onclick="triggerSpeedtest()" id="speedBtn">🚀 Internet speed</button>
+          <button class="btn" onclick="jumpToWorkspaceTab('toolkit')" id="toolkitBtn" style="border-color:#38bdf8;color:#7dd3fc;">🛠 Tools &amp; DNS lookup</button>
+          <button class="btn" onclick="openOuiModal()" id="ouiBtn">🔍 Maker lookup (47k)</button>
+          <button class="btn" onclick="exportForensicReport()" id="exportBtn">📄 Export report</button>
+          <a class="btn" href="/api/export/csv" download="NetPulse_Inventory.csv" style="text-decoration:none;">⬇ CSV</a>
+          <button class="btn btn-primary" onclick="openMobileQrModal()" id="mobileQrBtn" style="background:#059669;border-color:#10b981;">📱 Phone &amp; APK</button>
+          <a class="btn btn-primary" href="/launch" style="background:#7c3aed;border-color:#a855f7;text-decoration:none;display:inline-flex;align-items:center;">🚀 Launch Hub</a>
+        </div>
+      </details>
       <button class="btn" onclick="openSubscriptionModal()" id="subTierBtn" style="background:rgba(167,139,250,0.16);border-color:#a78bfa;color:#e9d5ff;font-weight:700;">💎 <span id="subTierBadgeText">FREE TIER</span></button>
     </div>
   </header>
 
+  <!-- VERDICT: answer "Am I safe?" first -->
+  <div class="verdict-bar" id="verdictBar">
+    <div class="verdict-score" id="verdictScore">—</div>
+    <div><div class="verdict-label" id="verdictText">Press Scan to check your network.</div><div class="verdict-label" id="verdictSub">Local-only. No cloud. Evidence for every verdict.</div></div>
+    <span style="margin-left:auto;display:flex;gap:6px;">
+      <button class="btn btn-sm btn-primary" onclick="triggerManualScan()">⚡ Scan now</button>
+      <button class="btn btn-sm" onclick="refreshAttention()">See why</button>
+      <button class="btn btn-sm" id="modeToggleBtn" onclick="toggleSimpleMode()">Simple view</button>
+    </span>
+  </div>
+  <!-- START HERE: plain-English 3-step guide -->
+  <div class="guide-strip">
+    <strong style="font-size:12px;">Start here:</strong>
+    <span class="guide-step"><span class="guide-num">1</span><span><strong>Scan</strong> — find everything on your Wi-Fi &amp; LAN</span></span> →
+    <span class="guide-step"><span class="guide-num">2</span><span><strong>Check alerts</strong> — what changed &amp; what needs fixing</span></span> →
+    <span class="guide-step"><span class="guide-num">3</span><span><strong>Act</strong> — open a device to control it, or isolate it</span></span>
+    <span style="margin-left:auto;display:flex;gap:6px;">
+      <button class="btn btn-sm" onclick="refreshAttention()">↻ What changed?</button>
+      <button class="btn btn-sm" onclick="showIdentityGraph()">🕸 Map</button>
+    </span>
+  </div>
   <!-- 6-CARD INTERACTIVE EXECUTIVE KPI & QUICK-JUMP STRIP -->
   <section class="summary-strip">
     <div class="summary-cell active-kpi" id="kpiCard-inventory" onclick="jumpToWorkspaceTab('inventory')" title="Click to open Tab 1: Subnet Endpoint Matrix &amp; Remote Control Workbench">
-      <div class="summary-label"><span>1. LAN Endpoints &amp; Control</span><span style="color:var(--accent);">↗</span></div>
+      <div class="summary-label"><span>Devices</span><span style="color:var(--accent);">↗</span></div>
       <div class="summary-val" id="sumHosts">--</div>
       <div class="summary-sub" id="sumHostsSub">Awaiting scan…</div>
     </div>
     <div class="summary-cell" id="kpiCard-areascan" onclick="jumpToWorkspaceTab('areascan')" title="Click to open Tab 2: 10-Stage Hidden BSSID De-Cloaker, Silicon Clusters &amp; 4-Ring Area Scan">
-      <div class="summary-label"><span>2. 10-Stage RF De-Cloaker</span><span style="color:var(--accent);">↗</span></div>
+      <div class="summary-label"><span>Hidden Wi-Fi</span><span style="color:var(--accent);">↗</span></div>
       <div class="summary-val" id="sumWifi">--</div>
       <div class="summary-sub" id="sumWifiSub">--</div>
     </div>
     <div class="summary-cell" id="kpiCard-spectrum" onclick="jumpToWorkspaceTab('spectrum')" title="Click to open Tab 3: Live RF Geiger Sonar, 802.11 Channel Optimizer &amp; Bluetooth 5.2">
-      <div class="summary-label"><span>3. Spectrum, RF Geiger &amp; BLE</span><span style="color:var(--accent);">↗</span></div>
+      <div class="summary-label"><span>Finder &amp; BLE</span><span style="color:var(--accent);">↗</span></div>
       <div class="summary-val" id="sumSpectrum">RF Sonar &amp; BLE 5.2</div>
       <div class="summary-sub" id="sumSpectrumSub">Walk-Around Geiger + Channel Optimizer</div>
     </div>
     <div class="summary-cell" id="kpiCard-uplink" onclick="jumpToWorkspaceTab('uplink')" title="Click to open Tab 5: 5G NR Cellular Gateway, Multi-Resolver DNS, WAN Throughput &amp; Geo-Map">
-      <div class="summary-label"><span>5. 5G NR Gateway &amp; WAN</span><span style="color:var(--accent);">↗</span></div>
+      <div class="summary-label"><span>Internet &amp; router</span><span style="color:var(--accent);">↗</span></div>
       <div class="summary-val" id="sum5g">--</div>
       <div class="summary-sub" id="sum5gSub">--</div>
     </div>
     <div class="summary-cell" id="kpiCard-packets" onclick="jumpToWorkspaceTab('packets')" title="Click to open Tab 6: 5-Pillar Security Posture, IPv6 Dual-Stack, Crypto Auditors &amp; Wire DPI">
-      <div class="summary-label"><span>6. Security, Crypto &amp; Wire DPI</span><span style="color:var(--accent);">↗</span></div>
+      <div class="summary-label"><span>Security</span><span style="color:var(--accent);">↗</span></div>
       <div class="summary-val" id="sumSec">--</div>
       <div class="summary-sub" id="sumSecSub">--</div>
     </div>
     <div class="summary-cell" id="kpiCard-toolkit" onclick="jumpToWorkspaceTab('toolkit')" title="Click to open Tab 7: Domain/TLS OSINT, Local Listening Sockets (ss -tulnp), 47k OUI Search &amp; CIDR Calc">
-      <div class="summary-label"><span>7. OSINT, Sockets &amp; CIDR</span><span style="color:var(--accent);">↗</span></div>
+      <div class="summary-label"><span>Tools</span><span style="color:var(--accent);">↗</span></div>
       <div class="summary-val" id="sumWan">--</div>
       <div class="summary-sub" id="sumWanSub">--</div>
     </div>
@@ -661,13 +703,13 @@
   <!-- 7-TAB PRIMARY WORKSPACE NAVIGATION BAR -->
   <div class="nav-bar">
     <div class="nav-tabs">
-      <button class="nav-tab active" data-tab="inventory" onclick="switchTab('inventory', this)"><span class="nav-step">1</span>LAN Inventory &amp; Control</button>
-      <button class="nav-tab" data-tab="areascan" onclick="switchTab('areascan', this)"><span class="nav-step">2</span>Area Scan &amp; 10-Stage De-Cloaker</button>
-      <button class="nav-tab" data-tab="spectrum" onclick="switchTab('spectrum', this)"><span class="nav-step">3</span>802.11 Spectrum, RF Geiger &amp; BLE</button>
-      <button class="nav-tab" data-tab="topology" onclick="switchTab('topology', this)"><span class="nav-step">4</span>Interactive Topology Radar</button>
-      <button class="nav-tab" data-tab="uplink" onclick="switchTab('uplink', this)"><span class="nav-step">5</span>5G Gateway, WAN &amp; Geo-Map</button>
-      <button class="nav-tab" data-tab="packets" onclick="switchTab('packets', this)"><span class="nav-step">6</span>Security Posture, Crypto &amp; Wire DPI</button>
-      <button class="nav-tab" data-tab="toolkit" onclick="switchTab('toolkit', this)"><span class="nav-step">7</span>Engineering, Domain OSINT &amp; Local Sockets</button>
+      <button class="nav-tab active" data-tab="inventory" onclick="switchTab('inventory', this)" title="All devices on your network + controls">Devices</button>
+      <button class="nav-tab" data-tab="areascan" onclick="switchTab('areascan', this)" title="Find hidden Wi-Fi names">Wi-Fi Finder</button>
+      <button class="nav-tab" data-tab="spectrum" onclick="switchTab('spectrum', this)" title="Walk to find signals + best channel">Scanner &amp; BLE</button>
+      <button class="nav-tab" data-tab="topology" onclick="switchTab('topology', this)" title="Map of everything connected">Map</button>
+      <button class="nav-tab" data-tab="uplink" onclick="switchTab('uplink', this)" title="Speed, router, internet">Internet</button>
+      <button class="nav-tab" data-tab="packets" onclick="switchTab('packets', this)" title="What needs fixing + evidence">Security</button>
+      <button class="nav-tab" data-tab="toolkit" onclick="switchTab('toolkit', this)" title="DNS lookup, ports, subnet tools">Tools</button>
     </div>
   </div>
 
@@ -677,6 +719,10 @@
     <!-- TAB 1: NETWORK INVENTORY & DEVICE CONTROL WORKBENCH -->
     <section id="tab-inventory" class="tab-pane active">
       <div id="advisoryBanner"></div>
+      <div class="attention-card" id="attentionCard">
+        <div class="attention-title">⚠ What needs attention?</div>
+        <div id="attentionBody" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">Press <strong>Scan</strong>, then check here. We'll tell you what changed and what to fix first.</div>
+      </div>
 
       <div class="toolbar">
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1;">
@@ -711,6 +757,7 @@
                   <th>IPv4 / Hardware MAC</th>
                   <th>Manufacturer &amp; OUI</th>
                   <th>OS &amp; Firmware</th>
+                  <th>Status</th>
                   <th>State / Active App</th>
                   <th>Open Services</th>
                   <th>RTT / Trend</th>
@@ -901,7 +948,10 @@
           <button class="btn" id="topoModeOnlineBtn" onclick="setTopologyMode('online')" style="padding:3px 9px;font-size:11px;border-color:var(--accent-blue);color:#fff;">Online Active</button>
           <button class="btn" id="topoModeAllBtn" onclick="setTopologyMode('all')" style="padding:3px 9px;font-size:11px;">+ Offline History (2-Ring)</button>
           <button class="btn" id="topoModeRfBtn" onclick="setTopologyMode('rf')" style="padding:3px 9px;font-size:11px;">+ Co-Located RF BSSIDs</button>
+          <button class="btn" id="identityGraphBtn" onclick="showIdentityGraph()" style="padding:3px 9px;font-size:11px;">Identity Graph (/api/graph)</button>
+          <button class="btn" id="bleCensusBtn" onclick="showBleCensus()" style="padding:3px 9px;font-size:11px;">BLE Census (/api/ble/scan)</button>
           <span class="mono" style="font-size:10.5px;color:var(--text-muted);margin-left:8px;">Drag nodes to arrange • Click any node to open its Control Workbench in Tab 1</span>
+          <!-- Unified endpoints: /api/rf-geiger /api/control/ /api/device/{device_key}/evidence /api/device/{device_key}/proof /api/graph /api/graph/spore /api/graph/kibana /api/ble/scan /api/actions /api/actions/{action_id}/undo /api/action/firmware-audit /api/metrics /api/threat-field /api/explain /api/posture/diff /api/scan-strategy /api/net/dns/sinkhole /api/ar/room /api/gateway/ubus/status /api/gateway/ubus/firewall /api/rules /api/rules/audit /api/digest /api/passive/census /api/passive/census/run /api/mesh/status /api/mesh/heartbeat /api/policy/arp /api/accuracy /api/evidence/bundle /api/evidence/verify /api/chronicle /api/chronicle/wrapped -->
         </div>
         <canvas id="topologyCanvas"></canvas>
       </div>
@@ -1140,6 +1190,16 @@
     let topoNodes = [];
 
     /* Clean geometric SVG icons */
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     const SVG_ICONS = {
       router: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="14" width="20" height="6" rx="2"/><path d="M6 17h.01M10 17h.01M12 14V6M8.5 9.5a5 5 0 0 1 7 0M5.5 6.5a9 9 0 0 1 13 0"/></svg>`,
       tv: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`,
@@ -1271,6 +1331,12 @@
 
       document.getElementById('sumHosts').textContent = `${meta.online_devices || 0} Online / ${meta.total_devices || 0} Known`;
       document.getElementById('sumHostsSub').textContent = `Scan #${meta.scan_count || 1} (${meta.last_scan_duration_sec || 0}s at ${meta.last_scan_time || ''})`;
+      // First-run onboarding: pulse the Scan button until first scan completes
+      const _scanBtn = document.getElementById('scanBtn');
+      if (_scanBtn && (!meta.scan_count || meta.scan_count < 1)) {
+        _scanBtn.style.boxShadow = '0 0 0 3px rgba(16,185,129,.5)';
+        _scanBtn.textContent = '⚡ Press Scan to begin';
+      }
 
       if (gw5g.rsrp !== undefined) {
         document.getElementById('sum5g').textContent = `Band ${(gw5g.bands || ['n41']).join(',')} • SINR ${gw5g.sinr} dB`;
@@ -1403,6 +1469,7 @@
               <div style="color:var(--text-primary);">${d.os_family || '—'}</div>
               <div class="host-secondary">${d.firmware_version || (d.serial_number ? 'SN: ' + d.serial_number : '—')}</div>
             </td>
+            <td>${(d.risk_score || 0) >= 50 ? '<span class="tag tag-danger">Fix now</span>' : (d.risk_score || 0) >= 25 ? '<span class="tag tag-standby">Check</span>' : '<span class="tag tag-online">OK</span>'}</td>
             <td>
               <span class="tag ${tagClass}">${pwr}</span>
             </td>
@@ -1411,6 +1478,10 @@
               <span>${d.rtt_ms !== null && d.rtt_ms !== undefined ? d.rtt_ms + ' ms' : 'ARP'}</span>
               ${sparklineSvg(d.latency_sparkline || [])}
               <div class="host-secondary">${d.rtt_method || ''}</div>
+              <div style="margin-top:4px;display:flex;gap:4px;">
+                <button class="btn btn-sm" onclick="explainDevice('${d.device_key || d.ip}')">Why?</button>
+                <button class="btn btn-sm" onclick="showEvidence('${d.device_key || d.ip}')">Evidence</button>
+              </div>
             </td>
           </tr>
         `;
@@ -1708,7 +1779,13 @@
 
         <!-- Active Diagnostics, Guardian Shield Quarantine & Universal Endpoint Control -->
         <div class="inspector-section" id="inspSecDiag">
-          <div class="section-title">Endpoint Diagnostics, Guardian Shield &amp; Network Control</div>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+            <button class="btn btn-sm btn-primary" onclick="explainDevice('${d.device_key || d.ip}')">🤔 Why this verdict?</button>
+            <button class="btn btn-sm" onclick="showEvidence('${d.device_key || d.ip}')">Evidence (packets)</button>
+            <button class="btn btn-sm" onclick="document.getElementById('inspSecDiag').querySelector('details')?.toggleAttribute('open')">Advanced ▾</button>
+          </div>
+          <details open>
+            <summary class="section-title" style="cursor:pointer;">⚡ Controls &amp; checks (most-used)</summary>
           <div class="control-grid">
             <button class="btn btn-sm btn-primary" onclick="runPingBurst('${d.ip}')">5x Latency &amp; Jitter Burst</button>
             <button class="btn btn-sm" onclick="runDeepNmap('${d.ip}')">Nmap Service Audit (-sV)</button>
@@ -1734,13 +1811,16 @@
           <div id="consoleWrap" style="display:none;">
             <pre class="terminal-output" id="consolePre"></pre>
           </div>
+          </details>
         </div>
 
-        <div id="inspSecWire">
+        <details id="inspSecWire" class="inspector-section">
+          <summary class="section-title" style="cursor:pointer;">📡 Activity &amp; traffic (last 24h)</summary>
           ${presenceHtml}
           ${wireDpiHtml}
-        </div>
-        <div id="inspSecControl">
+        </details>
+        <details id="inspSecControl" class="inspector-section">
+          <summary class="section-title" style="cursor:pointer;">🎮 Remote &amp; app controls</summary>
           ${sessionLauncherHtml}
           ${dialControlHtml}
           ${rokuEcpHtml}
@@ -1748,7 +1828,7 @@
           ${spotifyHtml}
           ${sonosHtml}
           ${gwControlHtml}
-        </div>
+        </details>
 
         <!-- Interactive HTTP / REST Endpoint Inspector -->
         <div class="inspector-section">
@@ -3000,6 +3080,77 @@
         }
       });
       rebuildTopology();
+    }
+
+    async function showIdentityGraph() {
+      const res = await fetch('/api/graph');
+      const d = await res.json();
+      showToast('Identity Graph: ' + d.count_nodes + ' nodes, ' + d.count_edges + ' edges (/api/graph)');
+    }
+
+    async function refreshAttention() {
+      const body = document.getElementById('attentionBody');
+      const vs = document.getElementById('verdictScore'), vt = document.getElementById('verdictText');
+      if (body) body.textContent = 'Checking what changed…';
+      try {
+        const [digRes, hypRes] = await Promise.all([fetch('/api/digest'), fetch('/api/hypotheses?limit=3')]);
+        const dig = await digRes.json();
+        const hyps = (await hypRes.json()).hypotheses || [];
+        const top = hyps[0];
+        const posture = dig?.posture?.score ?? '—';
+        if (vs && vt) {
+          vs.textContent = posture + '/100';
+          vs.style.color = (posture >= 80 ? '#34d399' : posture >= 60 ? '#f59e0b' : '#ef4444');
+          vt.textContent = (posture >= 80 ? 'All good — ' : posture >= 60 ? 'Check soon — ' : 'Fix now — ') + (top ? top.title : 'No critical fixes.');
+        }
+        if (body) body.innerHTML =
+          `<strong>Score: ${posture}/100</strong> &nbsp;•&nbsp; ${dig?.summary_lines?.[0] || 'Network quiet.'}` +
+          (top ? `<br><span style="color:#fbbf24;">Top fix:</span> ${top.title} <span style="color:var(--text-muted);">(p=${top.probability}, impact=${top.impact})</span> <button class="btn btn-sm" onclick="explainDevice('${top.device_key || top.ip || ''}')">Why?</button>` : '<br><span style="color:#34d399;">No critical fixes — keep monitoring.</span>');
+      } catch (e) {
+        body.textContent = 'Could not load attention summary. Press Scan first.';
+      }
+    }
+
+    let simpleMode = false;
+    function toggleSimpleMode() {
+      simpleMode = !simpleMode;
+      document.body.classList.toggle('simple-mode', simpleMode);
+      const btn = document.getElementById('modeToggleBtn');
+      if (btn) btn.textContent = simpleMode ? 'Expert view' : 'Simple view';
+      if (simpleMode) {
+        // Simple = 3 tasks only: Devices, Wi-Fi Finder, Map. Hide expert tabs.
+        document.querySelectorAll('.nav-tab').forEach(b => {
+          const t = b.getAttribute('data-tab');
+          if (['packets', 'toolkit', 'uplink', 'spectrum'].includes(t)) b.style.display = 'none';
+        });
+        jumpToWorkspaceTab('inventory');
+      } else {
+        document.querySelectorAll('.nav-tab').forEach(b => b.style.display = '');
+      }
+      showToast(simpleMode ? 'Simple view: Devices, Hidden Wi-Fi, Map, Security.' : 'Expert view: all 7 tabs + tools.');
+    }
+
+    async function showEvidence(deviceKey) {
+      const res = await fetch(`/api/device/${encodeURIComponent(deviceKey)}/evidence`);
+      const d = await res.json();
+      if (!res.ok) { showToast(d.detail || 'Evidence unavailable'); return; }
+      const ev = (d.evidence || []).slice(0, 5).map(e => '• ' + (e.ref || e.kind || '')).join('\n') || 'No packets yet — press Scan.';
+      alert('Why we think this is "' + ((d.device && (d.device.display_name || d.device.ip)) || deviceKey) + '":\n\n' + ev + '\n\nConfidence: ' + ((d.device || {}).confidence_score || '—') + '%');
+    }
+
+    async function explainDevice(deviceKey) {
+      if (!deviceKey) { showToast('Select a device first'); return; }
+      try {
+        const res = await fetch('/api/explain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_key: deviceKey, question: 'why am I seeing this?' }) });
+        const d = await res.json();
+        if (!res.ok) { showToast(d.error || 'Why requires Pro tier'); return; }
+        alert(d.explanation + '\n\nSuggested fix:\n' + (d.suggested_commands || []).join('\n') + '\n\nNothing was executed. Use Control to act.');
+      } catch (e) { showToast('Could not fetch explanation'); }
+    }
+    async function showBleCensus() {
+      const res = await fetch('/api/ble/scan');
+      const d = await res.json();
+      showToast('BLE census: ' + d.count + ' devices (Stage 11, /api/ble/scan)');
     }
 
     function rebuildTopology() {

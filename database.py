@@ -28,11 +28,12 @@ class NetworkDatabase:
         self._init_schema()
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=15.0)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode = WAL;")
         conn.execute("PRAGMA synchronous = NORMAL;")
         conn.execute("PRAGMA foreign_keys = ON;")
+        conn.execute("PRAGMA busy_timeout = 15000;")
         return conn
 
     def _init_schema(self) -> None:
@@ -115,6 +116,93 @@ class NetworkDatabase:
                 BEGIN
                     SELECT RAISE(FAIL, 'events_ledger is an immutable append-only ledger');
                 END;
+
+                CREATE TABLE IF NOT EXISTS graph_nodes (
+                    node_id TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    attrs_json TEXT DEFAULT '{}',
+                    updated_at REAL NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS graph_edges (
+                    src TEXT NOT NULL,
+                    dst TEXT NOT NULL,
+                    relation TEXT NOT NULL,
+                    weight REAL DEFAULT 0.5,
+                    confidence REAL DEFAULT 0.5,
+                    evidence_id TEXT DEFAULT '',
+                    PRIMARY KEY (src, dst, relation)
+                );
+
+                CREATE TABLE IF NOT EXISTS evidence (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    claim_id TEXT NOT NULL,
+                    device_key TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    ref_json TEXT DEFAULT '{}',
+                    captured_at REAL NOT NULL,
+                    sha256 TEXT DEFAULT '',
+                    confidence_influence REAL DEFAULT 0.0
+                );
+                CREATE INDEX IF NOT EXISTS idx_evidence_dev ON evidence(device_key, captured_at DESC);
+
+                CREATE TABLE IF NOT EXISTS actions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    initiated_by TEXT DEFAULT 'operator',
+                    kind TEXT NOT NULL,
+                    command_json TEXT DEFAULT '{}',
+                    inverse_json TEXT DEFAULT '{}',
+                    status TEXT DEFAULT 'completed',
+                    started_at REAL NOT NULL,
+                    completed_at REAL,
+                    result TEXT DEFAULT ''
+                );
+
+                CREATE TABLE IF NOT EXISTS passive_frames (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts REAL NOT NULL,
+                    freq INTEGER DEFAULT 0,
+                    frame_type TEXT DEFAULT '',
+                    bssid TEXT DEFAULT '',
+                    rssi REAL DEFAULT -100,
+                    len INTEGER DEFAULT 0,
+                    raw_hash TEXT DEFAULT ''
+                );
+                CREATE INDEX IF NOT EXISTS idx_passive_ts ON passive_frames(ts DESC);
+
+                CREATE TABLE IF NOT EXISTS scan_strategy (
+                    env_fingerprint TEXT PRIMARY KEY,
+                    params_json TEXT DEFAULT '{}',
+                    ucb1_stats TEXT DEFAULT '{}',
+                    updated_at REAL NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS sinkhole_rules (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    domain TEXT NOT NULL UNIQUE,
+                    action TEXT NOT NULL DEFAULT 'sinkhole',
+                    created_by TEXT DEFAULT 'operator',
+                    created_at REAL NOT NULL,
+                    enabled INTEGER DEFAULT 1
+                );
+
+                CREATE TABLE IF NOT EXISTS posture_snapshots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    taken_at REAL NOT NULL,
+                    snapshot_json TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_posture_ts ON posture_snapshots(taken_at DESC);
+
+                CREATE TABLE IF NOT EXISTS detection_rules (
+                    rule_id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    severity TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    match_regex TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    sha256 TEXT NOT NULL,
+                    created_at REAL NOT NULL
+                );
                 """
             )
 
@@ -201,9 +289,11 @@ class NetworkDatabase:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def verify_ledger_chain(self) -> Dict[str, Any]:
+    get_events_ledger = get_ledger_entries
+
+    def verify_ledger_chain(self, limit: int = 10000) -> Dict[str, Any]:
         with self._lock, self._connect() as conn:
-            rows = conn.execute("SELECT * FROM events_ledger ORDER BY id ASC").fetchall()
+            rows = conn.execute("SELECT * FROM events_ledger ORDER BY id ASC LIMIT ?", (max(1, int(limit)),)).fetchall()
             if not rows:
                 return {
                     "valid": True,
@@ -237,6 +327,240 @@ class NetworkDatabase:
                 "genesis_hash": rows[0]["hash"],
                 "head_hash": rows[-1]["hash"],
             }
+
+    def upsert_graph_node(self, node_id: str, kind: str, attrs: Dict[str, Any] | None = None) -> None:
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "INSERT INTO graph_nodes(node_id, kind, attrs_json, updated_at) VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(node_id) DO UPDATE SET kind=excluded.kind, attrs_json=excluded.attrs_json, updated_at=excluded.updated_at",
+                (node_id, kind, json.dumps(attrs or {}, sort_keys=True), time.time()),
+            )
+            conn.commit()
+
+    def upsert_graph_edge(self, src: str, dst: str, relation: str, weight: float = 0.5, confidence: float = 0.5, evidence_id: str = "") -> None:
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "INSERT INTO graph_edges(src, dst, relation, weight, confidence, evidence_id) VALUES (?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(src, dst, relation) DO UPDATE SET weight=excluded.weight, confidence=excluded.confidence, evidence_id=excluded.evidence_id",
+                (src, dst, relation, float(weight), float(confidence), evidence_id),
+            )
+            conn.commit()
+
+    def get_graph(self) -> Dict[str, Any]:
+        with self._lock, self._connect() as conn:
+            nodes = [dict(r) for r in conn.execute("SELECT * FROM graph_nodes").fetchall()]
+            for n in nodes:
+                try:
+                    n["attrs"] = json.loads(n.pop("attrs_json") or "{}")
+                except Exception:
+                    n["attrs"] = {}
+            edges = [dict(r) for r in conn.execute("SELECT * FROM graph_edges").fetchall()]
+            return {"nodes": nodes, "edges": edges, "count_nodes": len(nodes), "count_edges": len(edges)}
+
+    def add_evidence(self, claim_id: str, device_key: str, kind: str, ref: Dict[str, Any], confidence: float = 0.0) -> int:
+        ref_json = json.dumps(ref or {}, sort_keys=True)
+        sha = hashlib.sha256(ref_json.encode("utf-8")).hexdigest()
+        with self._lock, self._connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO evidence(claim_id, device_key, kind, ref_json, captured_at, sha256, confidence_influence) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (claim_id, device_key, kind, ref_json, time.time(), sha, float(confidence)),
+            )
+            conn.commit()
+            return int(cur.lastrowid or 0)
+
+    def get_evidence(self, device_key: str, limit: int = 100) -> List[Dict[str, Any]]:
+        with self._lock, self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM evidence WHERE device_key = ? ORDER BY captured_at DESC LIMIT ?",
+                (device_key, max(1, limit)),
+            ).fetchall()
+            out: List[Dict[str, Any]] = []
+            for r in rows:
+                d = dict(r)
+                try:
+                    d["ref"] = json.loads(d.pop("ref_json") or "{}")
+                except Exception:
+                    d["ref"] = {}
+                out.append(d)
+            return out
+
+    def record_action(self, kind: str, command: Dict[str, Any], inverse: Dict[str, Any] | None = None, initiated_by: str = "operator", result: str = "") -> int:
+        with self._lock, self._connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO actions(initiated_by, kind, command_json, inverse_json, status, started_at, completed_at, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (initiated_by, kind, json.dumps(command or {}), json.dumps(inverse or {}), "completed", time.time(), time.time(), result),
+            )
+            conn.commit()
+            return int(cur.lastrowid or 0)
+
+    def list_actions(self, limit: int = 50) -> List[Dict[str, Any]]:
+        with self._lock, self._connect() as conn:
+            rows = conn.execute("SELECT * FROM actions ORDER BY id DESC LIMIT ?", (max(1, limit),)).fetchall()
+            return [dict(r) for r in rows]
+
+    def save_scan_strategy(self, env_fingerprint: str, params: Dict[str, Any], stats: Dict[str, Any]) -> None:
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "INSERT INTO scan_strategy(env_fingerprint, params_json, ucb1_stats, updated_at) VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(env_fingerprint) DO UPDATE SET params_json=excluded.params_json, ucb1_stats=excluded.ucb1_stats, updated_at=excluded.updated_at",
+                (env_fingerprint, json.dumps(params, sort_keys=True), json.dumps(stats, sort_keys=True), time.time()),
+            )
+            conn.commit()
+
+    def get_scan_strategy(self, env_fingerprint: str) -> Dict[str, Any] | None:
+        with self._lock, self._connect() as conn:
+            row = conn.execute("SELECT * FROM scan_strategy WHERE env_fingerprint = ?", (env_fingerprint,)).fetchone()
+            if not row:
+                return None
+            d = dict(row)
+            try:
+                d["params"] = json.loads(d.pop("params_json") or "{}")
+                d["stats"] = json.loads(d.pop("ucb1_stats") or "{}")
+            except Exception:
+                d["params"], d["stats"] = {}, {}
+            return d
+
+    def add_sinkhole_rule(self, domain: str, action: str = "sinkhole", created_by: str = "operator") -> int:
+        clean = str(domain or "").strip().lower()
+        if not clean:
+            raise ValueError("domain required")
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO sinkhole_rules(domain, action, created_by, created_at, enabled) VALUES (?, ?, ?, ?, 1)",
+                (clean, action, created_by, time.time()),
+            )
+            conn.commit()
+            row = conn.execute("SELECT id FROM sinkhole_rules WHERE domain = ?", (clean,)).fetchone()
+            return int(row["id"]) if row else 0
+
+    def list_sinkhole_rules(self) -> List[Dict[str, Any]]:
+        with self._lock, self._connect() as conn:
+            rows = conn.execute("SELECT * FROM sinkhole_rules ORDER BY domain ASC").fetchall()
+            return [dict(r) for r in rows]
+
+    def delete_sinkhole_rule(self, domain: str) -> bool:
+        with self._lock, self._connect() as conn:
+            cur = conn.execute("DELETE FROM sinkhole_rules WHERE domain = ?", (str(domain or "").strip().lower(),))
+            conn.commit()
+            return cur.rowcount > 0
+
+    def save_rule(self, rule: Dict[str, Any], sha256: str) -> None:
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO detection_rules(rule_id, title, severity, category, match_regex, action, sha256, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (str(rule.get("id")), str(rule.get("title")), str(rule.get("severity")).upper(), str(rule.get("category")), str(rule.get("match")), str(rule.get("action")), str(sha256), time.time()),
+            )
+            conn.commit()
+
+    def list_rules(self) -> List[Dict[str, Any]]:
+        with self._lock, self._connect() as conn:
+            rows = conn.execute("SELECT * FROM detection_rules ORDER BY rule_id ASC").fetchall()
+            return [dict(r) for r in rows]
+
+    def save_posture_snapshot(self, snapshot: Dict[str, Any]) -> int:
+        with self._lock, self._connect() as conn:
+            cur = conn.execute(
+                "INSERT INTO posture_snapshots(taken_at, snapshot_json) VALUES (?, ?)",
+                (time.time(), json.dumps(snapshot)),
+            )
+            conn.commit()
+            return int(cur.lastrowid or 0)
+
+    def count_passive_frames(self) -> int:
+        with self._lock, self._connect() as conn:
+            row = conn.execute("SELECT COUNT(*) AS n FROM passive_frames").fetchone()
+            return int(row["n"] if row else 0)
+
+    def recent_passive_frames(self, limit: int = 20) -> List[Dict[str, Any]]:
+        with self._lock, self._connect() as conn:
+            rows = conn.execute("SELECT * FROM passive_frames ORDER BY id DESC LIMIT ?", (max(1, limit),)).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_last_snapshots(self, limit: int = 2) -> List[Dict[str, Any]]:
+        with self._lock, self._connect() as conn:
+            rows = conn.execute("SELECT * FROM posture_snapshots ORDER BY id DESC LIMIT ?", (max(1, limit),)).fetchall()
+            out: List[Dict[str, Any]] = []
+            for r in rows:
+                try:
+                    out.append({"id": r["id"], "taken_at": r["taken_at"], "snapshot": json.loads(r["snapshot_json"] or "{}")})
+                except Exception:
+                    out.append({"id": r["id"], "taken_at": r["taken_at"], "snapshot": {}})
+            return out
+
+    def get_action(self, action_id: int) -> Dict[str, Any] | None:
+        with self._lock, self._connect() as conn:
+            row = conn.execute("SELECT * FROM actions WHERE id = ?", (action_id,)).fetchone()
+            return dict(row) if row else None
+
+    def mark_action_undone(self, action_id: int) -> bool:
+        with self._lock, self._connect() as conn:
+            cur = conn.execute("UPDATE actions SET status = 'undone' WHERE id = ?", (action_id,))
+            conn.commit()
+            return cur.rowcount > 0
+
+    def record_passive_frame(self, ts: float, freq: int, frame_type: str, bssid: str, rssi: float, length: int) -> None:
+        raw = f"{ts}:{bssid}:{frame_type}:{length}"
+        h = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "INSERT INTO passive_frames(ts, freq, frame_type, bssid, rssi, len, raw_hash) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (float(ts), int(freq or 0), str(frame_type or ""), str(bssid or "").upper(), float(rssi or -100), int(length or 0), h),
+            )
+            # Cap ring at 500k rows to bound growth
+            conn.execute("DELETE FROM passive_frames WHERE id NOT IN (SELECT id FROM passive_frames ORDER BY id DESC LIMIT 500000)")
+            conn.commit()
+
+    def sync_graph_from_state(self, devices: List[Dict[str, Any]], aps: List[Dict[str, Any]] | None = None) -> Dict[str, Any]:
+        nodes = edges = 0
+        aps = aps or []
+        with self._lock, self._connect() as conn:
+            for d in devices or []:
+                key = str(d.get("device_key") or d.get("mac") or d.get("ip") or "")
+                if not key:
+                    continue
+                kind = "network_device"
+                attrs = {"brand": d.get("brand"), "model": d.get("model"), "category": d.get("category")}
+                conn.execute(
+                    "INSERT INTO graph_nodes(node_id, kind, attrs_json, updated_at) VALUES (?, ?, ?, ?) "
+                    "ON CONFLICT(node_id) DO UPDATE SET kind=excluded.kind, attrs_json=excluded.attrs_json, updated_at=excluded.updated_at",
+                    (key, kind, json.dumps(attrs, sort_keys=True), time.time()),
+                )
+                nodes += 1
+            gw = next((d for d in (devices or []) if d.get("is_gateway")), None)
+            if gw:
+                gk = str(gw.get("device_key") or gw.get("mac") or "")
+                for d in devices or []:
+                    if d is gw:
+                        continue
+                    dk = str(d.get("device_key") or d.get("mac") or "")
+                    if not dk:
+                        continue
+                    conn.execute(
+                        "INSERT INTO graph_edges(src, dst, relation, weight, confidence, evidence_id) VALUES (?, ?, ?, ?, ?, ?) "
+                        "ON CONFLICT(src, dst, relation) DO UPDATE SET weight=excluded.weight, confidence=excluded.confidence",
+                        (gk, dk, "talks_to", 0.8, 0.85, ""),
+                    )
+                    edges += 1
+            for a in aps:
+                bssid = str(a.get("bssid") or "")
+                if not bssid:
+                    continue
+                conn.execute(
+                    "INSERT INTO graph_nodes(node_id, kind, attrs_json, updated_at) VALUES (?, ?, ?, ?) "
+                    "ON CONFLICT(node_id) DO UPDATE SET attrs_json=excluded.attrs_json, updated_at=excluded.updated_at",
+                    (bssid, "wireless_ap", json.dumps({"channel": a.get("channel"), "verdict": a.get("attribution_verdict")}, sort_keys=True), time.time()),
+                )
+                nodes += 1
+                parent = str(a.get("de_cloaked_parent") or a.get("linked_lan_ip") or "")
+                if parent:
+                    conn.execute(
+                        "INSERT INTO graph_edges(src, dst, relation, weight, confidence, evidence_id) VALUES (?, ?, ?, ?, ?, ?) "
+                        "ON CONFLICT(src, dst, relation) DO UPDATE SET weight=excluded.weight, confidence=excluded.confidence",
+                        (bssid, parent, "same_radio", 0.7, float(a.get("attribution_confidence") or 0.6), str(a.get("attribution_proof") or "")[:64]),
+                    )
+                    edges += 1
+            conn.commit()
+        return {"ok": True, "nodes": nodes, "edges": edges}
 
     def sync_scan_results(self, active_profiles: List[DeviceProfile]) -> List[Dict[str, Any]]:
         """
@@ -612,44 +936,52 @@ class NetworkDatabase:
         notes: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         with self._lock, self._connect() as conn:
-            row = conn.execute("SELECT * FROM devices WHERE device_key = ?", (device_key,)).fetchone()
+            row = conn.execute(
+                "SELECT * FROM devices WHERE device_key = ? OR ip = ?",
+                (device_key, device_key),
+            ).fetchone()
             if not row:
                 return None
+            actual_key = str(row["device_key"])
             new_name = custom_name if custom_name is not None else row["custom_name"]
             new_trust = trust_state if trust_state is not None else row["trust_state"]
             new_notes = notes if notes is not None else row["notes"]
             conn.execute(
                 "UPDATE devices SET custom_name = ?, trust_state = ?, notes = ? WHERE device_key = ?",
-                (new_name, new_trust, new_notes, device_key),
+                (new_name, new_trust, new_notes, actual_key),
             )
             self.log_event(
                 conn,
                 "DEVICE_UPDATED",
                 "INFO",
-                device_key,
+                actual_key,
                 row["ip"],
                 new_name or row["display_name"],
                 f"Updated metadata: Label='{new_name}', Trust='{new_trust}'.",
             )
             conn.commit()
             all_devs = self._fetch_all_enriched(conn)
-            return next((d for d in all_devs if d["device_key"] == device_key), None)
+            return next((d for d in all_devs if d["device_key"] == actual_key), None)
 
     def delete_device(self, device_key: str) -> bool:
         with self._lock, self._connect() as conn:
-            row = conn.execute("SELECT * FROM devices WHERE device_key = ?", (device_key,)).fetchone()
+            row = conn.execute(
+                "SELECT * FROM devices WHERE device_key = ? OR ip = ?",
+                (device_key, device_key),
+            ).fetchone()
             if not row:
                 return False
-            conn.execute("DELETE FROM latency_history WHERE device_key = ?", (device_key,))
-            conn.execute("DELETE FROM devices WHERE device_key = ?", (device_key,))
+            actual_key = str(row["device_key"])
+            conn.execute("DELETE FROM latency_history WHERE device_key = ?", (actual_key,))
+            conn.execute("DELETE FROM devices WHERE device_key = ?", (actual_key,))
             self.log_event(
                 conn,
                 "DEVICE_REMOVED",
                 "INFO",
-                device_key,
+                actual_key,
                 row["ip"],
-                row["custom_name"] or row["display_name"] or device_key,
-                f"Removed device {device_key} ({row['ip']}) from persistent inventory.",
+                row["custom_name"] or row["display_name"] or actual_key,
+                f"Removed device {actual_key} ({row['ip']}) from persistent inventory.",
             )
             conn.commit()
             return True

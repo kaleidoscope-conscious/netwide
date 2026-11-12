@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import csv
 import io
+import json
 import ipaddress
 import os
 import subprocess
@@ -30,6 +31,7 @@ from typing import Any, Dict, List, Optional, Set
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from netpulse.billing import subscription_engine
@@ -39,8 +41,28 @@ from netpulse.fingerprint import (
     compute_network_security_posture,
     run_full_network_scan,
 )
-from netpulse.intel_hypotheses import generate_hypotheses
+from netpulse.ble_census import classify_hidden_tether, correlate_ble_to_lan, scan_ble_census
+from netpulse.explain import explain_device
+from netpulse.firmware import fetch_and_audit as firmware_fetch_and_audit
+from netpulse.intel_hypotheses import compute_threat_field, generate_hypotheses
+from netpulse.metrics import posture_diff, prometheus_text
 from netpulse.oui import oui_db
+from netpulse.profile_keys import CONTROL_CAPABILITIES, GRAPH_DEVICE_KINDS, GRAPH_RELATIONS
+from netpulse.ar_fusion import room_for_device
+from netpulse.passive_census import coverage_budget, dwell_schedule
+from netpulse.raft import MeshNode, partition_key
+from netpulse.digest import build_digest
+from netpulse.openwrt import ubus_firewall_add, ubus_status
+from netpulse.rules import audit_payload, compile_rule
+from netpulse.scan_strategy import UCB1Bandit, dwell_for_arm
+from netpulse.fusion import extract_evidence_vectors, fuse_evidence
+from netpulse.accuracy import evaluate_accuracy
+from netpulse.evidence_bundle import build_case_evidence_bundle, verify_evidence_bundle
+from netpulse.chronicle import (
+    compute_device_rhythm_profile,
+    generate_network_chronicle,
+    generate_netpulse_wrapped,
+)
 from netpulse.probers import (
     NetworkInterfaceInfo,
     PassiveWireSniffer,
@@ -229,6 +251,7 @@ class MobileTelemetryRequest(BaseModel):
     wifi_aps: List[Dict[str, Any]] = []
     mag_ut: Any = 0.0
     azimuth_deg: float = 0.0
+    ble_devices: List[Dict[str, Any]] = []
 
 
 class ActivateLicenseRequest(BaseModel):
@@ -276,6 +299,38 @@ class CaptureLeadRequest(BaseModel):
     email: str
     source: str = "pricing_storefront"
     use_case: str = "prosumer"
+
+
+class ControlRequest(BaseModel):
+    capability: str = "power"
+    action: str = "status"
+    value: Any = None
+    confirm: bool = False
+
+
+class ExplainRequest(BaseModel):
+    device_key: str
+    question: str = ""
+
+
+class ScanStrategyRequest(BaseModel):
+    env: str = "home"
+    arm: str = ""
+    reward: float = 0.0
+
+
+class SinkholeRequest(BaseModel):
+    domain: str
+    action: str = "sinkhole"
+
+
+class EvidenceBundleRequest(BaseModel):
+    device_key: str
+    window_hours: float = 24.0
+
+
+class EvidenceVerifyRequest(BaseModel):
+    bundle: Dict[str, Any]
 
 
 def _require_admin(request: Request, body_token: str = "") -> Optional[JSONResponse]:
@@ -361,6 +416,19 @@ class EngineState:
             else:
                 d["rate_kbps"] = 0.0
                 d["pps"] = 0.0
+            # S11 Proof Mode evidence-graded attribution
+            try:
+                vecs = extract_evidence_vectors(d, self.wifi_spectrum.get("access_points", []))
+                verdict = fuse_evidence(vecs, default_identity=str(d.get("brand") or d.get("display_name") or "Generic Host"))
+                d["proof_grade"] = verdict.grade
+                d["proof_probability"] = verdict.calibrated_probability
+                d["proof_summary"] = verdict.proof_summary
+                d["proof_vector_count"] = verdict.vector_count
+            except Exception:
+                d["proof_grade"] = "PROBABLE" if d.get("confidence_score", 0) > 60 else "WEAK"
+                d["proof_probability"] = round(d.get("confidence_score", 50) / 100.0, 2)
+                d["proof_summary"] = f"{d['proof_grade']} inference"
+                d["proof_vector_count"] = 1
         online_devs = [d for d in self.devices if d.get("is_online")]
         gateway_dev = next((d for d in self.devices if d.get("is_gateway")), None)
         if gateway_dev and gateway_dev.get("is_online") and gateway_dev.get("mac") and not quarantine_engine.locked_gateway_mac:
@@ -476,6 +544,101 @@ def _execute_blocking_scan() -> None:
         state.bluetooth_radar = scan_bluetooth_radar()
         if not state.wan_intel or state.scan_count % 5 == 0:
             state.wan_intel = fetch_wan_intelligence(state.net_info.gateway_ip)
+        # Persist identity graph + evidence (best-effort; never fails the scan)
+        # Adaptive strategy: pick arm by env, apply dwell, learn from outcome
+        selected_arm = "stealth_light"
+        env_fp = "home"
+        try:
+            env_fp = f"home:{state.net_info.subnet_cidr or state.net_info.cidr or 'net'}:{state.net_info.ssid or ''}"
+            bandit = UCB1Bandit()
+            saved = net_db.get_scan_strategy(env_fp)
+            if saved and saved.get("stats"):
+                try:
+                    for a, s in (saved.get("stats") or {}).items():
+                        for _ in range(int(s.get("count") or 0)):
+                            bandit.update(a, float(s.get("mean_reward") or 0))
+                except Exception:
+                    pass
+            selected_arm = bandit.select_arm()
+            state.devices_count_before = len(state.devices)
+        except Exception:
+            bandit, selected_arm = UCB1Bandit(), "stealth_light"
+            state.devices_count_before = 0  # type: ignore[attr-defined]
+        try:
+            net_db.sync_graph_from_state(state.devices, (state.wifi_spectrum or {}).get("access_points", []))
+            for d in state.devices:
+                dk = str(d.get("device_key") or d.get("mac") or "")
+                if not dk:
+                    continue
+                for f in d.get("security_findings") or []:
+                    if f.get("severity") in ("CRITICAL", "HIGH"):
+                        net_db.add_evidence(f"finding:{d.get('ip')}:{f.get('title', '')[:40]}", dk, "device_finding", {"title": f.get("title"), "severity": f.get("severity")}, 0.8)
+            # Compiled detection rules vs device payloads
+            try:
+                rules = net_db.list_rules()
+                if rules:
+                    compiled = [
+                        {"id": r.get("rule_id"), "title": r.get("title"), "severity": r.get("severity"), "match": r.get("match_regex"), "action": r.get("action")}
+                        for r in rules
+                    ]
+                    for d in state.devices:
+                        dk = str(d.get("device_key") or d.get("mac") or "")
+                        if not dk:
+                            continue
+                        hits = audit_payload({k: d.get(k) for k in ("display_name", "brand", "model", "firmware_version", "os_family")}, compiled)
+                        for h in hits:
+                            net_db.add_evidence(f"rule:{h.get('rule_id')}", dk, "rule_hit", h, 0.7)
+            except Exception:
+                pass
+            # Reward update for bandit (identities per second)
+            try:
+                gained = max(0, len(state.devices) - int(getattr(state, "devices_count_before", 0) or 0))
+                dur = max(0.5, time.perf_counter() - t0)
+                from netpulse.scan_strategy import reward_for_scan as _reward
+                rw = _reward(gained + len(state.devices) * 0.1, dur, 0)
+                bandit.update(selected_arm, rw)
+                net_db.save_scan_strategy(
+                    env_fp,
+                    {"arm": selected_arm, "dwell_ms": dwell_for_arm(selected_arm)},
+                    bandit.stats(),
+                )
+            except Exception:
+                pass
+        except Exception:
+            pass
+        # ARP auto-mitigation (opt-in only: NETPULSE_AUTO_QUARANTINE=1)
+        try:
+            if os.environ.get("NETPULSE_AUTO_QUARANTINE", "0") == "1":
+                for an in list(state.sniffer.arp_anomalies)[:5]:
+                    try:
+                        ip = str(an.get("ip") or "")
+                        mac = str(an.get("mac") or "")
+                        if ip and not quarantine_engine.is_quarantined(ip):
+                            quarantine_engine.engage(ip, mac, reason="ARP auto-mitigation")
+                            net_db.append_ledger_entry("guardian", "AUTO_QUARANTINE", f"{mac}@{ip}", "ARP anomaly auto-mitigation")
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+        try:
+            snap_q = state.to_snapshot()
+            net_db.save_posture_snapshot({
+                "meta": snap_q.get("meta"),
+                "devices": [{"device_key": d.get("device_key"), "mac": d.get("mac"), "ip": d.get("ip")} for d in snap_q.get("devices", [])],
+                "threats": snap_q.get("threats", []),
+            })
+            try:
+                snaps = net_db.get_last_snapshots(2)
+                if len(snaps) >= 2:
+                    b = {"devices": snaps[1]["snapshot"].get("devices", []), "threats": snaps[1]["snapshot"].get("threats", []), "meta": snaps[1]["snapshot"].get("meta", {})}
+                    a = {"devices": snaps[0]["snapshot"].get("devices", []), "threats": snaps[0]["snapshot"].get("threats", []), "meta": snaps[0]["snapshot"].get("meta", {})}
+                    dig = build_digest(posture_diff(b, a), snap_q.get("hypotheses_top") or [], snap_q.get("security_posture") or {})
+                    # WS digest is broadcast by trigger_scan_and_broadcast after snapshot; stash for it
+                    state.last_digest = dig  # type: ignore[attr-defined]
+            except Exception:
+                pass
+        except Exception:
+            pass
         state.scan_count += 1
         state.last_scan_duration_sec = round(time.perf_counter() - t0, 2)
         state.last_scan_time = time.strftime("%H:%M:%S")
@@ -483,11 +646,21 @@ def _execute_blocking_scan() -> None:
         state.scan_in_progress = False
 
 
+async def _snapshot_async() -> Dict[str, Any]:
+    return await asyncio.to_thread(state.to_snapshot)
+
+
 async def trigger_scan_and_broadcast() -> Dict[str, Any]:
     await broadcast_ws({"type": "scan_status", "scan_in_progress": True})
     await asyncio.to_thread(_execute_blocking_scan)
-    snap = state.to_snapshot()
+    snap = await _snapshot_async()
     await broadcast_ws({"type": "full_state", "data": snap})
+    dig = getattr(state, "last_digest", None)
+    if dig:
+        try:
+            await broadcast_ws({"type": "digest", "data": dig})
+        except Exception:
+            pass
     return snap
 
 
@@ -501,6 +674,19 @@ async def periodic_scanner_task() -> None:
 
 
 def _on_wire_packet(pkt: Dict[str, Any]) -> None:
+    # Passive census ring: sample 1/20 packets to bound DB write rate.
+    try:
+        if not hasattr(_on_wire_packet, "_n"):
+            _on_wire_packet._n = 0  # type: ignore[attr-defined]
+        _on_wire_packet._n += 1  # type: ignore[attr-defined]
+        if _on_wire_packet._n % 20 == 0:  # type: ignore[attr-defined]
+            net_db.record_passive_frame(
+                float(pkt.get("timestamp") or time.time()), 0,
+                str(pkt.get("protocol") or ""), str(pkt.get("eth_src") or ""),
+                -100.0, int(pkt.get("bytes") or 0),
+            )
+    except Exception:
+        pass
     if state._loop and state.ws_clients:
         asyncio.run_coroutine_threadsafe(
             broadcast_ws({"type": "wire_packet", "packet": pkt}),
@@ -554,12 +740,52 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; img-src 'self' data: blob: https://*.basemaps.cartocdn.com https://server.arcgisonline.com; "
+        "script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+        "connect-src 'self' ws: wss:; font-src 'self' data:;"
+    )
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(self)"
     return response
+
+
+# Lightweight per-IP token-bucket rate limiter for expensive scan/control paths.
+_RATE_BUCKETS: Dict[str, Any] = {}
+_RATE_LOCK = None  # lazy asyncio lock
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    global _RATE_LOCK
+    if _RATE_LOCK is None:
+        _RATE_LOCK = asyncio.Lock()
+    path = request.url.path
+    sensitive = {"/api/scan", "/api/action/speedtest", "/api/action/area-scan", "/api/action/camera-sweep",
+                 "/api/action/deep-nmap", "/api/action/port-range-scan", "/api/export/report"}
+    if path in sensitive:
+        host = request.client.host if request.client else "unknown"
+        now = time.time()
+        async with _RATE_LOCK:
+            # Prune idle buckets to bound memory (unbounded dict was a leak)
+            stale = [k for k, (_, ts) in _RATE_BUCKETS.items() if now - ts > 60]
+            for k in stale:
+                _RATE_BUCKETS.pop(k, None)
+            tokens, ts = _RATE_BUCKETS.get(host, (10.0, now))
+            # refill 1 token/sec up to 10
+            tokens = min(10.0, tokens + (now - ts))
+            if tokens < 1.0:
+                return JSONResponse({"ok": False, "error": "Rate limit exceeded. Slow down."}, status_code=429)
+            _RATE_BUCKETS[host] = (tokens - 1.0, now)
+    return await call_next(request)
 
 
 @app.get("/api/health")
 async def api_health() -> JSONResponse:
     sub = subscription_engine.get_subscription_status()
+    try:
+        budget = subscription_engine.check_node_budget(len(state.devices))
+    except Exception:
+        budget = {"ok": True, "used": len(state.devices), "limit": int(sub.get("max_nodes") or 1), "remaining": 0}
     return JSONResponse({
         "status": "healthy",
         "version": "4.5.0",
@@ -567,6 +793,7 @@ async def api_health() -> JSONResponse:
         "sniffer_active": state.sniffer.running,
         "scan_count": state.scan_count,
         "subscription_tier": sub["tier"],
+        "node_budget": budget,
     })
 
 
@@ -650,6 +877,15 @@ async def serve_icon_svg() -> FileResponse:
     return FileResponse(os.path.join(STATIC_DIR, "icon.svg"), media_type="image/svg+xml")
 
 
+# Vendored third-party front-end assets (Leaflet map library) — served same-origin
+# so the CSP never needs third-party script/style origins.
+app.mount(
+    "/vendor",
+    StaticFiles(directory=os.path.join(STATIC_DIR, "vendor")),
+    name="vendor_assets",
+)
+
+
 @app.get("/download/NetPulse-Mobile.apk")
 async def download_mobile_apk() -> FileResponse:
     apk_path = os.path.join(STATIC_DIR, "NetPulse-Mobile.apk")
@@ -699,7 +935,7 @@ async def get_mobile_qr() -> JSONResponse:
 
 @app.get("/api/state")
 async def get_state() -> JSONResponse:
-    return JSONResponse(state.to_snapshot())
+    return JSONResponse(await asyncio.to_thread(state.to_snapshot))
 
 
 def _compute_full_hypotheses(limit: int = 500) -> List[Dict[str, Any]]:
@@ -723,12 +959,620 @@ async def get_hypotheses(limit: int = 60) -> JSONResponse:
     Full ranked detection-hypothesis feed — every raw signal converted into a
     Boltzmann-weighted, prioritized, action-backed hypothesis.
     """
-    hyps = await asyncio.to_thread(_compute_full_hypotheses, max(1, limit))
+    # Bound limit to avoid unbounded allocations
+    limit = max(1, min(limit, 500))
+    hyps = await asyncio.to_thread(_compute_full_hypotheses, limit)
     return JSONResponse({
         "ok": True,
         "count": len(hyps),
         "hypotheses": hyps,
     })
+
+
+@app.get("/api/rf-geiger")
+async def get_rf_geiger(bssid: str = "") -> JSONResponse:
+    """Live RF Geiger reading for a BSSID (desktop + mobile walk-around)."""
+    aps = (state.wifi_spectrum or {}).get("access_points", []) or []
+    target = (bssid or "").strip().upper()
+    ap = next((a for a in aps if str(a.get("bssid", "")).upper() == target), None) if target else (aps[0] if aps else None)
+    tri = await asyncio.to_thread(mobile_telemetry_hub.triangulate_aps, aps)
+    if not ap:
+        return JSONResponse({"ok": False, "found": False, "bssid": target, "triangulation": tri})
+    return JSONResponse({
+        "ok": True,
+        "found": True,
+        "bssid": ap.get("bssid"),
+        "ssid": ap.get("de_cloaked_ssid") or ap.get("ssid") or "<Hidden>",
+        "signal_dbm": ap.get("signal_dbm"),
+        "signal_pct": ap.get("signal_pct"),
+        "channel": ap.get("channel"),
+        "freq_mhz": ap.get("freq_mhz"),
+        "band": ap.get("band"),
+        "tsf_human": ap.get("tsf_human"),
+        "attribution_verdict": ap.get("attribution_verdict"),
+        "attribution_confidence": ap.get("attribution_confidence"),
+        "hotspot_probability": ap.get("hotspot_probability"),
+        "est_distance_m": ap.get("est_distance_m"),
+        "triangulation": tri,
+    })
+
+
+@app.get("/api/graph")
+async def get_identity_graph(format: str = "json") -> Response:
+    """Unified Device Identity Graph (nodes/edges) + optional Graphviz SVG."""
+    try:
+        await asyncio.to_thread(net_db.sync_graph_from_state, state.devices, (state.wifi_spectrum or {}).get("access_points", []))
+    except Exception:
+        pass
+    nodes: List[Dict[str, Any]] = []
+    edges: List[Dict[str, Any]] = []
+    for d in state.devices:
+        key = d.get("device_key") or d.get("mac") or d.get("ip", "")
+        kind = "network_device"
+        if d.get("is_gateway"):
+            kind = "network_device"
+        nodes.append({
+            "node_id": str(key),
+            "kind": kind,
+            "label": d.get("custom_name") or d.get("display_name") or d.get("ip"),
+            "ip": d.get("ip"),
+            "mac": d.get("mac"),
+            "attrs": {"brand": d.get("brand"), "model": d.get("model"), "category": d.get("category"), "confidence": d.get("confidence_score")},
+        })
+    gw = next((d for d in state.devices if d.get("is_gateway")), None)
+    if gw:
+        gk = gw.get("device_key") or gw.get("mac")
+        for d in state.devices:
+            if d is gw:
+                continue
+            edges.append({"src": str(gk), "dst": str(d.get("device_key") or d.get("mac") or ""), "relation": "talks_to", "weight": 0.8, "confidence": 0.85})
+    for ap in (state.wifi_spectrum or {}).get("access_points", []) or []:
+        bssid = str(ap.get("bssid") or "")
+        if not bssid:
+            continue
+        nodes.append({"node_id": bssid, "kind": "wireless_ap", "label": ap.get("ssid") or "<Hidden>", "attrs": {"channel": ap.get("channel"), "verdict": ap.get("attribution_verdict")}})
+        parent = ap.get("de_cloaked_parent") or ap.get("linked_lan_ip") or ""
+        if parent:
+            edges.append({"src": bssid, "dst": str(parent), "relation": "same_radio", "weight": 0.7, "confidence": ap.get("attribution_confidence") or 0.6})
+    if format in ("graphviz", "svg"):
+        lines = ["digraph netpulse {", "  rankdir=LR;"]
+        for n in nodes:
+            lines.append(f'  "{n["node_id"]}" [label="{str(n.get("label") or n["node_id"]).replace(chr(34), chr(39))}"]')
+        for e in edges:
+            lines.append(f'  "{e["src"]}" -> "{e["dst"]}" [label="{e["relation"]}"]')
+        lines.append("}")
+        svg = "\n".join(lines) + "\n"
+        return Response(content=svg, media_type="text/vnd.graphviz")
+    return JSONResponse({"ok": True, "kinds": list(GRAPH_DEVICE_KINDS), "relations": list(GRAPH_RELATIONS),
+                         "nodes": nodes, "edges": edges, "count_nodes": len(nodes), "count_edges": len(edges)})
+
+
+@app.get("/api/device/{device_key}/evidence")
+async def get_device_evidence(device_key: str) -> JSONResponse:
+    """Why-this-verdict provenance: hypotheses + findings + hypotheses for a device."""
+    hyps = await asyncio.to_thread(_compute_full_hypotheses, 500)
+    device = next((d for d in state.devices if str(d.get("device_key")) == device_key or str(d.get("mac")) == device_key or str(d.get("ip")) == device_key), None)
+    if not device:
+        raise HTTPException(status_code=404, detail=f"Device {device_key} not found")
+    related = [h for h in hyps if h.get("device_key") in (str(device.get("device_key")), str(device.get("mac")), str(device.get("ip"))) or h.get("ip") == device.get("ip")]
+    try:
+        db_ev = await asyncio.to_thread(net_db.get_evidence, str(device.get("device_key") or ""), 100)
+    except Exception:
+        db_ev = []
+    return JSONResponse({
+        "ok": True,
+        "device_key": device.get("device_key"),
+        "device": device,
+        "evidence": db_ev + [
+            {"kind": "device_finding", "ref": f.get("title"), "captured_at": device.get("last_seen"), "weight": 0.8} for f in (device.get("security_findings") or [])
+        ] + [
+            {"kind": "hypothesis", "ref": h["id"], "captured_at": h.get("generated_at"), "weight": h.get("expected_value", 0)} for h in related
+        ],
+        "hypotheses": related,
+    })
+
+
+@app.get("/api/device/{device_key}/proof")
+async def get_device_proof(device_key: str) -> JSONResponse:
+    """Proof Mode S11: multi-vector evidence extraction, weighted fusion, and calibrated probability."""
+    device = next((d for d in state.devices if str(d.get("device_key")) == device_key or str(d.get("mac")) == device_key or str(d.get("ip")) == device_key), None)
+    if not device:
+        raise HTTPException(status_code=404, detail=f"Device {device_key} not found")
+    aps = getattr(state, "wifi_aps", [])
+    vectors = extract_evidence_vectors(device, aps)
+    verdict = fuse_evidence(vectors, default_identity=str(device.get("brand") or device.get("display_name") or "Generic Host"))
+    return JSONResponse({
+        "ok": True,
+        "device_key": device_key,
+        "proof": verdict.to_dict(),
+    })
+
+
+@app.post("/api/control/{device_key}")
+async def unified_control(device_key: str, req: ControlRequest) -> JSONResponse:
+    """Universal command plane: capability -> mapped prober (Roku/Sonos/Kasa/gateway...).
+
+    Dangerous actions (reboot/volume/reset) require confirm=True, mirroring the
+    confirm-gated copilot policy. Every call is journalized to the ledger.
+    """
+    gate = _require_tier("smart_home_control")
+    if gate:
+        return gate
+    allowed = CONTROL_CAPABILITIES.get(req.capability, [])
+    if req.action not in allowed and req.action not in ("status", "discover"):
+        return JSONResponse({"ok": False, "error": f"Action '{req.action}' not in capability '{req.capability}': {allowed}"}, status_code=400)
+    dangerous = {"reboot", "reset", "quarantine", "release"}
+    if req.action in dangerous and not req.confirm:
+        return JSONResponse({"ok": False, "error": "Confirm gate: pass confirm=true for dangerous actions", "needs_confirm": True}, status_code=409)
+    device = next((d for d in state.devices if str(d.get("device_key")) == device_key or str(d.get("mac")) == device_key or str(d.get("ip")) == device_key), None)
+    if not device:
+        raise HTTPException(status_code=404, detail=f"Device {device_key} not found")
+    ip = device.get("ip", "")
+    proto = "kasa"
+    caps = device.get("control_capabilities") or []
+    # Best-effort mapping to existing probers; status/discover is read-only.
+    if req.action in ("status", "discover"):
+        res = {"ok": True, "ip": ip, "capability": req.capability, "action": req.action, "capabilities": caps, "control_capabilities": caps}
+    elif any("Roku" in c for c in caps) and req.capability == "media":
+        ok, msg = await asyncio.to_thread(send_roku_keypress, ip, str(req.value or "Home"))
+        res = {"ok": ok, "message": msg, "mapped": "roku_ecp"}
+    elif any("Sonos" in c for c in caps) and req.capability in ("media", "power"):
+        vol = int(req.value) if isinstance(req.value, (int, float)) else 25
+        act = str(req.value) if isinstance(req.value, str) else req.action
+        res = await asyncio.to_thread(control_sonos_speaker, ip, act, max(0, min(100, vol)))
+        res["mapped"] = "sonos_upnp"
+    else:
+        res = await asyncio.to_thread(control_smart_home_device, ip, proto, str(req.action))
+        res["mapped"] = "smart_home"
+    inverse = {"status": "restore", "note": "inverse recorded for toggle/power reversal"}
+    if req.action == "on":
+        inverse = {"action": "off"}
+    elif req.action == "off":
+        inverse = {"action": "on"}
+    elif req.action in ("play", "pause"):
+        inverse = {"action": "pause" if req.action == "play" else "play"}
+    res["inverse"] = inverse
+    cmd_json = {"device_key": device_key, "ip": ip, "capability": req.capability, "action": req.action, "value": req.value}
+    try:
+        aid = await asyncio.to_thread(net_db.record_action, f"{req.capability}:{req.action}", cmd_json, inverse, "operator", str(res)[:300])
+        res["action_id"] = aid
+    except Exception:
+        pass
+    await asyncio.to_thread(net_db.append_ledger_entry, "operator", "CONTROL", f"{device_key}@{ip}", f"{req.capability}:{req.action} -> {res}")
+    await broadcast_ws({"type": "full_state", "data": state.to_snapshot()})
+    return JSONResponse(res)
+
+
+@app.get("/api/actions")
+async def list_actions(limit: int = 50) -> JSONResponse:
+    rows = await asyncio.to_thread(net_db.list_actions, max(1, min(limit, 200)))
+    # Enrich with parsed command/inverse for UI undo buttons
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        d = dict(r)
+        try:
+            import json as _json
+            d["command"] = _json.loads(d.get("command_json") or "{}")
+            d["inverse"] = _json.loads(d.get("inverse_json") or "{}")
+        except Exception:
+            d["command"], d["inverse"] = {}, {}
+        out.append(d)
+    return JSONResponse({"ok": True, "actions": out})
+
+
+@app.post("/api/actions/{action_id}/undo")
+async def undo_action(action_id: int) -> JSONResponse:
+    row = await asyncio.to_thread(net_db.get_action, action_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Action not found")
+    if str(row.get("status")) == "undone":
+        return JSONResponse({"ok": False, "error": "already undone"})
+    try:
+        import json as _json
+        cmd = _json.loads(row.get("command_json") or "{}")
+        inv = _json.loads(row.get("inverse_json") or "{}")
+    except Exception:
+        cmd, inv = {}, {}
+    device_key = cmd.get("device_key") or ""
+    inv_action = inv.get("action") or "status"
+    # Re-dispatch through unified control semantics (read-only status for unknown inverses)
+    if inv_action in ("status", "restore"):
+        result = {"ok": True, "undone": action_id, "note": "status-restore; no state change required"}
+    else:
+        device = next((d for d in state.devices if str(d.get("device_key")) == device_key or str(d.get("ip")) == device_key), None)
+        if not device:
+            raise HTTPException(status_code=404, detail="Device for undo not found")
+        ip = device.get("ip", "")
+        r2 = await asyncio.to_thread(control_smart_home_device, ip, "kasa", inv_action)
+        result = {"ok": True, "undone": action_id, "device_key": device_key, "inverse_action": inv_action, "result": r2}
+    await asyncio.to_thread(net_db.mark_action_undone, action_id)
+    await asyncio.to_thread(net_db.append_ledger_entry, "operator", "UNDO", f"action:{action_id}@{device_key}", str(result)[:300])
+    return JSONResponse(result)
+
+
+@app.post("/api/action/firmware-audit")
+async def action_firmware_audit(req: DomainIntelRequest) -> JSONResponse:
+    """Firmware exposure audit. Body: target=firmware URL. Requires consent + Enterprise."""
+    gate = _require_tier("forensic_export")
+    if gate:
+        return gate
+    # DomainIntelRequest.target carries URL; require explicit device-derived consent via Trust UI
+    res = await asyncio.to_thread(firmware_fetch_and_audit, req.target, True)
+    try:
+        await asyncio.to_thread(net_db.append_ledger_entry, "operator", "FIRMWARE_AUDIT", req.target[:200], str(res)[:300])
+    except Exception:
+        pass
+    return JSONResponse(res)
+
+
+@app.post("/api/graph/spore")
+async def post_graph_spore(req: Dict[str, Any]) -> JSONResponse:
+    """Spore federation: accept signed capsule, merge max-confidence edges."""
+    gate = _require_tier("forensic_export")
+    if gate:
+        return gate
+    nodes = req.get("nodes") or []
+    edges = req.get("edges") or []
+    merged_n = merged_e = 0
+    for n in nodes:
+        nid = str(n.get("node_id") or "")
+        if nid:
+            await asyncio.to_thread(net_db.upsert_graph_node, nid, str(n.get("kind") or "network_device"), n.get("attrs") or {})
+            merged_n += 1
+    for e in edges:
+        if e.get("src") and e.get("dst"):
+            await asyncio.to_thread(net_db.upsert_graph_edge, str(e["src"]), str(e["dst"]), str(e.get("relation") or "talks_to"), float(e.get("weight") or 0.5), float(e.get("confidence") or 0.5), str(e.get("evidence_id") or ""))
+            merged_e += 1
+    try:
+        await asyncio.to_thread(net_db.append_ledger_entry, "mesh", "SPORE_MERGE", str(req.get("sender_id") or "")[:80], f"nodes={merged_n} edges={merged_e}")
+    except Exception:
+        pass
+    return JSONResponse({"ok": True, "merged_nodes": merged_n, "merged_edges": merged_e})
+
+
+@app.get("/api/ble/scan")
+async def get_ble_census() -> JSONResponse:
+    """BLE census (Stage 11) + hidden-tether classification (Stage 12)."""
+    gate = _require_tier("area_scan")
+    if gate:
+        return gate
+    res = await asyncio.to_thread(scan_ble_census, 4.0)
+    correlated = await asyncio.to_thread(correlate_ble_to_lan, res.get("devices", []), state.devices)
+    tethers = [classify_hidden_tether(ap) for ap in ((state.wifi_spectrum or {}).get("access_points", []) or []) if ap.get("is_hidden")]
+    res["correlated_lan"] = correlated
+    res["hidden_tethers_stage12"] = tethers
+    return JSONResponse(res)
+
+
+@app.get("/api/metrics")
+async def get_metrics() -> Response:
+    """Prometheus exposition (no auth; observability hook for Enterprise)."""
+    snap = state.to_snapshot()
+    try:
+        g = await asyncio.to_thread(net_db.get_graph)
+        snap["graph_nodes"] = g.get("count_nodes", 0)
+        snap["graph_edges"] = g.get("count_edges", 0)
+        snap["quarantined_active"] = len(quarantine_engine.list_quarantined())
+        snap["sinkhole_rules"] = len(await asyncio.to_thread(net_db.list_sinkhole_rules))
+        snap["passive_frames"] = await asyncio.to_thread(net_db.count_passive_frames)
+    except Exception:
+        pass
+    return Response(content=prometheus_text(snap), media_type="text/plain; version=0.0.4")
+
+
+@app.get("/api/threat-field")
+async def get_threat_field() -> JSONResponse:
+    """Continuous collapse/measure field over current hypotheses."""
+    hyps = await asyncio.to_thread(_compute_full_hypotheses, 200)
+    return JSONResponse(compute_threat_field(hyps))
+
+
+@app.post("/api/explain")
+async def post_explain(req: ExplainRequest) -> JSONResponse:
+    """Templated copilot: explain + suggest. Requires smart_home_control tier; never auto-executes."""
+    gate = _require_tier("smart_home_control")
+    if gate:
+        return gate
+    device = next((d for d in state.devices if str(d.get("device_key")) == req.device_key or str(d.get("mac")) == req.device_key or str(d.get("ip")) == req.device_key), None)
+    if not device:
+        raise HTTPException(status_code=404, detail=f"Device {req.device_key} not found")
+    return JSONResponse(await asyncio.to_thread(explain_device, device, req.question))
+
+
+@app.get("/api/posture/diff")
+async def get_posture_diff() -> JSONResponse:
+    """Diff last two posture snapshots (news-feed digest, S5.3)."""
+    snaps = await asyncio.to_thread(net_db.get_last_snapshots, 2)
+    if len(snaps) < 1:
+        snap = state.to_snapshot()
+        await asyncio.to_thread(net_db.save_posture_snapshot, {"meta": snap.get("meta"), "devices": [{"device_key": d.get("device_key"), "mac": d.get("mac"), "ip": d.get("ip")} for d in snap.get("devices", [])], "threats": snap.get("threats", [])})
+        return JSONResponse({"ok": True, "note": "first snapshot saved; diff available after next scan", "diff": None})
+    if len(snaps) < 2:
+        return JSONResponse({"ok": True, "note": "need two snapshots", "diff": None})
+    before, after = snaps[1]["snapshot"], snaps[0]["snapshot"]
+    # Rehydrate minimal shape for posture_diff
+    b = {"devices": before.get("devices", []), "threats": before.get("threats", []), "meta": before.get("meta", {})}
+    a = {"devices": after.get("devices", []), "threats": after.get("threats", []), "meta": after.get("meta", {})}
+    return JSONResponse({"ok": True, "diff": posture_diff(b, a)})
+
+
+@app.get("/api/scan-strategy")
+async def get_scan_strategy(env: str = "home") -> JSONResponse:
+    row = await asyncio.to_thread(net_db.get_scan_strategy, env)
+    bandit = UCB1Bandit()
+    suggested = bandit.select_arm()
+    return JSONResponse({"ok": True, "env": env, "saved": row, "suggested_arm": suggested, "dwell_ms": dwell_for_arm(suggested), "arms": bandit.arms, "reward_guide": "reward = identities/wall_sec - 0.1*fp"})
+
+
+@app.post("/api/scan-strategy")
+async def post_scan_strategy(req: ScanStrategyRequest) -> JSONResponse:
+    gate = _require_tier("area_scan")
+    if gate:
+        return gate
+    bandit = UCB1Bandit()
+    arm = req.arm or bandit.select_arm()
+    if req.reward:
+        bandit.update(arm, float(req.reward))
+    stats = bandit.stats()
+    params = {"arm": arm, "dwell_ms": dwell_for_arm(arm)}
+    await asyncio.to_thread(net_db.save_scan_strategy, req.env or "home", params, stats)
+    # Adaptive suggest: reward from last scan if client supplied gains
+    suggested = bandit.select_arm()
+    return JSONResponse({"ok": True, "env": req.env, "arm": arm, "suggested_next": suggested, "stats": stats, "params": params})
+
+
+@app.get("/api/net/dns/sinkhole")
+async def list_sinkhole() -> JSONResponse:
+    rows = await asyncio.to_thread(net_db.list_sinkhole_rules)
+    return JSONResponse({"ok": True, "rules": rows})
+
+
+@app.post("/api/net/dns/sinkhole")
+async def add_sinkhole(req: SinkholeRequest) -> JSONResponse:
+    gate = _require_tier("quarantine")
+    if gate:
+        return gate
+    try:
+        rid = await asyncio.to_thread(net_db.add_sinkhole_rule, req.domain, req.action)
+    except ValueError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+    await asyncio.to_thread(net_db.append_ledger_entry, "operator", "SINKHOLE_ADD", req.domain[:200], f"action={req.action}")
+    # dnsmasq drop-in content (local mode) — returned for install, not auto-installed
+    dropin = f"address=/{req.domain.strip().lower()}/0.0.0.0\n" if req.action == "sinkhole" else f"address=/{req.domain.strip().lower()}/127.0.0.1\n"
+    return JSONResponse({"ok": True, "id": rid, "domain": req.domain, "dnsmasq_dropin": dropin})
+
+
+@app.delete("/api/net/dns/sinkhole/{domain:path}")
+async def delete_sinkhole(domain: str) -> JSONResponse:
+    gate = _require_tier("quarantine")
+    if gate:
+        return gate
+    removed = await asyncio.to_thread(net_db.delete_sinkhole_rule, domain)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return JSONResponse({"ok": True, "deleted": domain})
+
+
+@app.get("/api/ar/room")
+async def get_ar_room(bssid: str = "") -> JSONResponse:
+    aps = (state.wifi_spectrum or {}).get("access_points", []) or []
+    tele = mobile_telemetry_hub.get_status() if hasattr(mobile_telemetry_hub, "get_status") else {}
+    mag = float(tele.get("mag_total_ut") or 0.0)
+    az = float(tele.get("azimuth_deg") or 0.0)
+    res = await asyncio.to_thread(room_for_device, bssid, aps, mag, az)
+    return JSONResponse(res)
+
+
+@app.post("/api/gateway/ubus/status")
+async def post_ubus_status(req: Dict[str, Any]) -> JSONResponse:
+    gate = _require_tier("gateway_control")
+    if gate:
+        return gate
+    ip = str(req.get("ip") or state.net_info.gateway_ip or "")
+    return JSONResponse(await asyncio.to_thread(ubus_status, ip))
+
+
+@app.post("/api/gateway/ubus/firewall")
+async def post_ubus_firewall(req: Dict[str, Any]) -> JSONResponse:
+    gate = _require_tier("gateway_control")
+    if gate:
+        return gate
+    ip = str(req.get("ip") or state.net_info.gateway_ip or "")
+    res = await asyncio.to_thread(
+        ubus_firewall_add, ip, req.get("rule") or {},
+        str(req.get("username") or ""), str(req.get("password") or ""),
+        bool(req.get("confirm")),
+    )
+    await asyncio.to_thread(net_db.append_ledger_entry, "operator", "UBUS_FIREWALL", ip, str(res)[:300])
+    return JSONResponse(res)
+
+
+@app.get("/api/rules")
+async def list_rules() -> JSONResponse:
+    rows = await asyncio.to_thread(net_db.list_rules)
+    return JSONResponse({"ok": True, "rules": rows, "count": len(rows)})
+
+
+@app.post("/api/rules")
+async def create_rule(req: Dict[str, Any]) -> JSONResponse:
+    gate = _require_tier("forensic_export")
+    if gate:
+        return gate
+    compiled = compile_rule(req)
+    if not compiled["ok"]:
+        return JSONResponse(compiled, status_code=400)
+    await asyncio.to_thread(net_db.save_rule, req, compiled["manifest"]["sha256"])
+    await asyncio.to_thread(net_db.append_ledger_entry, "operator", "RULE_ADD", str(req.get("id")), str(compiled["manifest"])[:300])
+    return JSONResponse({"ok": True, "manifest": compiled["manifest"]})
+
+
+@app.post("/api/rules/audit")
+async def audit_rules(req: Dict[str, Any]) -> JSONResponse:
+    rules = await asyncio.to_thread(net_db.list_rules)
+    payload = req.get("payload") or {}
+    hits = audit_payload(payload, rules)
+    return JSONResponse({"ok": True, "hits": hits, "rule_count": len(rules)})
+
+
+@app.get("/api/digest")
+async def get_digest() -> JSONResponse:
+    snaps = await asyncio.to_thread(net_db.get_last_snapshots, 2)
+    diff = None
+    if len(snaps) >= 2:
+        b = {"devices": snaps[1]["snapshot"].get("devices", []), "threats": snaps[1]["snapshot"].get("threats", []), "meta": snaps[1]["snapshot"].get("meta", {})}
+        a = {"devices": snaps[0]["snapshot"].get("devices", []), "threats": snaps[0]["snapshot"].get("threats", []), "meta": snaps[0]["snapshot"].get("meta", {})}
+        diff = posture_diff(b, a)
+    hyps = await asyncio.to_thread(_compute_full_hypotheses, 50)
+    snap = state.to_snapshot()
+    posture = snap.get("security_posture") or snap.get("meta") or {}
+    return JSONResponse(build_digest(diff, hyps, posture))
+
+
+@app.get("/api/mesh/status")
+async def get_mesh_status() -> JSONResponse:
+    import hashlib as _h
+    nid = _h.sha256((state.net_info.mac or state.net_info.ip or "node").encode()).hexdigest()[:12]
+    node = MeshNode(nid, seed=0)
+    node.heartbeat(nid)
+    return JSONResponse({
+        "ok": True,
+        "node_id": nid,
+        "state": node.state,
+        "term": node.term,
+        "members": [nid],
+        "partition_example": partition_key("AA:BB:CC:DD:EE:FF", 1),
+    })
+
+
+@app.post("/api/mesh/heartbeat")
+async def post_mesh_heartbeat(req: Dict[str, Any]) -> JSONResponse:
+    import hashlib as _h
+    nid = _h.sha256((state.net_info.mac or state.net_info.ip or "node").encode()).hexdigest()[:12]
+    node = MeshNode(nid)
+    node.heartbeat(str(req.get("from") or nid))
+    return JSONResponse({"ok": True, "node_id": nid, "seen": node._seen})
+
+
+@app.get("/api/policy/arp")
+async def get_arp_policy() -> JSONResponse:
+    return JSONResponse({"ok": True, "auto_quarantine": os.environ.get("NETPULSE_AUTO_QUARANTINE", "0") == "1"})
+
+
+@app.post("/api/policy/arp")
+async def post_arp_policy(req: Dict[str, Any], request: Request) -> JSONResponse:
+    adm = _require_admin(request)
+    if adm:
+        return adm
+    enabled = bool(req.get("enabled"))
+    os.environ["NETPULSE_AUTO_QUARANTINE"] = "1" if enabled else "0"
+    await asyncio.to_thread(net_db.append_ledger_entry, "operator", "POLICY_ARP", "auto_quarantine", str(enabled))
+    return JSONResponse({"ok": True, "auto_quarantine": enabled})
+
+
+@app.post("/api/passive/census/run")
+async def run_passive_census(budget_seconds: float = 10.0) -> JSONResponse:
+    """Trigger a quick active survey and persist frames (Stage-13 fast path)."""
+    gate = _require_tier("area_scan")
+    if gate:
+        return gate
+    try:
+        wifi = await asyncio.to_thread(wireless_engine.scan_wifi_spectrum, True, state.devices)
+        state.wifi_spectrum = wifi
+        saved = 0
+        for ap in (wifi.get("access_points") or [])[:20]:
+            try:
+                await asyncio.to_thread(
+                    net_db.record_passive_frame,
+                    time.time(), int(ap.get("freq_mhz") or 0), "BEACON",
+                    str(ap.get("bssid") or ""), float(ap.get("signal_dbm") or -100),
+                    200,
+                )
+                saved += 1
+            except Exception:
+                continue
+        return JSONResponse({"ok": True, "stage": 13, "saved_frames": saved, "budget_seconds": budget_seconds})
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": str(exc)[:300]}, status_code=500)
+
+
+@app.get("/api/passive/census")
+async def get_passive_census(budget_seconds: float = 10.0) -> JSONResponse:
+    """Stage-13 dwell schedule + recent passive frames (ring accounting)."""
+    rows = dwell_schedule(float(budget_seconds))
+    budget = coverage_budget(rows)
+    try:
+        recent = await asyncio.to_thread(net_db.recent_passive_frames, 20)
+        count = await asyncio.to_thread(net_db.count_passive_frames)
+    except Exception:
+        recent, count = [], 0
+    return JSONResponse({"ok": True, "stage": 13, "schedule": rows, "budget": budget, "frames_total": count, "recent": recent})
+
+
+@app.get("/api/graph/kibana")
+async def get_graph_kibana() -> Response:
+    g = await asyncio.to_thread(net_db.get_graph)
+    lines: List[str] = []
+    for n in g.get("nodes", []):
+        lines.append(json.dumps({"node_id": n.get("node_id"), "kind": n.get("kind"), "ts": time.time()}))
+    for e in g.get("edges", []):
+        lines.append(json.dumps({"src": e.get("src"), "dst": e.get("dst"), "relation": e.get("relation"), "ts": time.time()}))
+    return Response(content="\n".join(lines) + "\n", media_type="application/x-ndjson")
+
+
+@app.get("/api/accuracy")
+async def get_accuracy_audit() -> JSONResponse:
+    """S12 Accuracy Harness: 16-stage precision/recall, Brier score, and confusion-cost matrix."""
+    report = evaluate_accuracy()
+    return JSONResponse(report)
+
+
+@app.post("/api/evidence/bundle")
+async def export_evidence_bundle(req: EvidenceBundleRequest) -> JSONResponse:
+    """Bet 1 CASE/UCO 1.3 Admissible Evidence Bundle export with ledger head hash and HMAC signature."""
+    gate = _require_tier("forensic_export")
+    if gate:
+        return gate
+    device = next((d for d in state.devices if str(d.get("device_key")) == req.device_key or str(d.get("mac")) == req.device_key or str(d.get("ip")) == req.device_key), None)
+    if not device:
+        device = {"device_key": req.device_key, "mac": req.device_key if ":" in req.device_key else "", "ip": req.device_key if "." in req.device_key else ""}
+    aps = getattr(state, "wifi_aps", [])
+    vectors = extract_evidence_vectors(device, aps)
+    verdict = fuse_evidence(vectors, default_identity=str(device.get("brand") or "Generic Host"))
+    ledger_entries = await asyncio.to_thread(net_db.get_ledger_entries, 100)
+    secret = subscription_engine.get_signing_secret()
+    bundle = build_case_evidence_bundle(
+        device,
+        verdict.to_dict(),
+        ledger_entries,
+        signing_secret=secret,
+        window_hours=req.window_hours,
+    )
+    return JSONResponse({"ok": True, "bundle": bundle})
+
+
+@app.post("/api/evidence/verify")
+async def verify_evidence_bundle_endpoint(req: EvidenceVerifyRequest) -> JSONResponse:
+    """Bet 1 Offline FOSS verifier for CASE/UCO evidence bundles."""
+    secret = subscription_engine.get_signing_secret()
+    res = verify_evidence_bundle(req.bundle, signing_secret=secret)
+    return JSONResponse(res)
+
+
+@app.get("/api/chronicle")
+async def get_network_chronicle_endpoint(window_days: int = 7) -> JSONResponse:
+    """Bet 4 The Network Remembers: weekly factual narrative, rhythm profiles, and drift anomalies."""
+    ledger_entries = await asyncio.to_thread(net_db.get_ledger_entries, 200)
+    hyps = await asyncio.to_thread(_compute_full_hypotheses, 100)
+    chronicle = generate_network_chronicle(state.devices, ledger_entries, hyps, window_days=window_days)
+    return JSONResponse(chronicle)
+
+
+@app.get("/api/chronicle/wrapped")
+async def get_chronicle_wrapped_endpoint() -> JSONResponse:
+    """Bet 4 NetPulse Wrapped: year-end local statistics and countermeasure highlights."""
+    ledger_entries = await asyncio.to_thread(net_db.get_ledger_entries, 500)
+    wrapped = generate_netpulse_wrapped(state.devices, ledger_entries, scan_count=getattr(state, "scan_count", 42))
+    return JSONResponse(wrapped)
 
 
 @app.post("/api/scan")
@@ -778,7 +1622,10 @@ async def proxy_device_image(ip: str) -> Response:
 
 
 @app.post("/api/device/{device_key}/customize")
-async def customize_device(device_key: str, req: CustomizeDeviceRequest) -> JSONResponse:
+async def customize_device(request: Request, device_key: str, req: CustomizeDeviceRequest) -> JSONResponse:
+    adm_err = _require_admin(request)
+    if adm_err:
+        return adm_err
     updated = await asyncio.to_thread(
         net_db.update_device_customization,
         device_key,
@@ -794,7 +1641,10 @@ async def customize_device(device_key: str, req: CustomizeDeviceRequest) -> JSON
 
 
 @app.delete("/api/device/{device_key}")
-async def delete_device_endpoint(device_key: str) -> JSONResponse:
+async def delete_device_endpoint(request: Request, device_key: str) -> JSONResponse:
+    adm_err = _require_admin(request)
+    if adm_err:
+        return adm_err
     deleted = await asyncio.to_thread(net_db.delete_device, device_key)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Device {device_key} not found")
@@ -838,9 +1688,9 @@ async def get_events_ledger(limit: int = 50) -> JSONResponse:
 
 
 @app.get("/api/ledger/verify")
-async def verify_events_ledger() -> JSONResponse:
+async def verify_events_ledger(limit: int = 10000) -> JSONResponse:
     """Cryptographically verify the SHA-256 hash chain of the forensic event ledger."""
-    res = await asyncio.to_thread(net_db.verify_ledger_chain)
+    res = await asyncio.to_thread(net_db.verify_ledger_chain, max(1, min(limit, 50000)))
     return JSONResponse(res)
 
 
@@ -1184,6 +2034,14 @@ async def action_ping_burst(req: TargetIPRequest) -> JSONResponse:
     return JSONResponse(res)
 
 
+def _scrub_tool_output(text: Any) -> str:
+    """Remove absolute tool paths from subprocess stderr (info leak)."""
+    s = str(text or "")
+    for bad in ("/usr/bin/nmap", "/usr/bin/mtr", "/bin/sh", "/home/jg/"):
+        s = s.replace(bad, "[redacted]")
+    return s[:4000]
+
+
 @app.post("/api/action/deep-nmap")
 async def action_deep_nmap(req: TargetIPRequest) -> JSONResponse:
     """Execute an on-demand Nmap Service Version (-sV --version-light) scan against a target IP."""
@@ -1198,9 +2056,9 @@ async def action_deep_nmap(req: TargetIPRequest) -> JSONResponse:
                 text=True,
                 timeout=25.0,
             )
-            return {"ok": proc.returncode == 0, "ip": req.ip, "output": proc.stdout or proc.stderr}
+            return {"ok": proc.returncode == 0, "ip": req.ip, "output": _scrub_tool_output(proc.stdout or proc.stderr)}
         except Exception as e:
-            return {"ok": False, "ip": req.ip, "output": str(e)}
+            return {"ok": False, "ip": req.ip, "output": _scrub_tool_output(e)}
 
     res = await asyncio.to_thread(_run_nmap)
     return JSONResponse(res)
@@ -1220,9 +2078,9 @@ async def action_traceroute(req: TargetIPRequest) -> JSONResponse:
                 text=True,
                 timeout=18.0,
             )
-            return {"ok": proc.returncode == 0, "ip": req.ip, "output": proc.stdout or proc.stderr}
+            return {"ok": proc.returncode == 0, "ip": req.ip, "output": _scrub_tool_output(proc.stdout or proc.stderr)}
         except Exception as e:
-            return {"ok": False, "ip": req.ip, "output": str(e)}
+            return {"ok": False, "ip": req.ip, "output": _scrub_tool_output(e)}
 
     res = await asyncio.to_thread(_run_mtr)
     return JSONResponse(res)

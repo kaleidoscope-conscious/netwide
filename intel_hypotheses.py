@@ -55,8 +55,8 @@ def _severity_from_energy(energy: float) -> str:
     return "LOW"
 
 
-def _hyp_id(signal_kind: str, device_key: str) -> str:
-    digest = hashlib.sha256(f"{signal_kind}:{device_key}".encode("utf-8")).hexdigest()[:12]
+def _hyp_id(signal_kind: str, device_key: str, title: str = "") -> str:
+    digest = hashlib.sha256(f"{signal_kind}:{device_key}:{title}".encode("utf-8")).hexdigest()[:12]
     return f"hyp_{digest}"
 
 
@@ -76,7 +76,7 @@ def _mk(
     impact = impact if impact > 0 else min(1.0, 0.35 + 0.55 * severity_energy)
     probability = _probability_from_uncertainty(uncertainty)
     return {
-        "id": _hyp_id(signal, device_key or ip),
+        "id": _hyp_id(signal, device_key or ip, title),
         "category": "threat",
         "signal_kind": signal,
         "severity": _severity_from_energy(severity_energy),
@@ -96,17 +96,42 @@ def _mk(
 
 # Finding-title keyword -> (severity_energy, suggested-action playbook).
 # Finding texts come from live probes, so their uncertainty is low by default.
+# Matched against actual synthesized titles in fingerprint.py (e.g. "Cleartext
+# Telnet Service Exposed", "Deprecated TLS Protocol Version", "Unencrypted
+# HTTP Gateway Management") plus legacy IoT keywords.
 FINDING_PLAYBOOK: List[Dict[str, Any]] = [
     {"k": "anonymous", "t": "mqtt", "energy": 0.80,
      "action": "Isolate this broker behind a VLAN and enable broker authentication (MQTT 3.x ships with NO authentication by default)."},
     {"k": "unauthenticated docker", "energy": 0.90,
      "action": "Bind the Docker Engine API to 127.0.0.1 or enable TLS — an open :2375 is effectively remote root."},
-    {"k": "ntp", "energy": 0.60,
-     "action": "Restrict Mode-6/7 control queries and disable monlist; rate-limit NTP at the gateway."},
+    {"k": "docker", "energy": 0.90,
+     "action": "Bind the Docker Engine API to 127.0.0.1 or enable TLS — an open :2375 is effectively remote root."},
+    {"k": "telnet", "energy": 0.95,
+     "action": "Disable Telnet immediately and migrate to SSH key auth — cleartext credentials are captured by any LAN observer."},
+    {"k": "adb", "energy": 0.92,
+     "action": "Disable Wireless Debugging / ADB over TCP; exposed ADB gives LAN shell execution."},
+    {"k": "deprecated tls", "energy": 0.65,
+     "action": "Disable TLS 1.0/1.1 and enforce TLS 1.2+ with AEAD suites on this service."},
     {"k": "smb", "energy": 0.50,
      "action": "Enable mandatory SMB packet signing (GPO / smb.conf 'server signing = mandatory')."},
     {"k": "ssh", "energy": 0.45,
      "action": "Upgrade OpenSSH and disable obsolete KEX/cipher suites; prefer Ed25519 host keys."},
+    {"k": "mqtt", "energy": 0.72,
+     "action": "Enable broker authentication; anonymous CONNECT acceptance is directly exploitable."},
+    {"k": "dns", "energy": 0.40,
+     "action": "Enable DNSSEC validation and DNS-over-TLS on the upstream resolver."},
+    {"k": "unencrypted", "energy": 0.55,
+     "action": "Gate this endpoint behind TLS/VLAN and strong auth — unencrypted LAN admin is sniffable capture."},
+    {"k": "roku", "energy": 0.35,
+     "action": "Disable Roku ECP network access if not needed (Settings → Network)."},
+    {"k": "randomized", "energy": 0.35,
+     "action": "Verify this randomized-MAC device is an authorized household/guest device."},
+    {"k": "duplicate", "energy": 0.85,
+     "action": "Validate gateway MAC manually and quarantine the anomalous host via Guardian Shield if confirmed."},
+    {"k": "evil twin", "energy": 0.85,
+     "action": "Confirm your SSID security; disable WPS and enforce WPA3."},
+    {"k": "ntp", "energy": 0.60,
+     "action": "Restrict Mode-6/7 control queries and disable monlist; rate-limit NTP at the gateway."},
     {"k": "kasa", "energy": 0.62,
      "action": "Update device firmware — the legacy Kasa XOR autokey is reversible by any LAN observer."},
     {"k": "sonos", "energy": 0.30,
@@ -115,10 +140,6 @@ FINDING_PLAYBOOK: List[Dict[str, Any]] = [
      "action": "Regenerate the Hue Bridge API key (press-ink bridge cycle)."},
     {"k": "upnp", "energy": 0.55,
      "action": "Disable UPnP IGD port-forwarding on the gateway or scope it to trusted hosts."},
-    {"k": "dns", "energy": 0.40,
-     "action": "Enable DNSSEC validation and DNS-over-TLS on the upstream resolver."},
-    {"k": "mqtt", "energy": 0.72,
-     "action": "Enable broker authentication; anonymous CONNECT acceptance is directly exploitable."},
     {"k": "camera", "energy": 0.68,
      "action": "Counter-surveillance sweep hit — physically inspect the flagged device."},
 ]
@@ -277,3 +298,31 @@ def generate_hypotheses(
         seen.add(h["id"])
         out.append(h)
     return out[:limit]
+
+
+def compute_threat_field(hypotheses: List[Dict[str, Any]], top_n: int = 12) -> Dict[str, Any]:
+    """Continuous collapse/measure: per-device field + global coherence.
+
+    Field per device = max expected_value among its hypotheses.
+    Coherence = fraction of devices whose top hypothesis is CRITICAL/HIGH.
+    """
+    by_device: Dict[str, float] = {}
+    for h in hypotheses or []:
+        k = str(h.get("device_key") or h.get("ip") or "unknown")
+        ev = float(h.get("expected_value") or 0)
+        if k not in by_device or ev > by_device[k]:
+            by_device[k] = ev
+    ranked = sorted(by_device.items(), key=lambda kv: kv[1], reverse=True)
+    high = sum(1 for h in (hypotheses or []) if str(h.get("severity")).upper() in ("CRITICAL", "HIGH"))
+    coherence = round(high / max(1, len(hypotheses or [])), 3)
+    field = [
+        {"device_key": k, "field_strength": round(v, 4)}
+        for k, v in ranked[:top_n]
+    ]
+    return {
+        "ok": True,
+        "coherence": coherence,
+        "devices_in_field": len(by_device),
+        "field": field,
+        "top": (hypotheses or [])[:top_n],
+    }

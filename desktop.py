@@ -15,6 +15,7 @@ Features:
 from __future__ import annotations
 
 import json
+import logging
 import os
 import socket
 import subprocess
@@ -373,8 +374,8 @@ def launch_desktop_app() -> None:
                 title = f"NetPulse // OmniSight — Security Grade {grade} ({score}/100) • {on_cnt} Hosts Online"
                 tooltip = f"NetPulse // OmniSight — Grade {grade} ({score}/100) • {on_cnt}/{tot_cnt} Online"
                 posture_bridge.posture_ready.emit(summary, title, tooltip)
-            except Exception:
-                pass
+            except Exception as exc:
+                logging.getLogger(__name__).debug("posture poll failed: %s", exc)
 
         threading.Thread(target=_fetch, daemon=True).start()
 
