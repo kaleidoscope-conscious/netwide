@@ -98,6 +98,27 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/netpulse:${{ steps.ver.outputs.version }}
             ${{ secrets.DOCKERHUB_USERNAME }}/netpulse:latest
 
+      - name: Make GHCR package public
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          # New GHCR packages default to private; make the image pullable without a token.
+          for API in "orgs/$OWNER" "users/$OWNER"; do
+            URL="https://api.github.com/$API/packages/container/netpulse"
+            CODE=$(curl -s -o /tmp/ghcr.json -w "%{http_code}" -X PATCH \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "$URL" -d '{"visibility":"public"}')
+            if [ "$CODE" = "200" ]; then
+              echo "GHCR package set to public via $API"
+              exit 0
+            fi
+          done
+          echo "::notice::Could not flip GHCR visibility automatically — set it in the package settings UI."
+
       - name: Summary
         run: |
           echo "### Published v${{ steps.ver.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
