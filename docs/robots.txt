@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /watchtower
+
+Sitemap: https://kaleidoscope-conscious.github.io/netpulse/sitemap.xml

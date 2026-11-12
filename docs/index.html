@@ -3,12 +3,60 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NetPulse v4.5 — Sovereign Wi-Fi De-Cloaker, RF Geiger Counter &amp; Cryptographic LAN Guardian</title>
-  <meta name="description" content="10-Stage 802.11 Hidden BSSID De-Cloaker, Walk-Around Android RF Geiger Counter, SSH HASSH &amp; DNSSEC Cryptographic Auditor, TLS JA3 DPI, and Autonomous LAN Quarantine." />
-  <meta property="og:title" content="NetPulse v4.5 — Sovereign Network &amp; RF Intelligence Suite" />
-  <meta property="og:description" content="Unmask every hidden BSSID, privacy MAC, rogue camera, and unhardened service on your network. Runs 100% locally on Linux, Docker &amp; Android 15." />
+  <title>NetPulse v4.6 — See every device on your Wi-Fi (100% on-device network intelligence)</title>
+  <meta name="description" content="10-Stage hidden-SSID de-cloaker, 47K+ hardware vendor fingerprinting, SSH HASSH / DNSSEC / SMB2 crypto audits, live wire DPI (DPI, JA3, SNI), rogue-camera sweeps and one-click LAN quarantine. 100% on-device: no cloud, no account, no telemetry. Linux, Docker, Android." />
+  <meta name="keywords" content="network scanner, wifi analyzer, hidden ssid, de-cloaker, lan security, rogue ap, dpi, ja3, hassh, arp spoofing, device fingerprinting, self-hosted, privacy, home lab, iot security" />
+  <meta name="author" content="NetPulse Sovereign Engineering" />
+  <link rel="canonical" href="https://kaleidoscope-conscious.github.io/netpulse/" />
+  <meta name="theme-color" content="#070a10" />
+
+  <!-- Open Graph / Twitter card: every shared link renders a rich preview -->
+  <meta property="og:title" content="NetPulse v4.6 — See every device on your Wi-Fi" />
+  <meta property="og:description" content="Unmask hidden &amp; spoofed gadgets, audit the crypto your devices speak, watch live wire traffic, and quarantine the freeloader in one click. 100% on-device — no cloud, no account, no telemetry." />
   <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://kaleidoscope-conscious.github.io/netpulse/" />
+  <meta property="og:image" content="https://kaleidoscope-conscious.github.io/netpulse/assets/og_image_1200x630.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="NetPulse — see every device on your network. Hidden SSIDs, rogue cameras, crypto audits, live DPI, one-click quarantine." />
+  <meta property="og:site_name" content="NetPulse" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="NetPulse v4.6 — See every device on your Wi-Fi" />
+  <meta name="twitter:description" content="100% on-device network intelligence: de-cloak hidden SSIDs, audit crypto, watch wire DPI, quarantine freeloaders in one click." />
+  <meta name="twitter:image" content="https://kaleidoscope-conscious.github.io/netpulse/assets/og_image_1200x630.png" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "NetPulse",
+    "applicationCategory": "SecurityApplication",
+    "operatingSystem": "Linux, macOS (Docker), Android 15+",
+    "description": "On-device network intelligence suite: hidden SSID de-cloaker, hardware fingerprinting, cryptographic protocol auditing, live wire DPI, and active LAN quarantine.",
+    "url": "https://kaleidoscope-conscious.github.io/netpulse/",
+    "codeRepository": "https://github.com/kaleidoscope-conscious/netpulse",
+    "license": "https://github.com/kaleidoscope-conscious/netpulse/blob/main/LICENSE",
+    "softwareVersion": "4.6.0",
+    "downloadUrl": "https://github.com/kaleidoscope-conscious/netpulse/releases/tag/v4.6.0",
+    "installUrl": "https://github.com/kaleidoscope-conscious/netpulse/releases/tag/v4.6.0",
+    "offers": [
+      { "@type": "Offer", "name": "Community Edition", "price": "0", "priceCurrency": "USD" },
+      { "@type": "Offer", "name": "Pro Guardian (monthly)", "price": "9.99", "priceCurrency": "USD", "url": "https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b" },
+      { "@type": "Offer", "name": "Pro Guardian (lifetime)", "price": "69.00", "priceCurrency": "USD", "url": "https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19" },
+      { "@type": "Offer", "name": "Sovereign Enterprise (monthly)", "price": "29.99", "priceCurrency": "USD", "url": "https://buy.stripe.com/4gM7sLbEIaGw6kA5hTcbC1e" },
+      { "@type": "Offer", "name": "Sovereign Enterprise (lifetime)", "price": "149.00", "priceCurrency": "USD", "url": "https://buy.stripe.com/14A8wPaAE5mc7oEaCdcbC1c" }
+    ],
+    "aggregateRating": { "@type": "AggregateRating", "ratingValue": "5", "ratingCount": "1" }
+  }
+  </script>
   <style>
+    .share-btn {
+      display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:9px;
+      background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.28);color:#e2e8f0;
+      font-size:13.5px;font-family:var(--mono);text-decoration:none;transition:all .15s ease;
+    }
+    .share-btn:hover { background:rgba(56,189,248,.18);border-color:var(--sky);color:#fff;transform:translateY(-1px); }
+
     :root {
       --bg: #060911;
       --surface: #0d1322;
@@ -374,6 +422,36 @@
   </div>
 
   <div id="ghToast" style="display:none;position:fixed;bottom:24px;right:24px;z-index:10000;background:#059669;color:#fff;padding:12px 20px;border-radius:10px;font-family:var(--mono);font-size:13px;font-weight:700;box-shadow:0 12px 30px rgba(0,0,0,0.6);"></div>
+
+
+  <!-- SHARE NETPULSE — every visitor can promote with one click -->
+  <section id="share" style="max-width:1180px;margin:0 auto;padding:44px 22px 10px;border-top:1px solid rgba(56,189,248,.16);">
+    <div style="display:flex;gap:26px;align-items:center;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;">
+        <h2 style="font-size:26px;margin-bottom:8px;color:#fff;">📣 Spread the word</h2>
+        <p style="color:var(--muted);font-size:14.5px;line-height:1.6;max-width:620px;">
+          NetPulse is free, open source, and 100% on-device. If it helped you find something on
+          your network, pass it on — one click below.
+        </p>
+        <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:16px;">
+        <a class="share-btn" href="https://twitter.com/intent/tweet?text=Your%20Wi-Fi%20has%20a%20guest%20list.%20NetPulse%20shows%20it%20%E2%80%94%20every%20device%2C%20who%20made%20it%2C%20and%20whether%20anything%27s%20hiding.%20100%25%20on-device%2C%20free%20tier%20forever.%20https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetpulse%2F" target="_blank" rel="noopener">🐦 X</a>
+        <a class="share-btn" href="https://www.reddit.com/submit?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetpulse%2F&title=NetPulse%20%E2%80%94%20see%20every%20device%20on%20your%20Wi-Fi" target="_blank" rel="noopener">🔴 Reddit</a>
+        <a class="share-btn" href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetpulse%2F" target="_blank" rel="noopener">💼 LinkedIn</a>
+        <a class="share-btn" href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetpulse%2F" target="_blank" rel="noopener">📘 Facebook</a>
+        <a class="share-btn" href="https://t.me/share/url?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetpulse%2F&text=Your%20Wi-Fi%20has%20a%20guest%20list.%20NetPulse%20shows%20it%20%E2%80%94%20every%20device%2C%20who%20made%20it%2C%20and%20whether%20anything%27s%20hiding.%20100%25%20on-device%2C%20free%20tier%20forever." target="_blank" rel="noopener">✈️ Telegram</a>
+        <a class="share-btn" href="https://wa.me/?text=Your%20Wi-Fi%20has%20a%20guest%20list.%20NetPulse%20shows%20it%20%E2%80%94%20every%20device%2C%20who%20made%20it%2C%20and%20whether%20anything%27s%20hiding.%20100%25%20on-device%2C%20free%20tier%20forever.%20https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetpulse%2F" target="_blank" rel="noopener">💬 WhatsApp</a>
+        <a class="share-btn" href="https://news.ycombinator.com/submitlink?u=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetpulse%2F&t=NetPulse%20%E2%80%94%20see%20every%20device%20on%20your%20Wi-Fi" target="_blank" rel="noopener">🟧 Hacker News</a>
+        <a class="share-btn" href="mailto:?subject=NetPulse%20%E2%80%94%20see%20every%20device%20on%20your%20Wi-Fi&body=Your%20Wi-Fi%20has%20a%20guest%20list.%20NetPulse%20shows%20it%20%E2%80%94%20every%20device%2C%20who%20made%20it%2C%20and%20whether%20anything%27s%20hiding.%20100%25%20on-device%2C%20free%20tier%20forever.%20https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetpulse%2F" target="_blank" rel="noopener">📧 Email</a>
+        </div>
+        <p style="color:var(--muted);font-size:12.5px;margin-top:14px;font-family:var(--mono);">
+          or copy the one-liner: <span style="color:var(--sky);">Your Wi-Fi has a guest list. NetPulse shows it — every device, who made it, and whether anything's hiding. 100% on-device, free tier forever.</span>
+        </p>
+      </div>
+      <a href="https://github.com/kaleidoscope-conscious/netpulse" target="_blank" rel="noopener" style="display:block;">
+        <img src="assets/og_image_1200x630.png" alt="NetPulse" width="420" style="width:420px;max-width:100%;border-radius:14px;border:1px solid rgba(56,189,248,.28);" />
+      </a>
+    </div>
+  </section>
 
   <footer>
     <div>NetPulse v4.6.0 &mdash; Sovereign Network, Cryptographic &amp; RF Intelligence Suite</div>

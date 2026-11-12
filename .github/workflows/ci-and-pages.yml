@@ -62,7 +62,7 @@ jobs:
         run: |
           rm -rf .pages_staging
           mkdir -p .pages_staging/assets
-          cp docs/index.html docs/privacy.html .pages_staging/
+          cp docs/index.html docs/privacy.html docs/sitemap.xml docs/robots.txt .pages_staging/
           cp -r play_store_assets/* .pages_staging/assets/
           cp docs/assets/* .pages_staging/assets/ 2>/dev/null || true
           echo "Published files:" && ls -R .pages_staging
