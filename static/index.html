@@ -628,6 +628,7 @@
       <button class="btn btn-primary" onclick="triggerManualScan()" id="scanBtn">⚡ Scan</button>
       <button class="btn btn-primary" onclick="triggerAreaScan()" id="areaScanBtn" style="background:#0284c7;border-color:#0369a1;">📡 Find hidden Wi-Fi</button>
       <button class="btn" onclick="jumpToWorkspaceTab('packets')" id="secBtn">🛡 Security check</button>
+      <button class="btn" onclick="shareNetPulse()" id="shareBtn" title="Spread the word about NetPulse">📣 Share</button>
       <details>
         <summary class="btn" style="cursor:pointer;">More ▾</summary>
         <div style="display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:6px;margin-top:4px;">
@@ -1181,7 +1182,48 @@
 
   </main>
 
-  <script>
+      const NETPULSE_STOREFRONT = "https://kaleidoscope-conscious.github.io/netpulse/";
+    const NETPULSE_SHARE_TEXT = "Your Wi-Fi has a guest list. NetPulse shows it - every device, who made it, and whether anything's hiding. 100% on-device, free tier forever.";
+
+    function shareNetPulse() {
+      const urls = [
+        ["X / Twitter", "https://twitter.com/intent/tweet?text=" + encodeURIComponent(NETPULSE_SHARE_TEXT + " " + NETPULSE_STOREFRONT)],
+        ["Reddit", "https://www.reddit.com/submit?url=" + encodeURIComponent(NETPULSE_STOREFRONT) + "&title=" + encodeURIComponent("NetPulse - see every device on your Wi-Fi")],
+        ["LinkedIn", "https://www.linkedin.com/sharing/share-offsite/?url=" + encodeURIComponent(NETPULSE_STOREFRONT)],
+        ["Hacker News", "https://news.ycombinator.com/submitlink?u=" + encodeURIComponent(NETPULSE_STOREFRONT) + "&t=" + encodeURIComponent("NetPulse - see every device on your Wi-Fi")],
+        ["Telegram", "https://t.me/share/url?url=" + encodeURIComponent(NETPULSE_STOREFRONT) + "&text=" + encodeURIComponent(NETPULSE_SHARE_TEXT)],
+        ["WhatsApp", "https://wa.me/?text=" + encodeURIComponent(NETPULSE_SHARE_TEXT + " " + NETPULSE_STOREFRONT)],
+      ];
+      const box = document.getElementById("npShareBox");
+      box.innerHTML = "";
+      urls.forEach(function (u) {
+        const a = document.createElement("a");
+        a.className = "btn";
+        a.style.textDecoration = "none";
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.setAttribute("data-share-target", u[0]);
+        a.textContent = u[0];
+        a.addEventListener("click", function () { window.open(u[1], "_blank", "noopener"); });
+        box.appendChild(a);
+      });
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "btn";
+      copyBtn.textContent = "\u{1F517} Copy link";
+      copyBtn.addEventListener("click", function () {
+        navigator.clipboard.writeText(NETPULSE_STOREFRONT);
+        showWorkbenchToast("Storefront link copied", "#38bdf8");
+      });
+      box.appendChild(copyBtn);
+      box.style.display = "flex";
+      document.getElementById("npShareModal").style.display = "flex";
+    }
+
+    function closeShareModal() {
+      document.getElementById("npShareModal").style.display = "none";
+    }
+
+<script>
     let appState = null;
     let activeFilter = 'ALL';
     let selectedIp = null;
@@ -4417,6 +4459,18 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+  <div id="npShareModal" onclick="closeShareModal()" style="display:none;position:fixed;inset:0;z-index:12000;background:rgba(5,8,17,.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px;">
+    <div style="background:#0d1322;border:1px solid #38bdf8;border-radius:14px;max-width:560px;width:100%;padding:22px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <h3 style="font-size:18px;color:#fff;">📣 Share NetPulse</h3>
+        <button class="btn" onclick="closeShareModal()">✕ Close</button>
+      </div>
+      <p style="color:#94a3b8;font-size:13px;margin-bottom:14px;">
+        Free, open source and 100% on-device. If NetPulse found something on your network, pass it on.
+      </p>
+      <div id="npShareBox" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
     </div>
   </div>
 </body>

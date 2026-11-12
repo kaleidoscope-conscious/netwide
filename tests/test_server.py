@@ -487,6 +487,13 @@ def test_every_html_button_and_link_leads_to_valid_action() -> None:
         os.path.join(root_dir, "docs", "index.html"),
     ]
 
+    # Some links (CSV / evidence export) are tier-gated. Activate an Enterprise
+    # licence for this crawl so gated endpoints answer 200, then restore the
+    # free-tier node state so later tests are unaffected.
+    from netpulse.billing import subscription_engine as _sub
+    _mint = _sub.mint_license_key(tier="enterprise", plan="lifetime", email="crawler@netpulse.local")
+    _sub.activate_license_key(_mint["license_key"])
+
     for fpath in html_files:
         assert os.path.exists(fpath), f"Missing HTML file: {fpath}"
         with open(fpath, "r", encoding="utf-8") as f:
@@ -524,6 +531,9 @@ def test_every_html_button_and_link_leads_to_valid_action() -> None:
                 assert resp.status_code == 200, (
                     f"Broken internal link <a href='{href}'> in {os.path.basename(fpath)}: HTTP {resp.status_code}"
                 )
+
+    # Restore the free-tier node state for the remaining tests.
+    client.post("/api/subscription/deactivate")
 
 
 def test_every_backend_api_endpoint_is_surfaced_in_ui() -> None:

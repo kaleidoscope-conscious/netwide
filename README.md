@@ -6,6 +6,9 @@
 [![License](https://img.shields.io/badge/license-source--available%20%2B%20commercial_tiers-crimson?style=for-the-badge)](LICENSE.md)
 [![Storefront](https://img.shields.io/badge/Storefront-Founder's_Lifetime_%24149-7c3aed?style=for-the-badge)](https://kaleidoscope-conscious.github.io/netpulse/)
 [![Android APK](https://img.shields.io/badge/Android-15-APK-0284c7?style=for-the-badge&logo=android)](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.6.0/NetPulse-Mobile-v4.6.0.apk)
+[![PyPI](https://img.shields.io/badge/pypi-netPulse-4.6.0-3775ab?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/netpulse/)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fkaleidoscope-conscious%2Fnetpulse-2496ed?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/kaleidoscope-conscious/netpulse/pkgs/container/netpulse)
+[![Discussions](https://img.shields.io/badge/discussions-Q%26A%20%2B%20roadmap-6e40c9?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kaleidoscope-conscious/netpulse/discussions)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor_♥-GitHub-db61fc?style=for-the-badge&logo=githubsponsors)](https://github.com/sponsors/kaleidoscopeAI)
 [![Donate via PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?style=for-the-badge&logo=paypal)](https://paypal.me/jgraham1000)
 
@@ -44,6 +47,23 @@ docker compose up -d
 
 📱 **Android:** [NetPulse-Mobile-v4.6.0.apk](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.6.0/NetPulse-Mobile-v4.6.0.apk) ·
 [Google Play .AAB](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.6.0/NetPulse-Mobile-PlayStore-v4.6.0.aab)
+
+---
+
+## 📥 Get it everywhere
+
+| Channel | Command / link |
+| :--- | :--- |
+| 🐍 **PyPI** | `pip install netpulse` |
+| 🐳 **Docker (GHCR)** | `docker pull ghcr.io/kaleidoscope-conscious/netpulse:latest` |
+| 🐳 **Docker Compose** | `docker compose up -d` |
+| 🖥️ **Source** | `git clone https://github.com/kaleidoscope-conscious/netpulse.git && cd netpulse && ./install.sh` |
+| 📦 **Release bundle** | [tar.gz · APK · AAB · wheel](https://github.com/kaleidoscope-conscious/netpulse/releases/tag/v4.6.0) |
+| 📱 **Android** | [signed APK](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.6.0/NetPulse-Mobile-v4.6.0.apk) · [Play .AAB](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.6.0/NetPulse-Mobile-PlayStore-v4.6.0.aab) |
+| 🧾 **Verified checksums** | `SHA256SUMS.txt` on every release |
+
+> Publishing to Docker Hub, PyPI and Flathub is one secret away — see
+> `.github/workflows/publish-distribution.yml`.
 
 ---
 
