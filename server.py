@@ -25,6 +25,7 @@ import subprocess
 import time
 import urllib.parse
 import urllib.request
+from collections import deque
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional, Set
 
@@ -754,10 +755,8 @@ async def security_headers_middleware(request: Request, call_next):
 # In-memory ring buffers (no disk, no external calls) so the operator view is
 # always available and never phones home.
 # ---------------------------------------------------------------------------
-from collections import deque  # noqa: E402
-
 _TELEMETRY_START = time.time()
-_REQUEST_LOG: Deque[Dict[str, Any]] = deque(maxlen=500)
+_REQUEST_LOG: deque[Dict[str, Any]] = deque(maxlen=500)
 _CLIENT_STATS: Dict[str, Dict[str, Any]] = {}   # ip -> {hits, last_seen, paths{}, errors}
 _WS_CLIENTS: Dict[str, Dict[str, Any]] = {}     # peer key -> {ip, since}
 _TELEMETRY_LOCK = None
