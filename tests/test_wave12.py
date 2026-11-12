@@ -14,10 +14,8 @@ from netpulse.chronicle import (
 from netpulse.evidence_bundle import build_case_evidence_bundle, verify_evidence_bundle
 from netpulse.fusion import (
     VECTOR_DEFINITIONS,
-    EvidenceVector,
     extract_evidence_vectors,
     fuse_evidence,
-    normalize_brand_token,
 )
 from netpulse.server import app
 

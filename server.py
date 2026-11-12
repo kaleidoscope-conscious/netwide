@@ -59,7 +59,6 @@ from netpulse.fusion import extract_evidence_vectors, fuse_evidence
 from netpulse.accuracy import evaluate_accuracy
 from netpulse.evidence_bundle import build_case_evidence_bundle, verify_evidence_bundle
 from netpulse.chronicle import (
-    compute_device_rhythm_profile,
     generate_network_chronicle,
     generate_netpulse_wrapped,
 )

@@ -15,7 +15,7 @@ import hashlib
 import hmac
 import json
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 CASE_CONTEXT = [
     "https://ontology.caseontology.org/case/1.3.0/context.jsonld",
