@@ -353,16 +353,17 @@
       </div>
 
       <p style="font-size:13.5px;color:var(--muted);margin-top:0;">
-        NetPulse uses offline-verifiable <strong>HMAC-SHA256 cryptographic license keys (`NP1-PRO-...` &amp; `NP1-ENTERPRISE-...`)</strong>. Activate directly on your local node or generate a key below:
+        NetPulse uses offline-verifiable <strong>HMAC-SHA256 cryptographic license keys (`NP1-PRO-...` &amp; `NP1-ENTERPRISE-...`)</strong>.
+        Payment is processed by <strong>Stripe</strong> — licenses are minted and activated automatically the moment payment clears.
       </p>
 
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-        <input id="ghBuyerEmail" type="email" value="founder@netpulse.io" placeholder="Enter your operator email…" style="flex:1;min-width:220px;background:#050811;border:1px solid #283a5e;color:#fff;padding:10px 14px;border-radius:8px;font-family:var(--mono);font-size:13px;" />
-        <button class="btn btn-emerald" onclick="triggerLocalOrInstantActivation()">⚡ Activate on Local Node / Mint Key</button>
+        <input id="ghBuyerEmail" type="email" value="founder@netpulse.io" placeholder="Your email for the license…" style="flex:1;min-width:220px;background:#050811;border:1px solid #283a5e;color:#fff;padding:10px 14px;border-radius:8px;font-family:var(--mono);font-size:13px;" />
+        <button class="btn btn-emerald" id="ghPayButton" onclick="beginPurchase(selectedTier, currentCycle)">💳 Pay with Stripe</button>
       </div>
 
       <div id="ghModalOutput" style="background:#050811;border:1px solid #283a5e;border-radius:10px;padding:14px;font-family:var(--mono);font-size:12px;color:#34d399;margin-bottom:16px;line-height:1.65;">
-        Ready to provision cryptographic license key or connect to local daemon at <code>http://127.0.0.1:8765</code>.
+        Choose <em>Pay with Stripe</em> — you will be taken to Stripe's secure checkout, then NetPulse mints and activates your license automatically.
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
@@ -419,6 +420,77 @@
       showGhToast(`Selected ${c.toUpperCase()} billing cycle`);
     }
 
+    // Stripe Payment Links (hosted checkout) — used when the buyer has no local
+    // NetPulse daemon running (i.e. web-first purchase before installation).
+    const STRIPE_PAYMENT_LINKS = {
+      'pro_lifetime': 'https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19',
+      'pro_annual': 'https://buy.stripe.com/28E8wP248g0Q38oaCdcbC1a',
+      'pro_monthly': 'https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b',
+      'enterprise_lifetime': 'https://buy.stripe.com/14A8wPaAE5mc7oEaCdcbC1c',
+      'enterprise_annual': 'https://buy.stripe.com/28EeVd2485mcaAQaCdcbC1d',
+      'enterprise_monthly': 'https://buy.stripe.com/4gM7sLbEIaGw6kA5hTcbC1e'
+    };
+    const LOCAL_DAEMON = 'http://127.0.0.1:8765';
+
+    async function beginPurchase(tier, plan) {
+      const email = (document.getElementById('ghBuyerEmail') || {}).value || '';
+      const out = document.getElementById('ghModalOutput');
+      out.textContent = `Creating Stripe Checkout Session for ${tier.toUpperCase()} (${plan.toUpperCase()})…`;
+      // Preferred path: the buyer's own NetPulse daemon creates the session and
+      // activates the license locally the moment Stripe confirms payment.
+      try {
+        const res = await fetch(LOCAL_DAEMON + '/api/subscription/checkout', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({tier, plan, email, origin_url: LOCAL_DAEMON})
+        }).then(r => r.json());
+        if (res && res.ok && res.checkout_url) {
+          out.textContent = 'Redirecting to secure Stripe checkout…';
+          location.href = res.checkout_url;
+          return;
+        }
+      } catch (_) {}
+      // Fallback: hosted Stripe Payment Link (no local daemon required).
+      const link = STRIPE_PAYMENT_LINKS[`${tier}_${plan}`];
+      if (link) {
+        out.innerHTML = 'No local NetPulse node detected — continuing to secure Stripe checkout.<br>' +
+          '<span style="color:#94a3b8;">After payment you will return here to activate your license.</span>';
+        setTimeout(() => { location.href = link; }, 900);
+      } else {
+        out.innerHTML = '<span style="color:#f87171;">Checkout unavailable for this plan. Please contact support.</span>';
+      }
+    }
+
+    // Post-payment activation: Stripe redirects back with ?session_id=...
+    async function activatePaidSession(sessionId) {
+      const out = document.getElementById('ghModalOutput');
+      out.innerHTML = 'Verifying payment with Stripe and minting your license…';
+      try {
+        const res = await fetch(LOCAL_DAEMON + '/api/subscription/verify-session', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({session_id: sessionId})
+        }).then(r => r.json());
+        if (res && res.ok) {
+          const key = (res.minted_license && res.minted_license.license_key) || res.license_key || '';
+          out.innerHTML = '<div style="color:#34d399;font-weight:700;">✓ Payment verified — license minted &amp; activated on this device.</div>' +
+            '<div style="margin-top:8px;">Signed key: <code style="color:#38bdf8;">' + key + '</code></div>' +
+            '<div style="margin-top:6px;color:#94a3b8;">Save this key: <code>netpulse license activate ' + key + '</code></div>';
+          showGhToast('✓ License activated on this device');
+          return true;
+        }
+        out.innerHTML = '<span style="color:#f59e0b;">Payment received, but no local NetPulse node is reachable to activate it.</span>' +
+          '<div style="margin-top:8px;color:#94a3b8;">Send this session ID with your email and your key will be delivered:' +
+          '<br><code>' + sessionId + '</code></div>';
+        return false;
+      } catch (_) {
+        out.innerHTML = '<span style="color:#f59e0b;">Payment received, but no local NetPulse node is reachable to activate it.</span>' +
+          '<div style="margin-top:8px;color:#94a3b8;">Send this session ID with your email and your key will be delivered:' +
+          '<br><code>' + sessionId + '</code></div>';
+        return false;
+      }
+    }
+
     function openStorefrontCheckout(tier) {
       selectedTier = tier;
       const modal = document.getElementById('ghLicenseModal');
@@ -426,38 +498,32 @@
       const titleName = tier === 'enterprise' ? 'Sovereign Enterprise' : 'Pro Guardian';
       document.getElementById('ghModalBadge').textContent = `${tier.toUpperCase()} • ${currentCycle.toUpperCase()}`;
       document.getElementById('ghModalTitle').textContent = `Activate ${titleName} (${currentCycle.toUpperCase()})`;
-      const cliCmd = `python3 -c "from netpulse.billing import mint_license_key, activate_license_key; k=mint_license_key('${tier}','${currentCycle}','founder@netpulse.io'); activate_license_key(k['license_key']); print(k['license_key'])"`;
+      document.getElementById('ghPayButton').textContent = `💳 Pay with Stripe — ${currentCycle.toUpperCase()}`;
       document.getElementById('ghModalOutput').innerHTML =
-        `<div><strong>Option 1 (Instant Local Node Activation):</strong> Click <em>"⚡ Activate on Local Node / Mint Key"</em> above if NetPulse is running on this machine (<code>127.0.0.1:8765</code>).</div>` +
-        `<div style="margin-top:8px;"><strong>Option 2 (One-Line CLI Key Minter):</strong></div>` +
-        `<div style="background:#09101f;padding:8px;border-radius:6px;margin-top:4px;color:#38bdf8;word-break:break-all;">${cliCmd}</div>`;
+        `<div><strong>How it works:</strong></div>` +
+        `<div style="margin-top:6px;">1. Click <em>Pay with Stripe</em> — you are taken to Stripe's secure checkout.</div>` +
+        `<div>2. On success Stripe returns you here and NetPulse mints + activates your signed license automatically.</div>` +
+        `<div>3. If NetPulse is not running locally yet, your signed key is delivered by email within minutes.</div>`;
     }
 
     function closeStorefrontCheckout() {
       document.getElementById('ghLicenseModal').style.display = 'none';
     }
 
-    async function triggerLocalOrInstantActivation() {
-      const email = (document.getElementById('ghBuyerEmail').value || 'founder@netpulse.io').trim();
-      const out = document.getElementById('ghModalOutput');
-      out.textContent = `Connecting to local NetPulse daemon (http://127.0.0.1:8765) for ${selectedTier.toUpperCase()} (${currentCycle.toUpperCase()})…`;
-      try {
-        const res = await fetch('http://127.0.0.1:8765/api/subscription/admin/mint', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({tier: selectedTier, plan: currentCycle, email, auto_activate: true})
-        }).then(r => r.json());
-        if (res.ok) {
-          out.innerHTML = `✓ <strong>Activated ${res.tier_name} (${res.plan.toUpperCase()}) on Local Node!</strong><br>Signed Key: <code>${res.license_key}</code><br><a href="http://127.0.0.1:8765/?desktop=1" style="color:#38bdf8;">Open Local NetPulse Workbench &rarr;</a>`;
-          showGhToast(`✓ Activated ${res.tier_name} on local node!`);
-          return;
-        }
-      } catch (_) {}
-      const cliCmd = `python3 -c "from netpulse.billing import mint_license_key, activate_license_key; k=mint_license_key('${selectedTier}','${currentCycle}','${email}'); activate_license_key(k['license_key']); print('Minted & Activated:', k['license_key'])"`;
-      navigator.clipboard.writeText(cliCmd).catch(() => {});
-      out.innerHTML = `✓ <strong>Copied Instant CLI Activation Command to Clipboard!</strong><br>Run this in your NetPulse directory to mint &amp; activate your signed <code>NP1-${selectedTier.toUpperCase()}-...</code> key:<br><div style="background:#09101f;padding:8px;border-radius:6px;margin-top:6px;color:#38bdf8;word-break:break-all;">${cliCmd}</div>`;
-      showGhToast('✓ Copied CLI License Activation command to clipboard!');
-    }
+
+    // Returning from Stripe hosted checkout (web-first purchase).
+    (function handleStripeReturn() {
+      const params = new URLSearchParams(window.location.search);
+      const sessionId = params.get('session_id');
+      if (!sessionId) return;
+      const modal = document.getElementById('ghLicenseModal');
+      modal.style.display = 'flex';
+      document.getElementById('ghModalBadge').textContent = 'PAYMENT RECEIVED';
+      document.getElementById('ghModalTitle').textContent = 'Activate Your NetPulse License';
+      document.getElementById('ghModalOutput').innerHTML =
+        'Payment received — verifying with Stripe and minting your license…';
+      activatePaidSession(sessionId);
+    })();
   </script>
 </body>
 </html>

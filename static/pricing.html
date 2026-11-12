@@ -351,21 +351,31 @@
       } catch (e) {}
     }
 
-    async function instantLocalMint(tier, plan) {
-      const email = document.getElementById('buyerEmail').value.trim() || 'founder@netpulse.io';
-      showPricingToast(`⟳ Minting & Activating ${tier.toUpperCase()} (${plan.toUpperCase()})…`, '#38bdf8');
-      const res = await fetch('/api/subscription/admin/mint', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({tier, plan, email, auto_activate: true})
-      }).then(r => r.json());
-      if (res.ok) {
-        document.getElementById('licKeyInput').value = res.license_key || '';
-        showBanner(`✓ <strong>Activated ${res.tier_name} (${res.plan.toUpperCase()})!</strong> Signed Key: <code>${res.license_key}</code> &bull; <a href="/?desktop=1" style="color:#fff;text-decoration:underline;">Open Workbench &rarr;</a>`, '#34d399');
-        showPricingToast(`✓ Activated ${res.tier_name} (${res.plan.toUpperCase()})!`, '#10b981');
-        loadStatus();
-      } else {
-        await claimTrial();
+    const NETPULSE_PAYMENT_LINKS = {
+      'pro_lifetime': 'https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19',
+      'pro_annual': 'https://buy.stripe.com/28E8wP248g0Q38oaCdcbC1a',
+      'pro_monthly': 'https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b',
+      'enterprise_lifetime': 'https://buy.stripe.com/14A8wPaAE5mc7oEaCdcbC1c',
+      'enterprise_annual': 'https://buy.stripe.com/28EeVd2485mcaAQaCdcbC1d',
+      'enterprise_monthly': 'https://buy.stripe.com/4gM7sLbEIaGw6kA5hTcbC1e'
+    };
+
+    async function buyLicense(tier, plan) {
+      // 1) Preferred: this node creates the Stripe Checkout Session and activates
+      //    the license locally the moment Stripe confirms the payment.
+      try {
+        const res = await fetch('/api/subscription/checkout', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({tier, plan, email: (document.getElementById('buyerEmail') || {}).value || '', origin_url: location.origin})
+        }).then(r => r.json());
+        if (res && res.ok && res.checkout_url) { location.href = res.checkout_url; return; }
+      } catch (_) {}
+      // 2) Fallback: hosted Stripe Payment Link (works without a local Stripe key).
+      const link = NETPULSE_PAYMENT_LINKS[`${tier}_${plan}`];
+      if (link) { location.href = link; }
+      else if (typeof showPricingToast === 'function') {
+        showPricingToast('Checkout unavailable for this plan', '#f87171');
       }
     }
 
@@ -384,12 +394,12 @@
         showBanner(
           `<div>⚠ <strong>Local Node Mode:</strong> ${res.error || 'Stripe live API key not configured on this self-hosted node yet.'}</div>` +
           `<div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">` +
-          `<button class="btn btn-emerald" onclick="instantLocalMint('${tier}', '${cycle}')">⚡ Instant Local Activation: Mint &amp; Activate ${tier.toUpperCase()} (${cycle.toUpperCase()}) Now</button>` +
+          `<button class="btn btn-emerald" onclick="buyLicense('${tier}', '${cycle}')">💳 Buy ${tier.toUpperCase()} (${cycle.toUpperCase()}) with Stripe</button>` +
           `<button class="btn btn-primary" onclick="claimTrial()">🎁 Claim 7-Day Pro Trial Key</button>` +
           `</div>`,
           '#fbbf24'
         );
-        showPricingToast('Click "Instant Local Activation" in the banner above to unlock immediately', '#f59e0b');
+        showPricingToast('Opening secure Stripe checkout…', '#f59e0b');
         document.getElementById('heroStatusBanner').scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }

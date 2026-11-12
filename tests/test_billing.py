@@ -147,3 +147,58 @@ def test_stripe_webhook_hmac_verification():
         res_unpaid = mgr.handle_stripe_webhook(raw_unpaid, f"t={t_str},v1={sig_unpaid}")
         assert res_unpaid["ok"] is False
         assert "payment_status must be 'paid'" in res_unpaid["error"]
+
+
+def test_operator_signed_license_verifies_on_a_customer_node():
+    """Ed25519 license authority: a key minted by the operator verifies anywhere."""
+    import os as _os
+    import tempfile as _tempfile
+    from netpulse import license_authority as _authority
+    from netpulse.billing import SubscriptionManager as _SM
+
+    key_path = _tempfile.mktemp(suffix=".authority.key")
+    public, private_hex = _authority.generate_keypair()
+    _os.environ["NETPULSE_LICENSE_KEY_PATH"] = key_path
+    _os.environ["NETPULSE_LICENSE_PUBLIC_KEY"] = public
+    try:
+        with open(key_path, "w", encoding="utf-8") as fh:
+            fh.write(private_hex)
+
+        operator = _SM(db_path=_tempfile.mktemp(suffix=".db"))
+        minted = operator.mint_license_key(tier="enterprise", plan="lifetime", email="buyer@example.com")
+        key = minted["license_key"]
+        assert key.startswith("NP1-ENTERPRISE-")
+        assert operator.verify_license_key(key).get("valid") is True
+
+        # Customer machine: no private key, only the shipped public key.
+        _os.remove(key_path)
+        customer = _SM(db_path=_tempfile.mktemp(suffix=".db"))
+        assert _authority.load_private_key() is None
+        verified = customer.verify_license_key(key)
+        assert verified.get("valid") is True, verified.get("error")
+        assert verified.get("tier") == "enterprise"
+
+        activated = customer.activate_license_key(key)
+        assert activated.get("ok") is True
+        assert customer.get_subscription_status().get("tier") == "enterprise"
+    finally:
+        _os.environ.pop("NETPULSE_LICENSE_KEY_PATH", None)
+        _os.environ.pop("NETPULSE_LICENSE_PUBLIC_KEY", None)
+        if _os.path.exists(key_path):
+            _os.remove(key_path)
+
+
+def test_license_signature_scheme_is_recorded_in_payload():
+    """The payload declares its signature scheme so verifiers pick the right path."""
+    import json as _json
+    import tempfile as _tempfile
+    from netpulse.billing import _b64url_decode
+    from netpulse.billing import SubscriptionManager as _SM
+
+    mgr = _SM(db_path=_tempfile.mktemp(suffix=".db"))
+    minted = mgr.mint_license_key(tier="pro", plan="monthly", email="probe@example.com")
+    parts = minted["license_key"].split("-")
+    assert len(parts) == 4, "license key must stay dash-safe for parsing"
+    payload = _json.loads(_b64url_decode(parts[2]).decode("utf-8"))
+    assert payload.get("sk") in ("ed25519", "hmac")
+    assert payload.get("jti") and payload.get("tier") == "pro"

@@ -142,6 +142,37 @@ def test_health_pricing_and_admin_security():
     assert resp_bad_admin.status_code == 403
 
 
+def test_public_storefront_never_offers_unpaid_licenses():
+    """Customer-facing surfaces must take payment, never hand out a free license."""
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    storefront = os.path.join(root_dir, "docs", "index.html")
+    with open(storefront, "r", encoding="utf-8") as fh:
+        text = fh.read()
+    assert "admin/mint" not in text, "public storefront must not mint licenses"
+    assert "instantLocalMint" not in text
+    assert "buy.stripe.com" in text, "public storefront must expose real Stripe checkout"
+    assert "/api/subscription/checkout" in text, "storefront must use the paid checkout endpoint"
+
+    # The daemon's customer-facing pricing page must not offer a free mint either.
+    pricing = os.path.join(root_dir, "static", "pricing.html")
+    with open(pricing, "r", encoding="utf-8") as fh:
+        pricing_text = fh.read()
+    assert "instantLocalMint" not in pricing_text, "pricing page must not offer free minting"
+    assert "/api/subscription/checkout" in pricing_text
+
+
+def test_privileged_licensing_requires_admin_token(monkeypatch):
+    """Minting/revoking must not be possible from a customer node via loopback."""
+    monkeypatch.delenv("NETPULSE_ALLOW_LOOPBACK_ADMIN", raising=False)
+    for route, payload in (
+        ("/api/subscription/admin/mint", {"tier": "enterprise", "plan": "lifetime", "email": "x@y.z"}),
+        ("/api/subscription/admin/revoke", {"jti": "np_deadbeef"}),
+    ):
+        resp = client.post(route, json=payload)
+        assert resp.status_code == 403, f"{route} must require the admin token"
+        assert "Sovereign Admin Master Token" in resp.json().get("error", "")
+
+
 def test_storefront_never_publishes_internal_docs():
     """The Pages artifact must contain only public storefront files."""
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -128,6 +128,74 @@ and `customer.subscription.deleted`, then paste its `whsec_…` via the
 Billing Settings or `POST /api/subscription/stripe-config`. Note: partial
 config saves are safe — empty fields never overwrite stored keys.
 
+## 4d. License Authority — Ed25519 (2026-11-12)
+
+License keys are now signed **asymmetrically** so a key bought by a customer
+verifies on *their* machine, not only on the operator's node.
+
+| Piece | Where | Notes |
+|---|---|---|
+| Private key | `~/.config/netpulse/authority_ed25519.key` (mode 600) | Never in the repo |
+| Public key | `netpulse/license_authority.py` (`EMBEDDED_PUBLIC_KEY_B64`) | Ships with the app — can only verify |
+| Test override | `NETPULSE_LICENSE_PUBLIC_KEY` / `NETPULSE_LICENSE_KEY_PATH` | Used by the test suite |
+
+Commands:
+```
+netpulse authority show     # public key + private key presence
+netpulse authority init     # generate a new keypair (backup the old private key first)
+```
+
+Key rotation invalidates previously issued licenses — re-issue for existing
+customers if you rotate.
+
+Legacy node-local HMAC keys still verify on the node that minted them
+(`sk: "hmac"` payloads); operator-signed keys carry `sk: "ed25519"`.
+
+## 4e. How a purchase actually completes
+
+Three paths, all real payments — **no free self-minting**:
+
+1. **In-app (automated, recommended)** — the buyer's own node calls
+   `POST /api/subscription/checkout` → Stripe Checkout → on payment Stripe
+   returns to `http://127.0.0.1:8765/?stripe_session_id=cs_...` → the node
+   verifies with Stripe and mints + activates the license.
+2. **Web-first (hosted)** — the public storefront falls back to a Stripe
+   Payment Link (`buy.stripe.com/...`) when no local node is detected. After
+   payment the buyer returns to the storefront with `?session_id=...` and the
+   page activates the license on any running local node.
+3. **Concierge (any device, no node running)** — run on the operator node:
+   ```
+   netpulse license verify --session cs_live_...
+   ```
+   This verifies the payment with Stripe, mints an Ed25519-signed key and
+   activates it locally. Deliver the printed `Signed Key` to the customer;
+   they run `netpulse license activate NP1-...` on their node.
+
+The operator node also **auto-syncs paid sessions every 5 minutes**
+(`sync_paid_sessions`), so web purchases appear in the Business Control Room
+even when no webhook endpoint is reachable.
+
+## 4f. Operator console (private)
+
+| Console | URL | Data API |
+|---|---|---|
+| Business Control Room | `http://127.0.0.1:8765/admin` | `/api/admin/business` |
+| Watchtower (live telemetry) | `http://127.0.0.1:8765/watchtower` | `/api/admin/watchtower` |
+
+- Pages **and** APIs require the Sovereign Admin token; loopback is allowed for
+  reads, but from any other host they answer **403**.
+- Page assets live **outside the repo**: `~/.config/netpulse/operator/`
+  (`NETPULSE_OPERATOR_DIR` overrides). The in-repo `operator/` folder is only a
+  fallback for fresh installs. They are never published to the storefront.
+- Desktop launchers: `NetPulse-Business.desktop`, `NetPulse-Watchtower.desktop`.
+
+## 4g. Privileged actions
+
+Minting, revoking, and Stripe configuration always require the Sovereign Admin
+Master Token. The operator node opts into loopback admin with
+`NETPULSE_ALLOW_LOOPBACK_ADMIN=1` (set in the systemd unit); a customer node
+without that variable cannot self-issue licenses.
+
 ## 5. Prettier org handle (optional polish)
 
 `netpulse` is globally taken (EGYM, 2011). **`netpulse-hq`** is verified

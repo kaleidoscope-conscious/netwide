@@ -333,7 +333,17 @@ class EvidenceVerifyRequest(BaseModel):
     bundle: Dict[str, Any]
 
 
-def _require_admin(request: Request, body_token: str = "") -> Optional[JSONResponse]:
+def _require_admin(request: Request, body_token: str = "", privileged: bool = False) -> Optional[JSONResponse]:
+    """
+    Admin gate.
+
+    Read-only operator views (dashboards, key listings) may be reached from
+    loopback without a token. *Privileged* actions that mint, revoke, or
+    reconfigure billing always require the real Sovereign Admin Master Token,
+    unless the operator explicitly opts in on that node with
+    NETPULSE_ALLOW_LOOPBACK_ADMIN=1. Without that opt-in a customer running
+    NetPulse on their own machine cannot self-issue licenses.
+    """
     hdr_tok = (
         request.headers.get("x-admin-token")
         or request.headers.get("authorization", "").removeprefix("Bearer ").strip()
@@ -348,7 +358,18 @@ def _require_admin(request: Request, body_token: str = "") -> Optional[JSONRespo
         )
     client_host = request.client.host if request.client else ""
     if client_host in ("127.0.0.1", "::1", "localhost", "testclient"):
-        return None
+        if not privileged:
+            return None
+        if os.environ.get("NETPULSE_ALLOW_LOOPBACK_ADMIN", "").strip().lower() in ("1", "true", "yes"):
+            return None
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "This action requires the Sovereign Admin Master Token "
+                "(privileged licensing operation).",
+            },
+            status_code=403,
+        )
     return JSONResponse(
         {
             "ok": False,
@@ -694,14 +715,36 @@ def _on_wire_packet(pkt: Dict[str, Any]) -> None:
         )
 
 
+async def stripe_session_sync_task() -> None:
+    """Periodically pull paid Checkout Sessions from Stripe and issue licenses.
+
+    Covers purchases made through hosted Stripe Payment Links, where no webhook
+    endpoint is reachable. Failures are logged and retried on the next cycle.
+    """
+    await asyncio.sleep(45)  # let the daemon settle before the first sync
+    while True:
+        try:
+            res = await asyncio.to_thread(subscription_engine.sync_paid_sessions, 25)
+            if res.get("ok") and res.get("minted"):
+                for sid in res.get("sessions", []):
+                    print(f"[stripe-sync] issued license for paid session {sid}")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            pass
+        await asyncio.sleep(300)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     state._loop = asyncio.get_running_loop()
     state.devices = net_db.get_all_devices()
     state.sniffer.start(on_packet=_on_wire_packet)
     task = asyncio.create_task(periodic_scanner_task())
+    sync_task = asyncio.create_task(stripe_session_sync_task())
     yield
     task.cancel()
+    sync_task.cancel()
     state.sniffer.stop()
 
 
@@ -2551,7 +2594,7 @@ async def verify_stripe_session_endpoint(req: VerifyStripeSessionRequest) -> JSO
 
 @app.post("/api/subscription/stripe-config")
 async def configure_stripe_endpoint(request: Request, req: StripeConfigRequest) -> JSONResponse:
-    adm_err = _require_admin(request, req.admin_token)
+    adm_err = _require_admin(request, req.admin_token, privileged=True)
     if adm_err:
         return adm_err
     res = await asyncio.to_thread(
@@ -2576,7 +2619,7 @@ async def stripe_webhook_endpoint(request: Request) -> JSONResponse:
 
 @app.post("/api/subscription/admin/mint")
 async def admin_mint_license_endpoint(request: Request, req: MintLicenseRequest) -> JSONResponse:
-    adm_err = _require_admin(request, req.admin_token)
+    adm_err = _require_admin(request, req.admin_token, privileged=True)
     if adm_err:
         return adm_err
     minted = await asyncio.to_thread(
@@ -2605,7 +2648,7 @@ async def admin_list_licenses_endpoint(request: Request) -> JSONResponse:
 
 @app.post("/api/subscription/admin/revoke")
 async def admin_revoke_license_endpoint(request: Request, req: RevokeLicenseRequest) -> JSONResponse:
-    adm_err = _require_admin(request, req.admin_token)
+    adm_err = _require_admin(request, req.admin_token, privileged=True)
     if adm_err:
         return adm_err
     res = await asyncio.to_thread(subscription_engine.revoke_license, req.jti)

@@ -3601,7 +3601,7 @@
           statusMsg.style.color = '#fbbf24';
           statusMsg.innerHTML = `<div>${res.error || 'Stripe API key not yet configured on this local node.'}</div>` +
             `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">` +
-            `<button class="btn btn-sm btn-primary" style="background:#059669;border-color:#10b981;" onclick="adminMintAndActivate('${tier}', '${billingCycle}')">⚡ Instant Local Activation: Mint &amp; Activate ${tier.toUpperCase()} (${billingCycle.toUpperCase()}) Now</button>` +
+            `<button class="btn btn-sm btn-primary" style="background:#059669;border-color:#10b981;" onclick="buyLicenseFromWorkbench('${tier}', '${billingCycle}')">💳 Buy ${tier.toUpperCase()} (${billingCycle.toUpperCase()}) with Stripe</button>` +
             `<span style="color:#94a3b8;font-size:11px;">Or configure your live <code>sk_live_...</code> Stripe key below.</span>` +
             `</div>`;
         }
@@ -3655,6 +3655,47 @@
       }
       showWorkbenchToast('Reverted node to Community Edition (Free Tier)', '#f59e0b');
       await refreshSubscriptionModal();
+    }
+
+    const NETPULSE_PAYMENT_LINKS = {
+      'pro_lifetime': 'https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19',
+      'pro_annual': 'https://buy.stripe.com/28E8wP248g0Q38oaCdcbC1a',
+      'pro_monthly': 'https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b',
+      'enterprise_lifetime': 'https://buy.stripe.com/14A8wPaAE5mc7oEaCdcbC1c',
+      'enterprise_annual': 'https://buy.stripe.com/28EeVd2485mcaAQaCdcbC1d',
+      'enterprise_monthly': 'https://buy.stripe.com/4gM7sLbEIaGw6kA5hTcbC1e'
+    };
+
+    async function buyLicense(tier, plan) {
+      // 1) Preferred: this node creates the Stripe Checkout Session and activates
+      //    the license locally the moment Stripe confirms the payment.
+      try {
+        const res = await fetch('/api/subscription/checkout', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({tier, plan, email: (document.getElementById('buyerEmail') || {}).value || '', origin_url: location.origin})
+        }).then(r => r.json());
+        if (res && res.ok && res.checkout_url) { location.href = res.checkout_url; return; }
+      } catch (_) {}
+      // 2) Fallback: hosted Stripe Payment Link (works without a local Stripe key).
+      const link = NETPULSE_PAYMENT_LINKS[`${tier}_${plan}`];
+      if (link) { location.href = link; }
+      else if (typeof showPricingToast === 'function') {
+        showPricingToast('Checkout unavailable for this plan', '#f87171');
+      }
+    }
+
+    async function buyLicenseFromWorkbench(tier, plan) {
+      try {
+        const res = await fetch('/api/subscription/checkout', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({tier, plan, email: (document.getElementById('subEmailInput') || {}).value || '', origin_url: location.origin})
+        }).then(r => r.json());
+        if (res && res.ok && res.checkout_url) { location.href = res.checkout_url; return; }
+      } catch (_) {}
+      const link = NETPULSE_PAYMENT_LINKS[`${tier}_${plan}`];
+      if (link) { location.href = link; }
     }
 
     async function adminMintAndActivate(tier, plan) {

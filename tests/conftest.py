@@ -12,6 +12,10 @@ _temp_db_fd, _temp_db_path = tempfile.mkstemp(prefix="netpulse_test_", suffix=".
 os.close(_temp_db_fd)
 os.environ["NETPULSE_DB_PATH"] = _temp_db_path
 
+# The sandbox node acts like the operator's node: privileged licensing actions are
+# allowed from loopback. Tests that assert the gate is closed remove this opt-in.
+os.environ["NETPULSE_ALLOW_LOOPBACK_ADMIN"] = "1"
+
 
 @pytest.fixture(scope="session", autouse=True)
 def isolate_test_database():

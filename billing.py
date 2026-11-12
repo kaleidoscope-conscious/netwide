@@ -20,6 +20,8 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+
+from netpulse import license_authority
 from contextlib import closing
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -330,10 +332,24 @@ class SubscriptionManager:
         payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
         payload_b64 = _b64url_encode(payload_bytes)
 
-        sig_full = hmac.new(self._signing_secret(), payload_b64.encode("ascii"), hashlib.sha256).digest()
-        # Full 256-bit HMAC-SHA256 tag (upgraded from the legacy 144-bit truncated tag).
-        # verify_license_key() accepts both the full tag and the legacy truncated one.
-        sig_b64 = _b64url_encode(sig_full)
+        # Preferred: asymmetric Ed25519 signature — verifiable on ANY NetPulse node
+        # because only the public key ships with the product.
+        sig_b64 = ""
+        try:
+            sig_b64 = license_authority.sign_payload(payload_b64) or ""
+        except Exception:
+            sig_b64 = ""
+        if sig_b64:
+            payload["sk"] = "ed25519"
+            payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+            payload_b64 = _b64url_encode(payload_bytes)
+            sig_b64 = license_authority.sign_payload(payload_b64) or ""
+        if not sig_b64:
+            # Legacy node-local HMAC fallback (trial keys minted on a customer node).
+            sig_full = hmac.new(self._signing_secret(), payload_b64.encode("ascii"), hashlib.sha256).digest()
+            # Full 256-bit HMAC-SHA256 tag (upgraded from the legacy 144-bit truncated tag).
+            # verify_license_key() accepts both the full tag and the legacy truncated one.
+            sig_b64 = _b64url_encode(sig_full)
 
         license_key = f"NP1-{tier_clean.upper()}-{payload_b64}-{sig_b64}"
 
@@ -386,14 +402,38 @@ class SubscriptionManager:
             return {"valid": False, "error": "Malformed license key format (expected NP1-<TIER>-<PAYLOAD>-<SIG>)."}
 
         _, tier_prefix, payload_b64, sig_b64 = parts
-        expected_sig = hmac.new(self._signing_secret(), payload_b64.encode("ascii"), hashlib.sha256).digest()
-        # Accept both the current full 256-bit tag and the legacy 144-bit truncated tag
-        # so pre-upgrade minted keys remain valid.
-        expected_sig_full = _b64url_encode(expected_sig)
-        expected_sig_trunc = _b64url_encode(expected_sig[:18])
 
-        if not (hmac.compare_digest(sig_b64, expected_sig_full) or hmac.compare_digest(sig_b64, expected_sig_trunc)):
-            return {"valid": False, "error": "Cryptographic signature verification failed (invalid HMAC-SHA256 tag)."}
+        # Decode the payload first so we know which signature scheme to use.
+        try:
+            payload_probe = json.loads(_b64url_decode(payload_b64).decode("utf-8"))
+        except Exception:
+            return {"valid": False, "error": "Corrupted license payload encoding."}
+
+        scheme = str(payload_probe.get("sk") or "hmac")
+        signature_ok = False
+        if scheme == "ed25519":
+            # Operator-signed license: verifies on any node (public key ships with the app).
+            try:
+                signature_ok = license_authority.verify_payload(payload_b64, sig_b64)
+            except Exception:
+                signature_ok = False
+            if not signature_ok:
+                return {
+                    "valid": False,
+                    "error": "Cryptographic signature verification failed (invalid Ed25519 signature).",
+                }
+        else:
+            expected_sig = hmac.new(self._signing_secret(), payload_b64.encode("ascii"), hashlib.sha256).digest()
+            # Accept both the current full 256-bit tag and the legacy 144-bit truncated tag
+            # so pre-upgrade minted keys remain valid.
+            expected_sig_full = _b64url_encode(expected_sig)
+            expected_sig_trunc = _b64url_encode(expected_sig[:18])
+            signature_ok = (
+                hmac.compare_digest(sig_b64, expected_sig_full)
+                or hmac.compare_digest(sig_b64, expected_sig_trunc)
+            )
+            if not signature_ok:
+                return {"valid": False, "error": "Cryptographic signature verification failed (invalid HMAC-SHA256 tag)."}
 
         try:
             payload = json.loads(_b64url_decode(payload_b64).decode("utf-8"))
@@ -902,6 +942,68 @@ class SubscriptionManager:
         act = self.activate_license_key(minted["license_key"])
         act["minted_license"] = minted
         return act
+
+    def sync_paid_sessions(self, limit: int = 25) -> Dict[str, Any]:
+        """
+        Pull recent Checkout Sessions from Stripe and mint licenses for any paid
+        session we have not issued yet. This covers purchases made through the
+        hosted Stripe Payment Links (web-first checkout) where no webhook
+        endpoint is reachable.
+        """
+        stripe_sk = os.environ.get("STRIPE_SECRET_KEY") or self._get_config("stripe_secret_key", "")
+        if not stripe_sk:
+            return {"ok": False, "error": "Stripe Secret Key not configured.", "minted": 0}
+        url = (
+            "https://api.stripe.com/v1/checkout/sessions?limit=%d"
+            "&expand[]=data.payment_intent" % max(1, min(int(limit), 100))
+        )
+        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {stripe_sk}"}, method="GET")
+        try:
+            with urllib.request.urlopen(req, timeout=15.0) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
+        except Exception as e:
+            return {"ok": False, "error": f"Stripe session sync failed: {e}", "minted": 0}
+
+        minted_count = 0
+        issued: List[str] = []
+        for sess in payload.get("data", []) or []:
+            if sess.get("payment_status") != "paid":
+                continue
+            session_id = str(sess.get("id") or "")
+            if not session_id:
+                continue
+            with closing(self._connect()) as conn:
+                row = conn.execute(
+                    "SELECT license_key FROM minted_licenses WHERE stripe_session_id = ?",
+                    (session_id,),
+                ).fetchone()
+            if row:
+                continue
+            meta = sess.get("metadata") or {}
+            tier = str(meta.get("netpulse_tier") or "pro").lower()
+            plan = str(meta.get("netpulse_plan") or "monthly").lower()
+            if tier not in ("pro", "enterprise"):
+                tier = "pro"
+            if plan not in ("monthly", "annual", "lifetime"):
+                plan = "monthly"
+            email = (
+                (sess.get("customer_details") or {}).get("email")
+                or sess.get("customer_email")
+                or meta.get("subscriber_email")
+                or "subscriber@netpulse.io"
+            )
+            minted = self.mint_license_key(
+                tier=tier,
+                plan=plan,
+                email=email,
+                stripe_session_id=session_id,
+                stripe_customer_id=str(sess.get("customer") or ""),
+            )
+            if minted.get("license_key"):
+                minted_count += 1
+                issued.append(session_id)
+
+        return {"ok": True, "minted": minted_count, "sessions": issued}
 
     def handle_stripe_webhook(self, raw_body: bytes, sig_header: str) -> Dict[str, Any]:
         """

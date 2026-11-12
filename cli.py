@@ -696,7 +696,7 @@ def main(argv: List[str] | None = None) -> None:
     p_lic = sub.add_parser("license", help="Sovereign Cryptographic License & Subscription Manager")
     p_lic.add_argument(
         "action",
-        choices=["status", "mint", "activate", "deactivate", "list", "revoke"],
+        choices=["status", "mint", "activate", "deactivate", "list", "revoke", "checkout", "verify"],
         default="status",
         nargs="?",
         help="License action",
@@ -704,7 +704,17 @@ def main(argv: List[str] | None = None) -> None:
     p_lic.add_argument("--tier", default="enterprise", choices=["free", "pro", "enterprise"], help="Subscription tier to mint")
     p_lic.add_argument("--plan", default="lifetime", choices=["monthly", "annual", "lifetime", "trial"], help="Billing cycle")
     p_lic.add_argument("--email", default="founder@netpulse.local", help="Subscriber email or organization")
+    p_lic.add_argument("--session", default="", help="Stripe Checkout Session ID (cs_live_...) for checkout/verify")
     p_lic.add_argument("--key", default="", help="License key to activate or JTI to revoke")
+
+    p_auth = sub.add_parser("authority", help="Ed25519 License Authority key management")
+    p_auth.add_argument(
+        "action",
+        choices=["show", "init", "rotate"],
+        default="show",
+        nargs="?",
+        help="Authority action",
+    )
     p_lic.add_argument("--no-activate", action="store_true", help="Mint key without auto-activating on local node")
 
     args = parser.parse_args(argv)
@@ -811,6 +821,40 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
             )
         )
         uvicorn.run("netpulse.server:app", host=host, port=port, log_level="info")
+    elif cmd == "authority":
+        from netpulse import license_authority
+        act = getattr(args, "action", "show")
+        if act == "show":
+            priv = license_authority.load_private_key()
+            console.print(
+                Panel(
+                    f"Trusted public key (ships with the product):\n"
+                    f"[bold cyan]{license_authority.public_key_b64()}[/bold cyan]\n\n"
+                    f"Private key file: [white]{license_authority.private_key_path()}[/white]\n"
+                    f"Private key present on this host: "
+                    f"{'[green]yes[/green]' if priv else '[red]no[/red]'}\n\n"
+                    f"[dim]Licenses signed with this key verify on ANY NetPulse node.\n"
+                    f"Without it, this node can only verify its own legacy HMAC keys.[/dim]",
+                    title="NetPulse License Authority",
+                    border_style="cyan",
+                )
+            )
+        else:
+            pub, priv_hex = license_authority.generate_keypair()
+            path = license_authority.save_private_key(priv_hex)
+            console.print(
+                Panel(
+                    f"[bold green]{'New keypair generated' if act == 'rotate' else 'Keypair generated'}[/bold green]\n\n"
+                    f"Private key saved (mode 600):\n[white]{path}[/white]\n\n"
+                    f"Public key — embed this in license_authority.py so every install trusts it:\n"
+                    f"[bold cyan]{pub}[/bold cyan]\n\n"
+                    f"[yellow]Back up the private key now.[/yellow] "
+                    f"[dim]Losing it means previously issued licenses stop verifying.\n"
+                    f"After rotating, re-issue licenses for existing customers.[/dim]",
+                    title="License Authority",
+                    border_style="green",
+                )
+            )
     elif cmd == "license":
         from netpulse.billing import subscription_engine
         act = getattr(args, "action", "status")
@@ -831,6 +875,63 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
                     f"Expires:    [white]{minted['expires_human']}[/white]\n"
                     f"Signed Key: [bold emerald]{minted['license_key']}[/bold emerald]",
                     title="Sovereign Key Generator",
+                    border_style="green",
+                )
+            )
+        elif act == "checkout":
+            res = subscription_engine.create_stripe_checkout_session(
+                tier=args.tier,
+                plan=args.plan,
+                email=args.email,
+                origin_url="http://127.0.0.1:8765",
+            )
+            if not res.get("ok"):
+                console.print(
+                    Panel(
+                        f"[bold red]Stripe checkout could not be created.[/bold red]\n{res.get('error', '')}",
+                        title="Checkout",
+                        border_style="red",
+                    )
+                )
+                raise SystemExit(1)
+            console.print(
+                Panel(
+                    f"[bold green]Stripe Checkout Session created[/bold green]\n"
+                    f"Tier:      [bold yellow]{args.tier.upper()}[/bold yellow] ({args.plan.upper()})\n"
+                    f"Session:   [bold cyan]{res.get('session_id', '')}[/bold cyan]\n"
+                    f"Pay here:  [bold emerald]{res.get('checkout_url', '')}[/bold emerald]\n\n"
+                    f"[dim]After payment, activate instantly with:\n"
+                    f"netpulse license verify --session {res.get('session_id', '')}[/dim]",
+                    title="Secure Checkout",
+                    border_style="green",
+                )
+            )
+        elif act == "verify":
+            session_id = (args.session or args.key or "").strip()
+            if not session_id:
+                console.print("[bold red]--session cs_live_... is required for verify.[/bold red]")
+                raise SystemExit(1)
+            res = subscription_engine.verify_stripe_session_and_activate(session_id)
+            if not res.get("ok"):
+                console.print(
+                    Panel(
+                        f"[bold red]Verification failed[/bold red]\n{res.get('error', '')}",
+                        title="Stripe Session Verification",
+                        border_style="red",
+                    )
+                )
+                raise SystemExit(1)
+            minted = res.get("minted_license") or {}
+            console.print(
+                Panel(
+                    f"[bold green]Payment verified — license minted and activated[/bold green]\n"
+                    f"Tier:       [bold yellow]{minted.get('tier_name', res.get('tier_name', ''))}[/bold yellow] "
+                    f"({minted.get('plan', '').upper()})\n"
+                    f"Subscriber: [white]{minted.get('email', '')}[/white]\n"
+                    f"Signed Key: [bold emerald]{minted.get('license_key', '')}[/bold emerald]\n"
+                    f"[dim]Deliver this key to the customer, or they can run:\n"
+                    f"netpulse license activate {minted.get('license_key', '')}[/dim]",
+                    title="Activation Complete",
                     border_style="green",
                 )
             )

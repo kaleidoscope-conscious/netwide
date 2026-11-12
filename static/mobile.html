@@ -2274,8 +2274,16 @@
       if (res.ok && res.checkout_url) {
         window.open(res.checkout_url, '_blank');
       } else {
-        showToast('Local node mode: minting & activating ' + tier.toUpperCase() + ' key...');
-        await mobileAdminMint(tier, plan);
+        // No Stripe key on this node -> hosted Stripe Payment Link (paid checkout).
+        const link = (typeof NETPULSE_PAYMENT_LINKS !== 'undefined')
+          ? NETPULSE_PAYMENT_LINKS[`${tier}_${plan}`]
+          : null;
+        if (link) {
+          showToast('Opening secure Stripe checkout...');
+          window.open(link, '_blank');
+        } else {
+          showToast('Checkout unavailable for this plan');
+        }
       }
     } catch (e) {
       showToast('Node unreachable for Stripe Checkout');
@@ -2322,6 +2330,15 @@
       showToast('Error activating 7-day trial');
     }
   }
+
+    const NETPULSE_PAYMENT_LINKS = {
+      'pro_lifetime': 'https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19',
+      'pro_annual': 'https://buy.stripe.com/28E8wP248g0Q38oaCdcbC1a',
+      'pro_monthly': 'https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b',
+      'enterprise_lifetime': 'https://buy.stripe.com/14A8wPaAE5mc7oEaCdcbC1c',
+      'enterprise_annual': 'https://buy.stripe.com/28EeVd2485mcaAQaCdcbC1d',
+      'enterprise_monthly': 'https://buy.stripe.com/4gM7sLbEIaGw6kA5hTcbC1e'
+    };
 
   async function mobileAdminMint(tier, plan) {
     try {
