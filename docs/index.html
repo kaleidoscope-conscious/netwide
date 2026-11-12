@@ -557,13 +557,15 @@
           showGhToast('✓ License activated on this device');
           return true;
         }
-        out.innerHTML = '<span style="color:#f59e0b;">Payment received, but no local NetPulse node is reachable to activate it.</span>' +
-          '<div style="margin-top:8px;color:#94a3b8;">Send this session ID with your email and your key will be delivered:' +
+        out.innerHTML = '<span style="color:#f59e0b;">Payment received &mdash; your licence key is being prepared.</span>' +
+          '<div style="margin-top:8px;color:#94a3b8;">This device cannot verify the payment itself (no Stripe key configured), so your signed key is delivered by email within minutes.</div>' +
+          '<div style="margin-top:6px;color:#94a3b8;">Keep this session reference for support:' +
           '<br><code>' + sessionId + '</code></div>';
         return false;
       } catch (_) {
-        out.innerHTML = '<span style="color:#f59e0b;">Payment received, but no local NetPulse node is reachable to activate it.</span>' +
-          '<div style="margin-top:8px;color:#94a3b8;">Send this session ID with your email and your key will be delivered:' +
+        out.innerHTML = '<span style="color:#f59e0b;">Payment received &mdash; your licence key is being prepared.</span>' +
+          '<div style="margin-top:8px;color:#94a3b8;">No NetPulse node is running here, so your signed key is delivered by email within minutes.</div>' +
+          '<div style="margin-top:6px;color:#94a3b8;">Keep this session reference for support:' +
           '<br><code>' + sessionId + '</code></div>';
         return false;
       }
@@ -581,7 +583,7 @@
         `<div><strong>How it works:</strong></div>` +
         `<div style="margin-top:6px;">1. Click <em>Pay with Stripe</em> — you are taken to Stripe's secure checkout.</div>` +
         `<div>2. On success Stripe returns you here and NetPulse mints + activates your signed license automatically.</div>` +
-        `<div>3. If NetPulse is not running locally yet, your signed key is delivered by email within minutes.</div>`;
+        `<div>3. If this device cannot verify the payment itself (no Stripe key configured), your signed key is delivered by email within minutes.</div>`;
     }
 
     function closeStorefrontCheckout() {
