@@ -100,6 +100,34 @@ curl -s -X POST http://127.0.0.1:8765/api/subscription/status -H 'Content-Type: 
 ```
 (or check the Billing Settings panel — it shows `stripe_configured: true`).
 
+## 4b. Business Control Room (operator dashboard)
+
+Open **`http://127.0.0.1:8765/admin`** (or the **📊 Business** button in the
+desktop toolbar) to see everything commercial in one place: paid customers,
+active licenses, lifetime revenue / MRR / ARR estimates, leads & trials,
+Stripe status, a 30-day mint chart, and a recent-licenses table.
+Auto-refreshes every 15 s; remote access prompts for the Sovereign Admin
+token (`X-Admin-Token`). Data API: `GET /api/admin/business`.
+
+## 4c. Webhook — proven end-to-end (2026-11-12)
+
+The full signed webhook path was verified against the live goeckoh account
+using a temporary webhook endpoint (created → used → deleted; stored
+`whsec_` cleared after the proof):
+
+- ✅ Valid `Stripe-Signature` accepted (HMAC-SHA256, 5-min anti-replay window)
+- ✅ Tampered payload rejected
+- ✅ Signed **unpaid** session → refused to mint (fail-closed)
+- ✅ Signed **paid** event → license minted + activated
+- ✅ Replayed event id → idempotent short-circuit (no double mint)
+- ✅ Engine-level coverage in CI: `test_stripe_webhook_hmac_verification`
+
+When a stable public URL exists (named Cloudflare tunnel on your domain),
+register the production endpoint with events `checkout.session.completed`
+and `customer.subscription.deleted`, then paste its `whsec_…` via the
+Billing Settings or `POST /api/subscription/stripe-config`. Note: partial
+config saves are safe — empty fields never overwrite stored keys.
+
 ## 5. Prettier org handle (optional polish)
 
 `netpulse` is globally taken (EGYM, 2011). **`netpulse-hq`** is verified
