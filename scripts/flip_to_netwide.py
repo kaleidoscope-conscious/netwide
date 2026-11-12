@@ -59,7 +59,6 @@ def main() -> int:
     print(f"\nNetwide repo flip: {old_repo} -> {new_repo}\n")
 
     # 1. Rename the repository (needs admin:org for org-owned repos)
-    renamed = False
     check = subprocess.run(["gh", "api", f"repos/{old_repo}", "--jq", ".name"],
                            cwd=str(ROOT), capture_output=True, text=True)
     if check.returncode == 0:
@@ -69,7 +68,6 @@ def main() -> int:
             print("\n! Rename refused. If you renamed an organisation-owned repo, refresh the token first:\n"
                   "    gh auth refresh -h github.com -s admin:org\n")
             return 1
-        renamed = True
         print(f"  -> renamed to {new_repo}")
     else:
         # Already renamed (or renamed by hand) — verify and continue.
