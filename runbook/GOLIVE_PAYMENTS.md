@@ -253,6 +253,20 @@ export NETWIDE_SMTP_FROM=licences@yourdomain.com
 
 Put these in the systemd unit as `Environment=` lines (do not commit secrets).
 
+STARTTLS and SMTP AUTH are **negotiated, not assumed**: if the relay does not
+offer STARTTLS the delivery is refused with a clear message rather than sending
+credentials in the clear. Only for a trusted local relay, set
+`NETWIDE_SMTP_INSECURE=1` to allow plain delivery.
+
+### Granting the operator scopes (one command)
+
+```bash
+bash scripts/grant_scopes.sh
+```
+Requests `admin:org, read:packages, write:packages, delete:packages, delete_repo`
+and opens the device flow. These are needed to publish a **public** GHCR image,
+delete the orphaned pre-rename image, and remove leftover scratch repositories.
+
 Behaviour:
 - The 5-minute paid-session sync mints the licence **and** emails the key.
 - Delivery is **idempotent per Stripe session id** — a repeated sync never

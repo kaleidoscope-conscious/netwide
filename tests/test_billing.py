@@ -229,3 +229,70 @@ def test_license_delivery_builds_a_message_and_skips_without_a_provider():
     bad = _delivery.deliver_license("not-an-email", "NP1-PRO-x", "pro", "lifetime")
     assert bad["ok"] is False
     assert bad["sent"] is False
+
+
+def test_smtp_delivery_is_capability_aware_and_fails_safe(monkeypatch):
+    """STARTTLS/AUTH must be negotiated, and refusal must never raise."""
+    import smtplib as _smtplib
+    from netwide import license_delivery as _delivery
+
+    sent = []
+
+    class _FakeSMTP:
+        def __init__(self, host, port, timeout=20):
+            self.host, self.port = host, port
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def has_extn(self, name):
+            return name in self._exts
+
+        def starttls(self, context=None):
+            self._tls = True
+
+        def login(self, user, password):
+            self._auth = True
+
+        def send_message(self, msg):
+            sent.append(msg)
+
+    def _install(exts):
+        def _factory(host, port, timeout=20):
+            s = _FakeSMTP(host, port, timeout)
+            s._exts = set(exts)
+            return s
+        monkeypatch.setattr(_smtplib, "SMTP", _factory)
+
+    monkeypatch.setenv("NETWIDE_SMTP_HOST", "relay.local")
+    monkeypatch.setenv("NETWIDE_SMTP_PORT", "587")
+    monkeypatch.setenv("NETWIDE_SMTP_USER", "licences@netwide.local")
+    monkeypatch.setenv("NETWIDE_SMTP_PASSWORD", "x")
+    monkeypatch.setenv("NETWIDE_SMTP_FROM", "licences@netwide.local")
+    monkeypatch.delenv("NETWIDE_SMTP_INSECURE", raising=False)
+
+    # 1. No STARTTLS and no explicit opt-in -> refuse cleanly, send nothing.
+    _install([])
+    res = _delivery.deliver_license("b@example.com", "NP1-PRO-a", "pro", "lifetime")
+    assert res["sent"] is False
+    assert "STARTTLS" in res["error"]
+    assert not sent
+
+    # 2. STARTTLS present but no AUTH support -> refuse cleanly.
+    _install(["starttls"])
+    res = _delivery.deliver_license("b@example.com", "NP1-PRO-a", "pro", "lifetime")
+    assert res["sent"] is False
+    assert "AUTH" in res["error"]
+    assert not sent
+
+    # 3. Explicit opt-in on a plain relay -> delivers.
+    monkeypatch.setenv("NETWIDE_SMTP_INSECURE", "1")
+    _install([])
+    res = _delivery.deliver_license("b@example.com", "NP1-PRO-a", "pro", "lifetime")
+    assert res["sent"] is True
+    assert res["provider"] == "smtp"
+    assert len(sent) == 1
+    assert "NP1-PRO-a" in sent[0].get_content()

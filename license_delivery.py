@@ -109,11 +109,19 @@ def _send_smtp(to: str, subject: str, body: str) -> Optional[str]:
     msg["From"] = sender
     msg["To"] = to
     msg.set_content(body)
+    allow_insecure = _config("NETWIDE_SMTP_INSECURE").lower() in ("1", "true", "yes")
     try:
         with smtplib.SMTP(host, port, timeout=20) as smtp:
-            smtp.starttls(context=ssl.create_default_context())
+            if smtp.has_extn("starttls"):
+                smtp.starttls(context=ssl.create_default_context())
+            elif not allow_insecure:
+                return ("Server does not offer STARTTLS. Use a TLS-capable relay, or set "
+                        "NETWIDE_SMTP_INSECURE=1 to send unencrypted (only for a local relay).")
             if user and password:
-                smtp.login(user, password)
+                if smtp.has_extn("auth"):
+                    smtp.login(user, password)
+                elif not allow_insecure:
+                    return "Server does not support SMTP AUTH. Use a relay that accepts credentials."
             smtp.send_message(msg)
         return None
     except Exception as exc:  # delivery failures must never break the flow
