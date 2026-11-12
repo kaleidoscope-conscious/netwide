@@ -1,0 +1,45 @@
+name: Bug report
+description: Something behaves differently than documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Include the exact error text or unexpected output.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Ran `netpulse scan` on ...
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: NetPulse version
+      placeholder: "4.6.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Linux (desktop app), Linux (daemon/CLI), Docker, Android, Other]
+    validations:
+      required: true
+  - type: input
+    id: iface
+    attributes:
+      label: Network interface
+      placeholder: "wlo0 / eth0"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output or logs
+      description: Use `netpulse audit` output for detection issues.
+      render: shell

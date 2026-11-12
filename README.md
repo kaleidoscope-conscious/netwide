@@ -3,7 +3,7 @@
 [![Release v4.6.0](https://img.shields.io/badge/release-v4.6.0-10b981?style=for-the-badge)](https://github.com/kaleidoscope-conscious/netpulse/releases/tag/v4.6.0)
 [![Tests](https://img.shields.io/badge/pytest-139%2F139_passing-34d399?style=for-the-badge)](https://github.com/kaleidoscope-conscious/netpulse/actions)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776ab?style=for-the-badge)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-AGPL--3.0-crimson?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/license-source--available%20%2B%20commercial_tiers-crimson?style=for-the-badge)](LICENSE.md)
 [![Storefront](https://img.shields.io/badge/Storefront-Founder's_Lifetime_%24149-7c3aed?style=for-the-badge)](https://kaleidoscope-conscious.github.io/netpulse/)
 [![Android APK](https://img.shields.io/badge/Android-15-APK-0284c7?style=for-the-badge&logo=android)](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.6.0/NetPulse-Mobile-v4.6.0.apk)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor_♥-GitHub-db61fc?style=for-the-badge&logo=githubsponsors)](https://github.com/sponsors/kaleidoscopeAI)
@@ -182,6 +182,15 @@ Development is sovereign-funded by the community:
 
 ## 📄 License
 
-AGPL-3.0 for the Community Edition. Commercial tiers grant use under the
-[subscription terms](https://kaleidoscope-conscious.github.io/netpulse/privacy.html).
+**Community Edition is free** for personal, household, educational, research,
+and authorised-testing use. **Pro Guardian and Sovereign Enterprise are paid
+tiers** unlocked by a signed `NP1-*` key, and commercial/managed use of the
+Software requires a written licence.
+
+Full terms: [`LICENSE.md`](LICENSE.md) · privacy policy: `privacy.html`.
+
+*Want NetPulse packaged for F-Droid, Flathub, your distro, or an awesome-list
+entry? Those platforms require an OSI-approved licence — say the word and the
+Community Edition can be relicensed (e.g. AGPL-3.0) in a single commit.*
+
 © NetPulse — built for people who want their network back.

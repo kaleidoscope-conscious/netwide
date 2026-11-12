@@ -1,0 +1,10 @@
+name: Discussion
+description: A question, idea, or show-and-tell that is not a bug
+labels: [question]
+body:
+  - type: textarea
+    id: topic
+    attributes:
+      label: What would you like to discuss?
+    validations:
+      required: true
