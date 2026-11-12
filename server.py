@@ -485,7 +485,7 @@ class EngineState:
 
         return {
             "meta": {
-                "version": "4.5.0",
+                "version": "4.6.0",
                 "oui_database_size": oui_db.loaded_count,
                 "scan_in_progress": self.scan_in_progress,
                 "scan_count": self.scan_count,
@@ -750,7 +750,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="NetPulse — Sovereign Network Intelligence",
-    version="4.5.0",
+    version="4.6.0",
     lifespan=lifespan,
 )
 
@@ -892,7 +892,7 @@ async def api_health() -> JSONResponse:
         budget = {"ok": True, "used": len(state.devices), "limit": int(sub.get("max_nodes") or 1), "remaining": 0}
     return JSONResponse({
         "status": "healthy",
-        "version": "4.5.0",
+        "version": "4.6.0",
         "oui_database_size": oui_db.loaded_count,
         "sniffer_active": state.sniffer.running,
         "scan_count": state.scan_count,

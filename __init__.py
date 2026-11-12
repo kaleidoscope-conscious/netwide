@@ -3,5 +3,5 @@ NetPulse — Sovereign Network Intelligence, Deep Fingerprinting & RF Reconnaiss
 A complete, zero-cloud, multi-protocol alternative to Fing.
 """
 
-__version__ = "4.5.0"
+__version__ = "4.6.0"
 __author__ = "Antigravity Sovereign Systems"

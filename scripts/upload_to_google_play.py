@@ -227,10 +227,10 @@ def main() -> int:
     parser.add_argument("--package", default=DEFAULT_PACKAGE, help="Android applicationId (default: com.netpulse.mobile)")
     parser.add_argument("--track", choices=["internal", "alpha", "beta", "production"], default="internal")
     parser.add_argument("--service-account", type=Path, default=Path(os.environ.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", "")))
-    parser.add_argument("--release-name", default="v4.5.0 ")
+    parser.add_argument("--release-name", default="v4.6.0 ")
     parser.add_argument(
         "--release-notes",
-        default="NetPulse v4.5.0: 8-Stage Hidden Wi-Fi De-Cloaker, Walk-Around RF Geiger Counter, 3-Axis Magnetometer, TLS JA3 DPI & Smart LAN Control.",
+        default="NetPulse v4.6.0: 8-Stage Hidden Wi-Fi De-Cloaker, Walk-Around RF Geiger Counter, 3-Axis Magnetometer, TLS JA3 DPI & Smart LAN Control.",
     )
     parser.add_argument("--verify-only", action="store_true", help="Verify .aab bundle integrity without calling Google Play API")
     args = parser.parse_args()

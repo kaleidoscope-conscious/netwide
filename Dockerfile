@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="NetPulse" \
-      org.opencontainers.image.version="4.5.0" \
+      org.opencontainers.image.version="4.6.0" \
       org.opencontainers.image.description="Sovereign Network Intelligence, 802.11 TSF De-Cloaker & RF Reconnaissance Suite"
 
 ENV DEBIAN_FRONTEND=noninteractive \

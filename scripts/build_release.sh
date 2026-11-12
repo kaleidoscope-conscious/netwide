@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PARENT_DIR="$(dirname "$ROOT_DIR")"
 DIST_DIR="$ROOT_DIR/dist"
-VERSION="4.5.0"
+VERSION="4.6.0"
 
 echo "======================================================================"
 echo "  NetPulse v${VERSION} — Commercial Release Pipeline"
