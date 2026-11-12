@@ -2070,7 +2070,7 @@ def probe_ssh_kex_and_hostkeys(ip: str, port: int = 22, timeout: float = 1.4) ->
         if not banner_line.startswith("SSH-"):
             return None
 
-        s.sendall(b"SSH-2.0-NetPulse_OmniSight_5.0\r\n")
+        s.sendall(b"SSH-2.0-NetPulse_5.0\r\n")
 
         # If the first recv already contained the binary packet after the banner newline, preserve remainder
         nl_idx = banner_bytes.find(b"\n")
@@ -3526,7 +3526,7 @@ def probe_domain_and_wan_target(target: str) -> Dict[str, Any]:
     try:
         req = urllib.request.Request(
             f"https://{clean_t}/",
-            headers={"User-Agent": "NetPulse-OmniSight/4.5"},
+            headers={"User-Agent": "NetPulse/4.5"},
             method="HEAD",
         )
         h0 = time.perf_counter()

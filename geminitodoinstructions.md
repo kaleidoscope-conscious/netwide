@@ -1,6 +1,6 @@
-# geminitodoinstructions — NetPulse OmniSight: Making It Truly Groundbreaking
+# geminitodoinstructions — NetPulse: Making It Truly Groundbreaking
 
-*NetPulse // OmniSight v4.5.0 — Sovereign Network Intelligence, 10-Stage 802.11 TSF De-Cloaking, Cryptographic Protocol Auditing, Wire DPI & Active Countermeasures*
+*NetPulse v4.5.0 — Sovereign Network Intelligence, 10-Stage 802.11 TSF De-Cloaking, Cryptographic Protocol Auditing, Wire DPI & Active Countermeasures*
 
 > Not another scanner. A local-first atlas that proves what everything on your network *is*, *where it is*, *what it can do to you*, and *how to undo it* — with evidence.
 

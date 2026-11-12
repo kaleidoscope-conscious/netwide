@@ -1,5 +1,5 @@
 """
-Native Linux PyQt6 Desktop Application for NetPulse // OmniSight.
+Native Linux PyQt6 Desktop Application for NetPulse.
 Features:
 - Auto-spawns or attaches to the local NetPulse Reconnaissance Daemon (127.0.0.1:8765)
 - Native PyQt6 QMainWindow + QWebEngineView with hardware acceleration
@@ -65,7 +65,7 @@ def ensure_daemon_running(port: int = DEFAULT_PORT) -> None:
 def send_os_notification(title: str, body: str) -> None:
     try:
         subprocess.Popen(
-            ["notify-send", "-i", ICON_PATH, "-a", "NetPulse // OmniSight", title, body],
+            ["notify-send", "-i", ICON_PATH, "-a", "NetPulse", title, body],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -95,8 +95,8 @@ def launch_desktop_app() -> None:
         return
 
     app = QApplication(sys.argv)
-    app.setApplicationName("NetPulse // OmniSight")
-    app.setApplicationDisplayName("NetPulse // OmniSight — Sovereign Network Intelligence")
+    app.setApplicationName("NetPulse")
+    app.setApplicationDisplayName("NetPulse — Sovereign Network Intelligence")
     app.setOrganizationName("Antigravity Sovereign Systems")
 
     icon = QIcon(ICON_PATH) if os.path.exists(ICON_PATH) else QIcon()
@@ -311,7 +311,7 @@ def launch_desktop_app() -> None:
     tray: Optional[QSystemTrayIcon] = None
     if QSystemTrayIcon.isSystemTrayAvailable():
         tray = QSystemTrayIcon(icon, win)
-        tray.setToolTip("NetPulse // OmniSight — Sovereign Network Guardian")
+        tray.setToolTip("NetPulse — Sovereign Network Guardian")
         tray_menu = QMenu()
         a_show = tray_menu.addAction("Open NetPulse Command Center")
         assert a_show is not None
@@ -371,8 +371,8 @@ def launch_desktop_app() -> None:
                     f"Optimal RF: 2.4G Ch {ch24} / 5G Ch {ch5}  |  "
                     f"[Ctrl+R] Scan  [Ctrl+F] OUI Search  [Ctrl+Shift+E] CSV"
                 )
-                title = f"NetPulse // OmniSight — Security Grade {grade} ({score}/100) • {on_cnt} Hosts Online"
-                tooltip = f"NetPulse // OmniSight — Grade {grade} ({score}/100) • {on_cnt}/{tot_cnt} Online"
+                title = f"NetPulse — Security Grade {grade} ({score}/100) • {on_cnt} Hosts Online"
+                tooltip = f"NetPulse — Grade {grade} ({score}/100) • {on_cnt}/{tot_cnt} Online"
                 posture_bridge.posture_ready.emit(summary, title, tooltip)
             except Exception as exc:
                 logging.getLogger(__name__).debug("posture poll failed: %s", exc)
@@ -386,7 +386,7 @@ def launch_desktop_app() -> None:
 
     win.show()
     send_os_notification(
-        "NetPulse // OmniSight Active",
+        "NetPulse Active",
         "Sovereign Network & RF Reconnaissance Desktop Suite is online.",
     )
     sys.exit(app.exec())

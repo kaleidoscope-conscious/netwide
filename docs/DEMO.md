@@ -1,4 +1,4 @@
-# NetPulse // OmniSight — 30-Second Demo Script
+# NetPulse — 30-Second Demo Script
 
 **Story:** *Apple randomizes your MAC to hide you. NetPulse sees through it — and shows you the packet that proves it.*
 

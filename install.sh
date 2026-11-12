@@ -6,7 +6,7 @@ PARENT_DIR="$(dirname "$APP_DIR")"
 PYTHON_BIN="$(command -v python3)"
 
 echo "======================================================================"
-echo "  NetPulse // OmniSight v4.5.0 — Production Installer"
+echo "  NetPulse v4.5.0 — Production Installer"
 echo "======================================================================"
 
 # 1. Create a virtualenv and install runtime dependencies
@@ -31,7 +31,7 @@ mkdir -p "$SYSTEMD_USER_DIR"
 
 cat > "$SYSTEMD_USER_DIR/netpulse-guardian.service" <<EOF
 [Unit]
-Description=NetPulse // OmniSight Sovereign Network & RF Intelligence Daemon
+Description=NetPulse Sovereign Network & RF Intelligence Daemon
 After=network-online.target
 
 [Service]

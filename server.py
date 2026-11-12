@@ -1,5 +1,5 @@
 """
-FastAPI + WebSocket Real-Time Command Center Server for NetPulse (OmniSight).
+FastAPI + WebSocket Real-Time Command Center Server for NetPulse.
 Provides:
 - Continuous background Multi-Vector LAN Scanner + Passive Wire Sniffer (tshark)
 - Live WebSocket telemetry broadcast (/ws)
@@ -706,7 +706,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="NetPulse (OmniSight) — Sovereign Network Intelligence",
+    title="NetPulse — Sovereign Network Intelligence",
     version="4.5.0",
     lifespan=lifespan,
 )

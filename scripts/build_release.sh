@@ -7,7 +7,7 @@ DIST_DIR="$ROOT_DIR/dist"
 VERSION="4.5.0"
 
 echo "======================================================================"
-echo "  NetPulse // OmniSight v${VERSION} — Commercial Release Pipeline"
+echo "  NetPulse v${VERSION} — Commercial Release Pipeline"
 echo "======================================================================"
 
 echo "[1/5] Running static analysis (pyflakes)..."
@@ -26,7 +26,7 @@ mkdir -p "$DIST_DIR"
 cp "$ROOT_DIR/static/NetPulse-Mobile.apk" "$DIST_DIR/NetPulse-Mobile-v${VERSION}.apk"
 cp "$ROOT_DIR/static/NetPulse-Mobile-PlayStore.aab" "$DIST_DIR/NetPulse-Mobile-PlayStore-v${VERSION}.aab"
 
-TAR_NAME="NetPulse-OmniSight-v${VERSION}-Production.tar.gz"
+TAR_NAME="NetPulse-v${VERSION}-Production.tar.gz"
 tar -czf "$DIST_DIR/$TAR_NAME" \
     --exclude="dist" \
     --exclude="__pycache__" \

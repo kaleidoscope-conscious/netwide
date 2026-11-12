@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Google Play Developer API v3 Automated App Bundle (.aab) Uploader for NetPulse // OmniSight.
+Google Play Developer API v3 Automated App Bundle (.aab) Uploader for NetPulse.
 Implements the full Google Play Android Publisher v3 workflow:
   1. Offline AAB structural & cryptographic signature verification (jarsigner + BundleConfig.pb)
   2. OAuth2 Service Account JWT assertion (RS256 via openssl) -> Access Token exchange
@@ -225,7 +225,7 @@ def main() -> int:
     parser.add_argument("--package", default=DEFAULT_PACKAGE, help="Android applicationId (default: com.netpulse.mobile)")
     parser.add_argument("--track", choices=["internal", "alpha", "beta", "production"], default="internal")
     parser.add_argument("--service-account", type=Path, default=Path(os.environ.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", "")))
-    parser.add_argument("--release-name", default="v4.5.0 (OmniSight Tactical Edition)")
+    parser.add_argument("--release-name", default="v4.5.0 ")
     parser.add_argument(
         "--release-notes",
         default="NetPulse v4.5.0: 8-Stage Hidden Wi-Fi De-Cloaker, Walk-Around RF Geiger Counter, 3-Axis Magnetometer, TLS JA3 DPI & Smart LAN Control.",

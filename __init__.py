@@ -1,5 +1,5 @@
 """
-NetPulse (OmniSight) — Sovereign Network Intelligence, Deep Fingerprinting & RF Reconnaissance Suite.
+NetPulse — Sovereign Network Intelligence, Deep Fingerprinting & RF Reconnaissance Suite.
 A complete, zero-cloud, multi-protocol alternative to Fing.
 """
 

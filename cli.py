@@ -1,5 +1,5 @@
 """
-Rich Terminal CLI & Live TUI Guardian for NetPulse (OmniSight).
+Rich Terminal CLI & Live TUI Guardian for NetPulse.
 Commands:
   python3 -m netpulse scan                -> Instant multi-vector subnet scan & Rich device matrix
   python3 -m netpulse watch               -> Live auto-refreshing Terminal TUI Network Guardian
@@ -85,7 +85,7 @@ def cmd_scan() -> None:
     net = detect_active_interface()
     console.print(
         Panel(
-            f"[bold cyan]NETPULSE // OMNISIGHT v{__version__}[/bold cyan] — Active Interface [bold green]{net.interface}[/bold green] "
+            f"[bold cyan]NETPULSE v{__version__}[/bold cyan] — Active Interface [bold green]{net.interface}[/bold green] "
             f"([bold]{net.ip}[/bold] on [bold]{net.cidr}[/bold] • Gateway [bold]{net.gateway_ip}[/bold] • "
             f"SSID [bold yellow]{net.ssid}[/bold yellow] Ch {net.channel}) • "
             f"IEEE OUI Database: [bold]{oui_db.loaded_count:,}[/bold] prefixes",
@@ -623,11 +623,11 @@ def cmd_chronicle(wrapped: bool = False) -> None:
 def main(argv: List[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="netpulse",
-        description="NetPulse (OmniSight) — Sovereign Network Intelligence & Deep Fingerprinting Suite",
+        description="NetPulse — Sovereign Network Intelligence & Deep Fingerprinting Suite",
     )
     parser.add_argument(
         "--version", action="version",
-        version=f"NetPulse (OmniSight) v{__version__}",
+        version=f"NetPulse v{__version__}",
     )
     sub = parser.add_subparsers(dest="command")
 
@@ -804,7 +804,7 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
         port = getattr(args, "port", 8765)
         console.print(
             Panel(
-                f"[bold green]Launching NETPULSE // OMNISIGHT Web Command Center[/bold green]\n"
+                f"[bold green]Launching NETPULSE Web Command Center[/bold green]\n"
                 f"Local URL:  [bold cyan]http://localhost:{port}[/bold cyan]\n"
                 f"LAN URL:    [bold cyan]http://192.168.12.225:{port}[/bold cyan]",
                 border_style="cyan",

@@ -1,4 +1,4 @@
-# NetPulse // OmniSight v4.5.0 — Google Play Store Submission & Monetization Kit
+# NetPulse v4.5.0 — Google Play Store Submission & Monetization Kit
 
 ## 1. Signed App Binary (Ready to Upload)
 - **Google Play Android App Bundle (`.aab`)**:

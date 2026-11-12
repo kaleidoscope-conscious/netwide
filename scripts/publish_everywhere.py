@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Multi-Platform Release & Distribution Publisher for NetPulse // OmniSight v4.5.0.
+Multi-Platform Release & Distribution Publisher for NetPulse v4.5.0.
 Automates packaging, verification, and publishing across:
   1. Google Play Store (.aab via upload_to_google_play.py)
   2. GitHub Releases (via `gh release create` with .aab, .apk, .whl, .tar.gz, SHA256SUMS.txt)
@@ -63,15 +63,15 @@ def step_github_release() -> None:
         print("  ℹ `gh` CLI not installed; skipping automated GitHub Release upload.")
         return
 
-    repo_slug = "kaleidoscopeAI/netpulse-omnisight"
-    pages_url = "https://kaleidoscopeai.github.io/netpulse-omnisight/"
+    repo_slug = "kaleidoscopeAI/netpulse"
+    pages_url = "https://kaleidoscopeai.github.io/netpulse/"
 
     if not (ROOT_DIR / ".git").exists():
         _run(["git", "init", "-b", "main"], check=False)
 
     _run(["git", "add", "-A"], check=False)
     _run(
-        ["git", "commit", "-m", f"Release NetPulse // OmniSight v{VERSION} Commercial Suite & Storefront"],
+        ["git", "commit", "-m", f"Release NetPulse v{VERSION} Commercial Suite & Storefront"],
         check=False,
     )
 
@@ -88,7 +88,7 @@ def step_github_release() -> None:
                 "--source=.",
                 "--remote=origin",
                 "--description",
-                "NetPulse // OmniSight v4.5 — 10-Stage Hidden Wi-Fi De-Cloaker, Android 15 RF Geiger Counter, SSH HASSH / DNSSEC Cryptographic Auditor & Autonomous LAN Guardian",
+                "NetPulse v4.5 — 10-Stage Hidden Wi-Fi De-Cloaker, Android 15 RF Geiger Counter, SSH HASSH / DNSSEC Cryptographic Auditor & Autonomous LAN Guardian",
                 "--homepage",
                 pages_url,
                 "--push",
@@ -134,7 +134,7 @@ def step_github_release() -> None:
 
     files = [str(p) for p in sorted(DIST_DIR.glob("*")) if p.is_file()]
     release_notes = (
-        "## NetPulse // OmniSight v4.5.0 — Commercial Release\n\n"
+        "## NetPulse v4.5.0 — Commercial Release\n\n"
         "- **10-Stage Universal Hidden Wi-Fi De-Cloaker**: 64-bit TSF microsecond clock correlation, LAA bitmasking, ±16 OUI silicon siblings, 802.11k RNR/MLO, and Temporal RSSI Pearson correlation ($r \\ge 0.85$).\n"
         "- **Signed Android 15 (API 35) Field App (`NetPulse-Mobile-v4.5.0.apk`)**: Walk-Around RF Geiger Counter, 3-axis Magnetometer (`µT`), Dual-Node Triangulation, 28-port banner scanner, and SSDP discovery.\n"
         "- **Cryptographic & Protocol Auditors**: SSHv2 Binary `KEXINIT` HASSH MD5 & Post-Quantum KEX auditor, SMB2/3 NTLM-Relay signing inspector, RFC 4035 DNSSEC/DoT (`:853`), NTPv4 Stratum/Mode-6, and UPnP IGD NAT hole auditor.\n"
@@ -153,7 +153,7 @@ def step_github_release() -> None:
                 "--repo",
                 repo_slug,
                 "--title",
-                f"NetPulse // OmniSight v{VERSION} — Sovereign Network & RF Intelligence Suite",
+                f"NetPulse v{VERSION} — Sovereign Network & RF Intelligence Suite",
                 "--notes",
                 release_notes,
             ],
@@ -183,7 +183,7 @@ def step_docker(image_tag: str) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Multi-Platform Publisher for NetPulse // OmniSight v4.5.0")
+    parser = argparse.ArgumentParser(description="Multi-Platform Publisher for NetPulse v4.5.0")
     parser.add_argument("--all", action="store_true", help="Run full build, verification, and multi-platform distribution pipeline")
     parser.add_argument("--track", default="production", choices=["internal", "alpha", "beta", "production"])
     parser.add_argument("--docker-repo", default="netpulse/omnisight")
