@@ -1,6 +1,7 @@
 """Wave 7: passive census, CLI hardening, README."""
+import pathlib
 import sys
-sys.path.insert(0, "/home/jg")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from netpulse.passive_census import coverage_budget, dwell_schedule
 
@@ -28,6 +29,6 @@ def test_cli_no_args_exit2():
     assert e.value.code == 2
 
 def test_readme_new_sections():
-    txt = open("/home/jg/netpulse/README.md", encoding="utf-8").read()
+    txt = open(str(pathlib.Path(__file__).resolve().parents[1] / "README.md"), encoding="utf-8").read()
     for needle in ["/api/graph", "/api/ble/scan", "/api/control", "/api/metrics", "/api/explain", "Threat Field", "Simple"]:
         assert needle in txt

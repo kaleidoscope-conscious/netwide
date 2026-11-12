@@ -1,7 +1,8 @@
 """Wave 12: Proof Mode (S11), Accuracy Harness (S12), CASE/UCO Evidence Bundle (Bet 1), and Longitudinal Chronicle (Bet 4)."""
 
+import pathlib
 import sys
-sys.path.insert(0, "/home/jg")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from fastapi.testclient import TestClient
 

@@ -1,6 +1,7 @@
 """Wave 6: security hardening (device gates, trial RLock, max_nodes, webhook prune)."""
+import pathlib
 import sys
-sys.path.insert(0, "/home/jg")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 def test_device_mutation_loopback_ok():
     from fastapi.testclient import TestClient
@@ -35,5 +36,5 @@ def test_prune_safe():
 
 def test_benchmark_importable():
     import pathlib
-    p = pathlib.Path("/home/jg/netpulse/scripts/benchmark_vs_fing.py")
+    p = pathlib.Path(str(pathlib.Path(__file__).resolve().parents[1] / "scripts/benchmark_vs_fing.py"))
     assert p.exists()

@@ -1,6 +1,7 @@
 """Next tenfold: persistence, undo, firmware, spore, quarantine firewall stub."""
+import pathlib
 import sys
-sys.path.insert(0, "/home/jg")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from netpulse.firmware import analyze_firmware, is_rfc1918_target, shannon_entropy
 

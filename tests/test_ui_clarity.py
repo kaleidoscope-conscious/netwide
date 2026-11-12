@@ -2,7 +2,7 @@
 import pathlib
 
 def _html(name: str) -> str:
-    return pathlib.Path(f"/home/jg/netpulse/static/{name}").read_text(encoding="utf-8")
+    return (pathlib.Path(__file__).resolve().parents[1] / "static" / name).read_text(encoding="utf-8")
 
 def test_desktop_plain_tabs():
     html = _html("index.html")

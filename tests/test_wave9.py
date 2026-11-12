@@ -1,6 +1,7 @@
 """Wave 9: passive run, DB timeout, TTL normalize, ledger cap."""
+import pathlib
 import sys
-sys.path.insert(0, "/home/jg")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 def test_passive_run_gated():
     from fastapi.testclient import TestClient
@@ -16,7 +17,7 @@ def test_db_busy_timeout():
     assert "busy_timeout" in src and "15.0" in src
 
 def test_ttl_normalize_comment():
-    txt = open("/home/jg/netpulse/fingerprint.py", encoding="utf-8").read()
+    txt = open(str(pathlib.Path(__file__).resolve().parents[1] / "fingerprint.py"), encoding="utf-8").read()
     assert "normalize to 64/128/255" in txt
 
 def test_ledger_limit_param():

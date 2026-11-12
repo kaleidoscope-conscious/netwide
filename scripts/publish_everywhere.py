@@ -16,7 +16,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-ROOT_DIR = Path("/home/jg/netpulse")
+ROOT_DIR = Path(__file__).resolve().parents[1]
 DIST_DIR = ROOT_DIR / "dist"
 ASSETS_DIR = ROOT_DIR / "play_store_assets"
 VERSION = "4.5.0"

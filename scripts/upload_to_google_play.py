@@ -12,6 +12,8 @@ Implements the full Google Play Android Publisher v3 workflow:
 
 from __future__ import annotations
 
+import pathlib
+
 import argparse
 import base64
 import hashlib
@@ -27,7 +29,7 @@ import zipfile
 from pathlib import Path
 from typing import Any, Dict
 
-DEFAULT_AAB = Path("/home/jg/netpulse/static/NetPulse-Mobile-PlayStore.aab")
+DEFAULT_AAB = Path(str(pathlib.Path(__file__).resolve().parents[1] / "static/NetPulse-Mobile-PlayStore.aab"))
 DEFAULT_PACKAGE = "com.netpulse.mobile"
 OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
 PUBLISHER_SCOPE = "https://www.googleapis.com/auth/androidpublisher"

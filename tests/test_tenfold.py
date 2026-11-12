@@ -1,6 +1,7 @@
 """Tenfold improvements: BLE, profile keys, threat propagation, new API surface."""
+import pathlib
 import sys
-sys.path.insert(0, "/home/jg")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from netpulse.ble_census import (
     classify_hidden_tether,

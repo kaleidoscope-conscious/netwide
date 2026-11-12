@@ -1,6 +1,7 @@
 """Wave 3: adaptive strategy, copilot, metrics, threat-field, sinkhole, posture diff."""
+import pathlib
 import sys
-sys.path.insert(0, "/home/jg")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from netpulse.scan_strategy import UCB1Bandit, dwell_for_arm, reward_for_scan
 from netpulse.explain import explain_device

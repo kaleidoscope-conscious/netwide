@@ -1,6 +1,7 @@
 """Wave 5: metrics extensions, adaptive wiring helpers, digest."""
+import pathlib
 import sys
-sys.path.insert(0, "/home/jg")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from netpulse.metrics import prometheus_text
 

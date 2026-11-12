@@ -11,11 +11,12 @@ Generates exact-resolution 24-bit/32-bit opaque PNG assets required by Google Pl
   - tablet_screenshot_1_workbench_1920x1080.png (1920x1080 Tablet/Desktop Screenshot)
 """
 
+import pathlib
 import math
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
-OUT_DIR = Path("/home/jg/netpulse/play_store_assets")
+OUT_DIR = Path(str(pathlib.Path(__file__).resolve().parents[1] / "play_store_assets"))
 
 BG_DARK = (5, 8, 17)
 BG_PANEL = (11, 18, 34)

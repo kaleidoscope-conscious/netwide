@@ -1,6 +1,7 @@
 """Wave 11: scrub, onboarding, mobile verdict."""
+import pathlib
 import sys
-sys.path.insert(0, "/home/jg")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 def test_scrub_tool_output():
     from netpulse.server import _scrub_tool_output
@@ -8,9 +9,9 @@ def test_scrub_tool_output():
     assert "[redacted]" in _scrub_tool_output("/home/jg/secret")
 
 def test_onboarding_and_mobile():
-    html = open("/home/jg/netpulse/static/index.html", encoding="utf-8").read()
+    html = open(str(pathlib.Path(__file__).resolve().parents[1] / "static/index.html"), encoding="utf-8").read()
     assert "Press Scan to begin" in html and "verdictBar" in html
-    m = open("/home/jg/netpulse/static/mobile.html", encoding="utf-8").read()
+    m = open(str(pathlib.Path(__file__).resolve().parents[1] / "static/mobile.html"), encoding="utf-8").read()
     assert "mobileVerdictScore" in m
 
 def test_passive_and_mesh_still():

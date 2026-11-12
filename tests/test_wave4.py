@@ -1,6 +1,7 @@
 """Wave 4: AR, ubus, rule compiler, digest, kibana."""
+import pathlib
 import sys
-sys.path.insert(0, "/home/jg")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from netpulse.ar_fusion import fuse_rssi_mag, room_for_device
 from netpulse.rules import audit_payload, compile_rule, validate_rule

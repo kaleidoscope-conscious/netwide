@@ -1,6 +1,7 @@
 """Wave 8: passive census, CLI defaults, prune, demo."""
+import pathlib
 import sys
-sys.path.insert(0, "/home/jg")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 def test_passive_schedule_budget():
     from netpulse.passive_census import coverage_budget, dwell_schedule
@@ -30,9 +31,9 @@ def test_health_and_verify_limit():
     assert "node_budget" in h
 
 def test_demo_exists():
-    assert open("/home/jg/netpulse/docs/DEMO.md", encoding="utf-8").read().__len__() > 200
+    assert open(str(pathlib.Path(__file__).resolve().parents[1] / "docs/DEMO.md"), encoding="utf-8").read().__len__() > 200
 
 def test_cli_serve_default_loopback():
     import pathlib
-    txt = pathlib.Path("/home/jg/netpulse/cli.py").read_text(encoding="utf-8")
+    txt = pathlib.Path(str(pathlib.Path(__file__).resolve().parents[1] / "cli.py")).read_text(encoding="utf-8")
     assert "127.0.0.1" in txt and "NETPULSE_HOST" in txt

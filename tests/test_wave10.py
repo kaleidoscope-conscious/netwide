@@ -1,6 +1,7 @@
 """Wave 10: raft election, ARP policy, offloaded snapshot."""
+import pathlib
 import sys
-sys.path.insert(0, "/home/jg")
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from netpulse.raft import MeshNode, partition_key
 
