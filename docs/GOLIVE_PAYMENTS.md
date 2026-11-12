@@ -3,6 +3,31 @@
 Everything below is verified against the shipped code. The system is fully
 wired to accept payments the moment real credentials are provided.
 
+## Account decision (2026-11-12)
+
+NetPulse launches on the existing live Stripe account **goeckoh**
+(`acct_1SQ0CYI8vHeVjmon`). Rationale: it is already live-mode verified with
+payout infrastructure; a dedicated account requires a new identity/bank
+verification. Migrate later by re-pointing keys — licenses mint per-session
+and stay valid.
+
+**Coexistence rules with the existing goeckoh webhook**
+(`goeckoh-backend.fly.dev/webhook/stripe`):
+- Keep it — it serves the goeckoh products (DSP/Viterbi, mesh router,
+  Wi-Fi CSI SDK, spore executor). Do NOT archive those 4 products.
+- Archive ONLY the 20+ stale "Continuous Test Verification Link" products
+  (reversible). This is authorized.
+- NetPulse sessions carry `metadata[netpulse_plan]` — any backend that
+  fetches the session and filters on unknown metadata will ignore them.
+  NetPulse-side minting is authoritative via checkout-return verification,
+  so the shared webhook cannot mint NetPulse licenses for goeckoh buyers
+  or vice versa.
+- Add a dedicated NetPulse webhook endpoint once a stable public URL exists
+  (Stripe allows multiple endpoints per account).
+
+**No products needed for NetPulse** — prices are created on-the-fly
+(`price_data`) at checkout time. Tiers ship in `billing.py`.
+
 ## What's already live (no action needed)
 
 | Channel | Status |
@@ -55,16 +80,27 @@ user page). To join:
 
 ## 3. Selling to buyers outside your LAN
 
-The daemon listens on `127.0.0.1:8765`. For public buyers:
+The daemon listens on `127.0.0.1:8765`. `cloudflared` is installed at
+`~/.local/bin/cloudflared`.
 
-- **Quick (no account):** `cloudflared tunnel --url http://127.0.0.1:8765`
-  → share the printed `https://<random>.trycloudflare.com` URL.
-- **Stable (recommended):** named Cloudflare Tunnel on your own domain
-  (`netpulse.io` style), or any reverse proxy with TLS.
-- The static storefront on GitHub Pages can then point its
-  "Claim License" buttons at the public URL.
+- **Test tunnel (ephemeral URL, changes each run):**
+  `~/.local/bin/cloudflared tunnel --url http://127.0.0.1:8765`
+- **Production:** named Cloudflare Tunnel on a domain you own → stable URL
+  → register the NetPulse webhook endpoint
+  (`/api/subscription/webhook`; events: `checkout.session.completed`,
+  `customer.subscription.deleted`).
+- Note: a public URL exposes the whole API surface. Admin endpoints are
+  token-protected; `/api/state` is not — use a temporary URL for test
+  checkouts, and the named tunnel only as long as needed.
 
-## 4. Prettier org handle (optional polish)
+## 4. After pasting keys — verify in one command
+
+```
+curl -s -X POST http://127.0.0.1:8765/api/subscription/status -H 'Content-Type: application/json' -d '{}' | grep -o '"stripe_configured":[a-z]*'
+```
+(or check the Billing Settings panel — it shows `stripe_configured: true`).
+
+## 5. Prettier org handle (optional polish)
 
 `netpulse` is globally taken (EGYM, 2011). **`netpulse-hq`** is verified
 available. Rename via API (needs `admin:org`) or UI:
