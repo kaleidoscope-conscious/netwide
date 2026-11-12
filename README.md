@@ -1,17 +1,17 @@
 # NetPulse v4.5.0
 
-[![Release v4.5.0](https://img.shields.io/badge/release-v4.5.0-10b981?style=for-the-badge)](https://github.com/kaleidoscopeAI/netpulse/releases/tag/v4.5.0)
-[![Android 15 APK](https://img.shields.io/badge/Android_15_(API_35)-Download_APK-0284c7?style=for-the-badge&logo=android)](https://github.com/kaleidoscopeAI/netpulse/releases/download/v4.5.0/NetPulse-Mobile-v4.5.0.apk)
-[![Storefront & Pricing](https://img.shields.io/badge/Storefront-Founder's_Lifetime_%24149-7c3aed?style=for-the-badge)](https://kaleidoscopeai.github.io/netpulse/)
-[![Tests](https://img.shields.io/badge/pytest-132%2F132_passing-34d399?style=for-the-badge)](https://github.com/kaleidoscopeAI/netpulse/actions)
+[![Release v4.5.0](https://img.shields.io/badge/release-v4.5.0-10b981?style=for-the-badge)](https://github.com/kaleidoscope-conscious/netpulse/releases/tag/v4.5.0)
+[![Android 15 APK](https://img.shields.io/badge/Android_15_(API_35)-Download_APK-0284c7?style=for-the-badge&logo=android)](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.5.0/NetPulse-Mobile-v4.5.0.apk)
+[![Storefront & Pricing](https://img.shields.io/badge/Storefront-Founder's_Lifetime_%24149-7c3aed?style=for-the-badge)](https://kaleidoscope-conscious.github.io/netpulse/)
+[![Tests](https://img.shields.io/badge/pytest-132%2F132_passing-34d399?style=for-the-badge)](https://github.com/kaleidoscope-conscious/netpulse/actions)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor_♥-GitHub-db61fc?style=for-the-badge&logo=githubsponsors)](https://github.com/sponsors/kaleidoscopeAI)
 [![Donate via PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?style=for-the-badge&logo=paypal)](https://paypal.me/jgraham1000)
 
 **Sovereign Network Intelligence, 10-Stage 802.11 TSF De-Cloaking, Cryptographic Protocol Auditing, Domain/WAN OSINT, Wire DPI, Autonomous Countermeasures & Commercial Subscription Suite**
 
-- **Live Storefront & Documentation**: [https://kaleidoscopeai.github.io/netpulse/](https://kaleidoscopeai.github.io/netpulse/)
-- **Signed Android 15 APK (v2+v3)**: [Download `NetPulse-Mobile-v4.5.0.apk`](https://github.com/kaleidoscopeAI/netpulse/releases/download/v4.5.0/NetPulse-Mobile-v4.5.0.apk)
-- **Google Play Store Bundle (`.aab`)**: [Download `NetPulse-Mobile-PlayStore-v4.5.0.aab`](https://github.com/kaleidoscopeAI/netpulse/releases/download/v4.5.0/NetPulse-Mobile-PlayStore-v4.5.0.aab)
+- **Live Storefront & Documentation**: [https://kaleidoscope-conscious.github.io/netpulse/](https://kaleidoscope-conscious.github.io/netpulse/)
+- **Signed Android 15 APK (v2+v3)**: [Download `NetPulse-Mobile-v4.5.0.apk`](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.5.0/NetPulse-Mobile-v4.5.0.apk)
+- **Google Play Store Bundle (`.aab`)**: [Download `NetPulse-Mobile-PlayStore-v4.5.0.aab`](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.5.0/NetPulse-Mobile-PlayStore-v4.5.0.aab)
 
 ### ❤ Support NetPulse
 
@@ -27,7 +27,7 @@ Development is sovereign-funded by the community:
 ## Quick Start (1-Line Install)
 
 ```bash
-git clone https://github.com/kaleidoscopeAI/netpulse.git && cd netpulse && ./install.sh
+git clone https://github.com/kaleidoscope-conscious/netpulse.git && cd netpulse && ./install.sh
 ```
 
 Or launch directly with Python / Docker:

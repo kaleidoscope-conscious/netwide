@@ -63,8 +63,8 @@ def step_github_release() -> None:
         print("  ℹ `gh` CLI not installed; skipping automated GitHub Release upload.")
         return
 
-    repo_slug = "kaleidoscopeAI/netpulse"
-    pages_url = "https://kaleidoscopeai.github.io/netpulse/"
+    repo_slug = "kaleidoscope-conscious/netpulse"
+    pages_url = "https://kaleidoscope-conscious.github.io/netpulse/"
 
     if not (ROOT_DIR / ".git").exists():
         _run(["git", "init", "-b", "main"], check=False)
