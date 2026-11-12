@@ -346,6 +346,11 @@ class SubscriptionManager:
             sig_b64 = license_authority.sign_payload(payload_b64) or ""
         if not sig_b64:
             # Legacy node-local HMAC fallback (trial keys minted on a customer node).
+            # The scheme marker is part of the signed payload so verifiers know
+            # which algorithm to use.
+            payload["sk"] = "hmac"
+            payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+            payload_b64 = _b64url_encode(payload_bytes)
             sig_full = hmac.new(self._signing_secret(), payload_b64.encode("ascii"), hashlib.sha256).digest()
             # Full 256-bit HMAC-SHA256 tag (upgraded from the legacy 144-bit truncated tag).
             # verify_license_key() accepts both the full tag and the legacy truncated one.
