@@ -112,7 +112,7 @@ def fetch_and_audit(url: str, consent: bool = False) -> Dict[str, Any]:
     if not is_rfc1918_target(url):
         return {"ok": False, "error": "SSRF guard: firmware URL must be RFC1918 LAN host only."}
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "NetPulse/4.5-FirmwareAudit"})
+        req = urllib.request.Request(url, headers={"User-Agent": "Netwide/4.5-FirmwareAudit"})
         with urllib.request.urlopen(req, timeout=5.0) as resp:
             blob = resp.read(_MAX_FIRMWARE_BYTES + 1)
         if len(blob) > _MAX_FIRMWARE_BYTES:

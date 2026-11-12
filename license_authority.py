@@ -1,5 +1,5 @@
 """
-NetPulse License Authority — asymmetric (Ed25519) license signing.
+Netwide License Authority — asymmetric (Ed25519) license signing.
 
 Why this exists
 ---------------
@@ -13,13 +13,13 @@ be activated on the customer's own machine. Ed25519 fixes that properly:
 
 Key resolution order
 --------------------
-1. ``NETPULSE_LICENSE_PRIVATE_KEY`` (env, hex-encoded raw 32-byte seed)
-2. ``~/.config/netpulse/authority_ed25519.key`` (operator-only file, mode 600)
+1. ``NETWIDE_LICENSE_PRIVATE_KEY`` (env, hex-encoded raw 32-byte seed)
+2. ``~/.config/netwide/authority_ed25519.key`` (operator-only file, mode 600)
 3. None -> the node falls back to legacy HMAC signing (node-local keys only)
 
-The embedded public key is a constant so every NetPulse install can verify
+The embedded public key is a constant so every Netwide install can verify
 operator-signed licenses offline. It can be overridden with
-``NETPULSE_LICENSE_PUBLIC_KEY`` (used by the test-suite and by operators who
+``NETWIDE_LICENSE_PUBLIC_KEY`` (used by the test-suite and by operators who
 rotate keys).
 """
 
@@ -33,12 +33,12 @@ from typing import Optional, Tuple
 # Public key of the license authority. Safe to ship: it can only verify.
 EMBEDDED_PUBLIC_KEY_B64 = "pw5EEm.yK4uc1yAHyIMsGAlw1B2m9F8ZTci_1vSaN9s"
 
-_PRIVATE_KEY_ENV = "NETPULSE_LICENSE_PRIVATE_KEY"
-_PUBLIC_KEY_ENV = "NETPULSE_LICENSE_PUBLIC_KEY"
+_PRIVATE_KEY_ENV = "NETWIDE_LICENSE_PRIVATE_KEY"
+_PUBLIC_KEY_ENV = "NETWIDE_LICENSE_PUBLIC_KEY"
 _PRIVATE_KEY_PATH = Path(
     os.environ.get(
-        "NETPULSE_LICENSE_KEY_PATH",
-        str(Path(os.path.expanduser("~")) / ".config" / "netpulse" / "authority_ed25519.key"),
+        "NETWIDE_LICENSE_KEY_PATH",
+        str(Path(os.path.expanduser("~")) / ".config" / "netwide" / "authority_ed25519.key"),
     )
 )
 
@@ -53,7 +53,7 @@ def _crypto():
         return Ed25519PrivateKey, Ed25519PublicKey
     except Exception as exc:  # pragma: no cover - dependency missing
         raise RuntimeError(
-            "The 'cryptography' package is required for NetPulse license signing. "
+            "The 'cryptography' package is required for Netwide license signing. "
             "Install it with: pip install cryptography"
         ) from exc
 
@@ -78,7 +78,7 @@ def public_key_b64() -> str:
 
 def private_key_path() -> Path:
     """Resolve the private key path at call time so env overrides always apply."""
-    env_path = os.environ.get("NETPULSE_LICENSE_KEY_PATH", "").strip()
+    env_path = os.environ.get("NETWIDE_LICENSE_KEY_PATH", "").strip()
     return Path(env_path) if env_path else _PRIVATE_KEY_PATH
 
 
@@ -93,6 +93,9 @@ def load_private_key():
             seed = None
     if seed is None:
         path = private_key_path()
+        legacy = Path(os.path.expanduser("~")) / ".config" / "netpulse" / "authority_ed25519.key"
+        if not path.exists() and legacy.exists():
+            path = legacy
         if path.exists():
             try:
                 seed = bytes.fromhex(path.read_text(encoding="utf-8").strip())

@@ -1,5 +1,5 @@
 """
-NetPulse Sovereign Subscription, Stripe Billing & Cryptographic License Engine.
+Netwide Sovereign Subscription, Stripe Billing & Cryptographic License Engine.
 
 Provides:
 1. Cryptographic License Key Minting & Verification (NP1-<B64URL_PAYLOAD>-<HMAC_SHA256_SIG>)
@@ -21,11 +21,18 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from netpulse import license_authority
+from netwide import license_authority
 from contextlib import closing
 from typing import Any, Dict, List, Optional, Tuple
 
-DB_DEFAULT_PATH = os.environ.get("NETPULSE_DB_PATH") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "netpulse_intel.db")
+_db_dir = os.path.dirname(os.path.abspath(__file__))
+_db_new = os.path.join(_db_dir, "netwide_intel.db")
+_db_legacy = os.path.join(_db_dir, "netpulse_intel.db")
+DB_DEFAULT_PATH = (
+    os.environ.get("NETWIDE_DB_PATH")
+    or os.environ.get("NETPULSE_DB_PATH")
+    or (_db_legacy if os.path.exists(_db_legacy) and not os.path.exists(_db_new) else _db_new)
+)
 
 TIER_RANK: Dict[str, int] = {
     "free": 0,
@@ -182,7 +189,7 @@ class SubscriptionManager:
                 "SELECT value FROM subscription_config WHERE key = 'signing_secret'"
             ).fetchone()
             if not row:
-                env_secret = os.environ.get("NETPULSE_LICENSE_SECRET", "").strip()
+                env_secret = os.environ.get("NETWIDE_LICENSE_SECRET", "").strip()
                 secret_val = env_secret if env_secret else secrets.token_hex(32)
                 conn.execute(
                     "INSERT INTO subscription_config (key, value) VALUES ('signing_secret', ?)",
@@ -194,7 +201,7 @@ class SubscriptionManager:
                 "SELECT value FROM subscription_config WHERE key = 'admin_token'"
             ).fetchone()
             if not admin_row:
-                env_admin = os.environ.get("NETPULSE_ADMIN_TOKEN", "").strip()
+                env_admin = os.environ.get("NETWIDE_ADMIN_TOKEN", "").strip()
                 admin_val = env_admin if env_admin else f"np_adm_{secrets.token_hex(16)}"
                 conn.execute(
                     "INSERT INTO subscription_config (key, value) VALUES ('admin_token', ?)",
@@ -204,9 +211,9 @@ class SubscriptionManager:
                 admin_val = str(admin_row["value"])
             conn.commit()
 
-            # Persist admin token to ~/.config/netpulse/admin.token (0600) for local CLI/operator convenience
+            # Persist admin token to ~/.config/netwide/admin.token (0600) for local CLI/operator convenience
             try:
-                cfg_dir = os.path.expanduser("~/.config/netpulse")
+                cfg_dir = os.path.expanduser("~/.config/netwide")
                 os.makedirs(cfg_dir, exist_ok=True)
                 tok_file = os.path.join(cfg_dir, "admin.token")
                 with open(tok_file, "w", encoding="utf-8") as tf:
@@ -235,7 +242,7 @@ class SubscriptionManager:
             conn.commit()
 
     def _signing_secret(self) -> bytes:
-        env_secret = os.environ.get("NETPULSE_LICENSE_SECRET", "").strip()
+        env_secret = os.environ.get("NETWIDE_LICENSE_SECRET", "").strip()
         if env_secret:
             return env_secret.encode("utf-8")
         stored = self._get_config("signing_secret", "")
@@ -253,7 +260,7 @@ class SubscriptionManager:
         return self._signing_secret().decode("utf-8", errors="replace")
 
     def get_admin_token(self) -> str:
-        env_admin = os.environ.get("NETPULSE_ADMIN_TOKEN", "").strip()
+        env_admin = os.environ.get("NETWIDE_ADMIN_TOKEN", "").strip()
         if env_admin:
             return env_admin
         return self._get_config("admin_token", "")
@@ -264,7 +271,7 @@ class SubscriptionManager:
             return False
         return hmac.compare_digest(expected.strip(), candidate.strip())
 
-    def start_free_trial(self, email: str = "trial@netpulse.io") -> Dict[str, Any]:
+    def start_free_trial(self, email: str = "trial@netwide.io") -> Dict[str, Any]:
         """
         Issue a one-time 7-day Pro Guardian evaluation license key for this node.
         Check-and-claim is serialized on RLock (no TOCTOU between concurrent POSTs).
@@ -288,14 +295,14 @@ class SubscriptionManager:
         self,
         tier: str = "enterprise",
         plan: str = "annual",
-        email: str = "operator@netpulse.local",
+        email: str = "operator@netwide.local",
         days: Optional[int] = None,
         max_nodes: Optional[int] = None,
         stripe_session_id: str = "",
         stripe_customer_id: str = "",
     ) -> Dict[str, Any]:
         """
-        Mint a cryptographically signed NetPulse license key:
+        Mint a cryptographically signed Netwide license key:
         Format: NP1-<TIER_UPPER>-<B64URL_PAYLOAD>-<HMAC_SHA256_SIG_24>
         """
         tier_clean = tier.lower().strip()
@@ -324,7 +331,7 @@ class SubscriptionManager:
             "jti": jti,
             "tier": tier_clean,
             "plan": plan_clean,
-            "email": email.strip() or "operator@netpulse.local",
+            "email": email.strip() or "operator@netwide.local",
             "nodes": nodes,
             "iat": now,
             "exp": exp,
@@ -332,7 +339,7 @@ class SubscriptionManager:
         payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
         payload_b64 = _b64url_encode(payload_bytes)
 
-        # Preferred: asymmetric Ed25519 signature — verifiable on ANY NetPulse node
+        # Preferred: asymmetric Ed25519 signature — verifiable on ANY Netwide node
         # because only the public key ships with the product.
         sig_b64 = ""
         try:
@@ -472,7 +479,7 @@ class SubscriptionManager:
             "tier": tier,
             "tier_name": TIER_CATALOG[tier]["name"],
             "plan": str(payload.get("plan", "monthly")),
-            "email": str(payload.get("email", "operator@netpulse.local")),
+            "email": str(payload.get("email", "operator@netwide.local")),
             "max_nodes": int(payload.get("nodes", TIER_CATALOG[tier]["max_nodes"])),
             "issued_at": int(payload.get("iat", now)),
             "expires_at": exp,
@@ -581,9 +588,9 @@ class SubscriptionManager:
         # The operator's own license is not a sale. Split it out so the dashboard
         # reports real customer revenue instead of flattering itself.
         operator_email = (
-            os.environ.get("NETPULSE_OPERATOR_EMAIL")
+            os.environ.get("NETWIDE_OPERATOR_EMAIL")
             or self._get_config("operator_email", "")
-            or "founder@netpulse.io"
+            or "founder@netwide.io"
         ).strip().lower()
         is_operator = lambda r: str(r.get("email") or "").strip().lower() == operator_email
         operator_active = [r for r in active if is_operator(r)]
@@ -876,11 +883,11 @@ class SubscriptionManager:
             "line_items[0][quantity]": "1",
             "line_items[0][price_data][currency]": "usd",
             "line_items[0][price_data][unit_amount]": str(unit_amount_cents),
-            "line_items[0][price_data][product_data][name]": f"NetPulse {cat['name']} ({plan_clean.capitalize()})",
+            "line_items[0][price_data][product_data][name]": f"Netwide {cat['name']} ({plan_clean.capitalize()})",
             "line_items[0][price_data][product_data][description]": cat["tagline"],
-            "metadata[netpulse_tier]": tier_clean,
-            "metadata[netpulse_plan]": plan_clean,
-            "metadata[subscriber_email]": email.strip() or "subscriber@netpulse.io",
+            "metadata[netwide_tier]": tier_clean,
+            "metadata[netwide_plan]": plan_clean,
+            "metadata[subscriber_email]": email.strip() or "subscriber@netwide.io",
         }
         if plan_clean != "lifetime":
             form_params["line_items[0][price_data][recurring][interval]"] = interval
@@ -921,7 +928,7 @@ class SubscriptionManager:
     def verify_stripe_session_and_activate(self, session_id: str) -> Dict[str, Any]:
         """
         Verify a completed Stripe Checkout Session (`GET /v1/checkout/sessions/{id}`)
-        and automatically mint + activate the corresponding NetPulse license key.
+        and automatically mint + activate the corresponding Netwide license key.
         """
         stripe_sk = os.environ.get("STRIPE_SECRET_KEY") or self._get_config("stripe_secret_key", "")
         if not stripe_sk:
@@ -946,13 +953,13 @@ class SubscriptionManager:
             return {"ok": False, "error": f"Checkout session not paid yet (status={status}, payment={payment_status})."}
 
         meta = data.get("metadata") or {}
-        tier = meta.get("netpulse_tier", "pro")
-        plan = meta.get("netpulse_plan", "monthly")
+        tier = meta.get("netwide_tier", "pro")
+        plan = meta.get("netwide_plan", "monthly")
         email = (
             (data.get("customer_details") or {}).get("email")
             or data.get("customer_email")
             or meta.get("subscriber_email")
-            or "subscriber@netpulse.io"
+            or "subscriber@netwide.io"
         )
         cust_id = str(data.get("customer") or "")
         minted = self.mint_license_key(
@@ -1003,8 +1010,8 @@ class SubscriptionManager:
             if row:
                 continue
             meta = sess.get("metadata") or {}
-            tier = str(meta.get("netpulse_tier") or "pro").lower()
-            plan = str(meta.get("netpulse_plan") or "monthly").lower()
+            tier = str(meta.get("netwide_tier") or "pro").lower()
+            plan = str(meta.get("netwide_plan") or "monthly").lower()
             if tier not in ("pro", "enterprise"):
                 tier = "pro"
             if plan not in ("monthly", "annual", "lifetime"):
@@ -1013,7 +1020,7 @@ class SubscriptionManager:
                 (sess.get("customer_details") or {}).get("email")
                 or sess.get("customer_email")
                 or meta.get("subscriber_email")
-                or "subscriber@netpulse.io"
+                or "subscriber@netwide.io"
             )
             minted = self.mint_license_key(
                 tier=tier,
@@ -1035,7 +1042,7 @@ class SubscriptionManager:
 
         Hardening:
         - Fail-closed: unsigned/unverifiable payloads are rejected unless the
-          NETPULSE_WEBHOOK_ALLOW_UNSIGNED=1 escape hatch is set (local dev only).
+          NETWIDE_WEBHOOK_ALLOW_UNSIGNED=1 escape hatch is set (local dev only).
         - 5-minute timestamp tolerance window (anti-replay), matching Stripe docs.
         - Idempotent: repeated deliveries of the same event id / session id
           short-circuit instead of minting duplicate licenses.
@@ -1059,12 +1066,12 @@ class SubscriptionManager:
             expected = hmac.new(wh_secret.encode("utf-8"), signed_payload, hashlib.sha256).hexdigest()
             if not hmac.compare_digest(v1_val, expected):
                 return {"ok": False, "error": "Invalid Stripe webhook signature."}
-        elif not (os.environ.get("NETPULSE_WEBHOOK_ALLOW_UNSIGNED", "").strip().lower() in ("1", "true", "yes")):
+        elif not (os.environ.get("NETWIDE_WEBHOOK_ALLOW_UNSIGNED", "").strip().lower() in ("1", "true", "yes")):
             return {
                 "ok": False,
                 "error": "Stripe webhook signature required: no webhook secret configured. "
                          "Set STRIPE_WEBHOOK_SECRET (or the stripe_webhook_secret config) to enable webhook processing. "
-                         "Set NETPULSE_WEBHOOK_ALLOW_UNSIGNED=1 only for local testing.",
+                         "Set NETWIDE_WEBHOOK_ALLOW_UNSIGNED=1 only for local testing.",
             }
 
         try:
@@ -1105,13 +1112,13 @@ class SubscriptionManager:
                 }
 
             meta = obj.get("metadata") or {}
-            tier = meta.get("netpulse_tier", "pro")
-            plan = meta.get("netpulse_plan", "monthly")
+            tier = meta.get("netwide_tier", "pro")
+            plan = meta.get("netwide_plan", "monthly")
             email = (
                 (obj.get("customer_details") or {}).get("email")
                 or obj.get("customer_email")
                 or meta.get("subscriber_email")
-                or "subscriber@netpulse.io"
+                or "subscriber@netwide.io"
             )
             minted = self.mint_license_key(
                 tier=tier,

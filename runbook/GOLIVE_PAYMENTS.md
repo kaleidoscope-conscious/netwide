@@ -1,11 +1,11 @@
-# NetPulse — Payments Go-Live Runbook
+# Netwide — Payments Go-Live Runbook
 
 Everything below is verified against the shipped code. The system is fully
 wired to accept payments the moment real credentials are provided.
 
 ## Account decision (2026-11-12)
 
-NetPulse launches on the existing live Stripe account **goeckoh**
+Netwide launches on the existing live Stripe account **goeckoh**
 (`acct_1SQ0CYI8vHeVjmon`). Rationale: it is already live-mode verified with
 payout infrastructure; a dedicated account requires a new identity/bank
 verification. Migrate later by re-pointing keys — licenses mint per-session
@@ -17,15 +17,15 @@ and stay valid.
   Wi-Fi CSI SDK, spore executor). Do NOT archive those 4 products.
 - Archive ONLY the 20+ stale "Continuous Test Verification Link" products
   (reversible). This is authorized.
-- NetPulse sessions carry `metadata[netpulse_plan]` — any backend that
+- Netwide sessions carry `metadata[netwide_plan]` — any backend that
   fetches the session and filters on unknown metadata will ignore them.
-  NetPulse-side minting is authoritative via checkout-return verification,
-  so the shared webhook cannot mint NetPulse licenses for goeckoh buyers
+  Netwide-side minting is authoritative via checkout-return verification,
+  so the shared webhook cannot mint Netwide licenses for goeckoh buyers
   or vice versa.
-- Add a dedicated NetPulse webhook endpoint once a stable public URL exists
+- Add a dedicated Netwide webhook endpoint once a stable public URL exists
   (Stripe allows multiple endpoints per account).
 
-**No products needed for NetPulse** — prices are created on-the-fly
+**No products needed for Netwide** — prices are created on-the-fly
 (`price_data`) at checkout time. Tiers ship in `billing.py`.
 
 ## What's already live (no action needed)
@@ -54,10 +54,10 @@ setup is required**. Tiers ship pre-configured in `billing.py`:
    (business details + bank account for payouts)
 2. **Copy live API keys** → Stripe Dashboard → Developers → API keys
    (`sk_live_…` secret, `pk_live_…` publishable)
-3. **Paste into NetPulse**: open the Workbench → Subscription modal
+3. **Paste into Netwide**: open the Workbench → Subscription modal
    (💎 Storefront → license modal) → **Billing Settings** →
    enter `sk_live_…`, `pk_live_…`, and your admin master token
-   (`~/.config/netpulse/admin.token`) → Save.
+   (`~/.config/netwide/admin.token`) → Save.
    Keys are stored in the local DB config; env vars (`STRIPE_SECRET_KEY`,
    `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`) override if present.
 4. **First sale**: buy your own Founder's Lifetime ($149) — you receive a
@@ -86,7 +86,7 @@ The daemon listens on `127.0.0.1:8765`. `cloudflared` is installed at
 - **Test tunnel (ephemeral URL, changes each run):**
   `~/.local/bin/cloudflared tunnel --url http://127.0.0.1:8765`
 - **Production:** named Cloudflare Tunnel on a domain you own → stable URL
-  → register the NetPulse webhook endpoint
+  → register the Netwide webhook endpoint
   (`/api/subscription/webhook`; events: `checkout.session.completed`,
   `customer.subscription.deleted`).
 - Note: a public URL exposes the whole API surface. Admin endpoints are
@@ -135,14 +135,14 @@ verifies on *their* machine, not only on the operator's node.
 
 | Piece | Where | Notes |
 |---|---|---|
-| Private key | `~/.config/netpulse/authority_ed25519.key` (mode 600) | Never in the repo |
-| Public key | `netpulse/license_authority.py` (`EMBEDDED_PUBLIC_KEY_B64`) | Ships with the app — can only verify |
-| Test override | `NETPULSE_LICENSE_PUBLIC_KEY` / `NETPULSE_LICENSE_KEY_PATH` | Used by the test suite |
+| Private key | `~/.config/netwide/authority_ed25519.key` (mode 600) | Never in the repo |
+| Public key | `netwide/license_authority.py` (`EMBEDDED_PUBLIC_KEY_B64`) | Ships with the app — can only verify |
+| Test override | `NETWIDE_LICENSE_PUBLIC_KEY` / `NETWIDE_LICENSE_KEY_PATH` | Used by the test suite |
 
 Commands:
 ```
-netpulse authority show     # public key + private key presence
-netpulse authority init     # generate a new keypair (backup the old private key first)
+netwide authority show     # public key + private key presence
+netwide authority init     # generate a new keypair (backup the old private key first)
 ```
 
 Key rotation invalidates previously issued licenses — re-issue for existing
@@ -165,11 +165,11 @@ Three paths, all real payments — **no free self-minting**:
    page activates the license on any running local node.
 3. **Concierge (any device, no node running)** — run on the operator node:
    ```
-   netpulse license verify --session cs_live_...
+   netwide license verify --session cs_live_...
    ```
    This verifies the payment with Stripe, mints an Ed25519-signed key and
    activates it locally. Deliver the printed `Signed Key` to the customer;
-   they run `netpulse license activate NP1-...` on their node.
+   they run `netwide license activate NP1-...` on their node.
 
 The operator node also **auto-syncs paid sessions every 5 minutes**
 (`sync_paid_sessions`), so web purchases appear in the Business Control Room
@@ -184,21 +184,21 @@ even when no webhook endpoint is reachable.
 
 - Pages **and** APIs require the Sovereign Admin token; loopback is allowed for
   reads, but from any other host they answer **403**.
-- Page assets live **outside the repo**: `~/.config/netpulse/operator/`
-  (`NETPULSE_OPERATOR_DIR` overrides). The in-repo `operator/` folder is only a
+- Page assets live **outside the repo**: `~/.config/netwide/operator/`
+  (`NETWIDE_OPERATOR_DIR` overrides). The in-repo `operator/` folder is only a
   fallback for fresh installs. They are never published to the storefront.
-- Desktop launchers: `NetPulse-Business.desktop`, `NetPulse-Watchtower.desktop`.
+- Desktop launchers: `Netwide-Business.desktop`, `Netwide-Watchtower.desktop`.
 
 ## 4g. Privileged actions
 
 Minting, revoking, and Stripe configuration always require the Sovereign Admin
 Master Token. The operator node opts into loopback admin with
-`NETPULSE_ALLOW_LOOPBACK_ADMIN=1` (set in the systemd unit); a customer node
+`NETWIDE_ALLOW_LOOPBACK_ADMIN=1` (set in the systemd unit); a customer node
 without that variable cannot self-issue licenses.
 
 ## 5. Prettier org handle (optional polish)
 
-`netpulse` is globally taken (EGYM, 2011). **`netpulse-hq`** is verified
+`netwide` is globally taken (EGYM, 2011). **`netwide-hq`** is verified
 available. Rename via API (needs `admin:org`) or UI:
 `github.com/organizations/kaleidoscope-conscious/settings` → rename →
 all repo URLs redirect automatically.

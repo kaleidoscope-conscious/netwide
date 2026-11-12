@@ -1,8 +1,8 @@
 """
-Unit tests for NetPulse OUI & IEEE 802 MAC address intelligence engine.
+Unit tests for Netwide OUI & IEEE 802 MAC address intelligence engine.
 """
 
-from netpulse.oui import oui_db, unmask_eui64_ipv6_mac
+from netwide.oui import oui_db, unmask_eui64_ipv6_mac
 
 
 def test_oui_db_loaded():

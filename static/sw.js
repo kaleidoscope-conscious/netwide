@@ -1,4 +1,4 @@
-const CACHE_NAME = 'netpulse-mobile-v4.5';
+const CACHE_NAME = 'netwide-mobile-v4.5';
 const ASSETS = ['/mobile', '/pricing', '/privacy', '/manifest.json', '/static/icon.svg'];
 
 self.addEventListener('install', (e) => {

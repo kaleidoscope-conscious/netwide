@@ -7,9 +7,9 @@ __pycache__/
 .ruff_cache/
 
 # Local SQLite WAL runtime telemetry databases & secrets
-netpulse_intel.db
-netpulse_intel.db-shm
-netpulse_intel.db-wal
+netwide_intel.db
+netwide_intel.db-shm
+netwide_intel.db-wal
 *.db
 *.db-shm
 *.db-wal

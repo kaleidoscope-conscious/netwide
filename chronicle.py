@@ -1,10 +1,10 @@
-"""NetPulse Sovereign Chronicle & Rhythm Engine — Longitudinal Memory & NetPulse Wrapped.
+"""Netwide Sovereign Chronicle & Rhythm Engine — Longitudinal Memory & Netwide Wrapped.
 
 Implements Bet 4 specifications:
 - Longitudinal network memory over events_ledger & device telemetry
 - Device rhythm profiles: arrival hours, active hours histogram, quiet window compliance
 - Behavioral drift detector: rhythm breaks, unexpected wake events, anomalous silence
-- "NetPulse Wrapped" export summary: top talker, active vendor share, threats mitigated, de-cloaked APs
+- "Netwide Wrapped" export summary: top talker, active vendor share, threats mitigated, de-cloaked APs
 """
 
 from __future__ import annotations
@@ -125,12 +125,12 @@ def generate_network_chronicle(
     }
 
 
-def generate_netpulse_wrapped(
+def generate_netwide_wrapped(
     devices: List[Dict[str, Any]],
     ledger_events: List[Dict[str, Any]],
     scan_count: int = 42,
 ) -> Dict[str, Any]:
-    """Generate year-end 'NetPulse Wrapped' statistics purely from local telemetry."""
+    """Generate year-end 'Netwide Wrapped' statistics purely from local telemetry."""
     now = time.time()
     # Vendor distribution
     vendor_counts: Dict[str, int] = {}

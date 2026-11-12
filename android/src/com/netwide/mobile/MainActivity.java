@@ -1,4 +1,4 @@
-package com.netpulse.mobile;
+package com.netwide.mobile;
 
 import android.Manifest;
 import android.app.Activity;

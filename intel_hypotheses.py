@@ -281,7 +281,7 @@ def generate_hypotheses(
         hyps.append(_mk(
             f"audit_{cat.lower()}", _severity_energy_from_finding(sev),
             str(t.get("title", "")),
-            "Investigate per the NetPulse threat playbook; Guardian Shield quarantine is one click away.",
+            "Investigate per the Netwide threat playbook; Guardian Shield quarantine is one click away.",
             device_key=str(t.get("device_key", "")), ip=str(t.get("ip", "")),
             uncertainty=0.15, confidence=0.75,
             evidence=str(t.get("details", ""))[:400],

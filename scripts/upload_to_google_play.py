@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Google Play Developer API v3 Automated App Bundle (.aab) Uploader for NetPulse.
+Google Play Developer API v3 Automated App Bundle (.aab) Uploader for Netwide.
 Implements the full Google Play Android Publisher v3 workflow:
   1. Offline AAB structural & cryptographic signature verification (jarsigner + BundleConfig.pb)
   2. OAuth2 Service Account JWT assertion (RS256 via openssl) -> Access Token exchange
@@ -29,8 +29,8 @@ import zipfile
 from pathlib import Path
 from typing import Any, Dict
 
-DEFAULT_AAB = Path(str(pathlib.Path(__file__).resolve().parents[1] / "static/NetPulse-Mobile-PlayStore.aab"))
-DEFAULT_PACKAGE = "com.netpulse.mobile"
+DEFAULT_AAB = Path(str(pathlib.Path(__file__).resolve().parents[1] / "static/Netwide-Mobile-PlayStore.aab"))
+DEFAULT_PACKAGE = "com.netwide.mobile"
 OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
 PUBLISHER_SCOPE = "https://www.googleapis.com/auth/androidpublisher"
 API_BASE = "https://androidpublisher.googleapis.com/androidpublisher/v3/applications"
@@ -222,15 +222,15 @@ def upload_aab_to_play_store(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Upload NetPulse .aab bundle to Google Play Console API v3")
+    parser = argparse.ArgumentParser(description="Upload Netwide .aab bundle to Google Play Console API v3")
     parser.add_argument("--aab", type=Path, default=DEFAULT_AAB, help="Path to signed .aab file")
-    parser.add_argument("--package", default=DEFAULT_PACKAGE, help="Android applicationId (default: com.netpulse.mobile)")
+    parser.add_argument("--package", default=DEFAULT_PACKAGE, help="Android applicationId (default: com.netwide.mobile)")
     parser.add_argument("--track", choices=["internal", "alpha", "beta", "production"], default="internal")
     parser.add_argument("--service-account", type=Path, default=Path(os.environ.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", "")))
-    parser.add_argument("--release-name", default="v4.6.0 ")
+    parser.add_argument("--release-name", default="v4.7.0 ")
     parser.add_argument(
         "--release-notes",
-        default="NetPulse v4.6.0: 8-Stage Hidden Wi-Fi De-Cloaker, Walk-Around RF Geiger Counter, 3-Axis Magnetometer, TLS JA3 DPI & Smart LAN Control.",
+        default="Netwide v4.7.0: 8-Stage Hidden Wi-Fi De-Cloaker, Walk-Around RF Geiger Counter, 3-Axis Magnetometer, TLS JA3 DPI & Smart LAN Control.",
     )
     parser.add_argument("--verify-only", action="store_true", help="Verify .aab bundle integrity without calling Google Play API")
     args = parser.parse_args()
@@ -242,7 +242,7 @@ def main() -> int:
         if not args.verify_only:
             print(
                 "\n[READY FOR GOOGLE PLAY UPLOAD]\n"
-                "  • Option A (Web UI): Drag & drop /home/jg/Desktop/NetPulse-Mobile-PlayStore.aab into https://play.google.com/console\n"
+                "  • Option A (Web UI): Drag & drop /home/jg/Desktop/Netwide-Mobile-PlayStore.aab into https://play.google.com/console\n"
                 "  • Option B (Automated API): Provide your Google Play Service Account JSON key:\n"
                 f"      python3 {__file__} --service-account /path/to/play-service-account.json --track {args.track}"
             )

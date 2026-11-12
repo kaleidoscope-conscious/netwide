@@ -1,4 +1,4 @@
-name: NetPulse CI & GitHub Pages Storefront
+name: Netwide CI & GitHub Pages Storefront
 
 on:
   push:
@@ -41,7 +41,7 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/..
         run: |
-          ln -sf "${{ github.workspace }}" ../netpulse
+          ln -sf "${{ github.workspace }}" ../netwide
           pytest tests/ -q
 
   deploy-pages:

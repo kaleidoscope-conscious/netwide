@@ -1,6 +1,6 @@
 # Security Policy
 
-NetPulse is a network-security tool that inspects your LAN, parses untrusted protocol
+Netwide is a network-security tool that inspects your LAN, parses untrusted protocol
 handshakes, and can take enforcement actions (ARP quarantine, `iptables`/`nft` rules,
 DNS sinkhole). It is designed to be safe to run on your own network, but bugs happen.
 
@@ -47,7 +47,7 @@ prefer otherwise.
 - **Out of scope**: attacks on networks you do not own or administer; social engineering;
   physical access to the host; vulnerabilities in third-party dependencies (report those
   upstream — but tell us, and we will help coordinate the update).
-- NetPulse performs active probing on the network it is running on. **Only use it on networks
+- Netwide performs active probing on the network it is running on. **Only use it on networks
   you are authorised to test.**
 
 ## Hardening your own deployment
@@ -56,6 +56,6 @@ prefer otherwise.
   (`--host 0.0.0.0`) — understand the exposure before you do.
 - Operator surfaces (`/admin`, `/watchtower`) and all privileged licensing actions require the
   Sovereign Admin Master Token.
-- Set `NETPULSE_WS_TOKEN` to require a token for WebSocket clients connecting from non-loopback.
-- `NETPULSE_LICENSE_PRIVATE_KEY` is only needed on the machine that *issues* licences; never
-  ship it, and back it up (`netpulse authority show`).
+- Set `NETWIDE_WS_TOKEN` to require a token for WebSocket clients connecting from non-loopback.
+- `NETWIDE_LICENSE_PRIVATE_KEY` is only needed on the machine that *issues* licences; never
+  ship it, and back it up (`netwide authority show`).

@@ -1,4 +1,4 @@
-"""NetPulse Sovereign Admissible Evidence — CASE / UCO Forensic Bundle Engine.
+"""Netwide Sovereign Admissible Evidence — CASE / UCO Forensic Bundle Engine.
 
 Implements Bet 1 specifications:
 - Cyber-investigation Analysis Standard Expression (CASE / UCO 1.3 - caseontology.org)
@@ -25,7 +25,7 @@ CASE_CONTEXT = [
         "uco-action": "https://ontology.unifiedcyberontology.org/uco/action/",
         "uco-identity": "https://ontology.unifiedcyberontology.org/uco/identity/",
         "case-investigation": "https://ontology.caseontology.org/case/investigation/",
-        "netpulse": "https://netpulse.io/schema/proof/v1#",
+        "netwide": "https://netwide.io/schema/proof/v1#",
     },
 ]
 
@@ -35,7 +35,7 @@ def build_case_evidence_bundle(
     proof_verdict: Dict[str, Any],
     ledger_entries: List[Dict[str, Any]],
     signing_secret: str,
-    investigator_id: str = "NetPulse Sovereign Investigator",
+    investigator_id: str = "Netwide Sovereign Investigator",
     window_hours: float = 24.0,
 ) -> Dict[str, Any]:
     """Generate an internationally standard CASE/UCO JSON-LD evidence bundle."""
@@ -47,9 +47,9 @@ def build_case_evidence_bundle(
     brand = str(device.get("brand") or "Generic Host")
     model = str(device.get("model") or device.get("display_name") or "")
 
-    bundle_id = f"netpulse:bundle:{hashlib.sha256(f'{device_key}:{now_ts}'.encode()).hexdigest()[:16]}"
-    investigation_id = f"netpulse:investigation:{device_key}"
-    device_obj_id = f"netpulse:observable:device:{device_key}"
+    bundle_id = f"netwide:bundle:{hashlib.sha256(f'{device_key}:{now_ts}'.encode()).hexdigest()[:16]}"
+    investigation_id = f"netwide:investigation:{device_key}"
+    device_obj_id = f"netwide:observable:device:{device_key}"
 
     # 1. Build UCO Observable Device Object with Facets
     facets: List[Dict[str, Any]] = []
@@ -84,30 +84,30 @@ def build_case_evidence_bundle(
     evidence_items: List[Dict[str, Any]] = []
     agreeing = proof_verdict.get("agreeing_vectors") or []
     for idx, vec in enumerate(agreeing):
-        vec_id = f"netpulse:evidence:{device_key}:{vec.get('vector_id')}:{idx}"
+        vec_id = f"netwide:evidence:{device_key}:{vec.get('vector_id')}:{idx}"
         evidence_items.append({
             "@id": vec_id,
             "@type": "case-investigation:Evidence",
             "uco-core:name": vec.get("name"),
-            "netpulse:vectorType": vec.get("vector_id"),
-            "netpulse:rawSignal": vec.get("raw_evidence"),
-            "netpulse:weight": vec.get("weight"),
-            "netpulse:confidence": vec.get("confidence"),
-            "netpulse:observedAt": vec.get("observed_at"),
+            "netwide:vectorType": vec.get("vector_id"),
+            "netwide:rawSignal": vec.get("raw_evidence"),
+            "netwide:weight": vec.get("weight"),
+            "netwide:confidence": vec.get("confidence"),
+            "netwide:observedAt": vec.get("observed_at"),
         })
 
     # 3. Build CASE Inference (Attribution Verdict & Proof Mode Grade)
-    inference_id = f"netpulse:inference:{device_key}:{now_ts}"
+    inference_id = f"netwide:inference:{device_key}:{now_ts}"
     case_inference = {
         "@id": inference_id,
         "@type": "case-investigation:Inference",
         "uco-core:name": "Device Identity & Proof Mode Attribution",
         "case-investigation:evidence": [item["@id"] for item in evidence_items],
         "case-investigation:subject": device_obj_id,
-        "netpulse:verdictGrade": proof_verdict.get("grade", "WEAK"),
-        "netpulse:calibratedProbability": proof_verdict.get("calibrated_probability", 0.0),
-        "netpulse:proofSummary": proof_verdict.get("proof_summary", ""),
-        "netpulse:brierScore": proof_verdict.get("brier_score", 0.0),
+        "netwide:verdictGrade": proof_verdict.get("grade", "WEAK"),
+        "netwide:calibratedProbability": proof_verdict.get("calibrated_probability", 0.0),
+        "netwide:proofSummary": proof_verdict.get("proof_summary", ""),
+        "netwide:brierScore": proof_verdict.get("brier_score", 0.0),
     }
 
     # 4. Chain of Custody from Events Ledger
@@ -117,14 +117,14 @@ def build_case_evidence_bundle(
         if h:
             ledger_hashes.append(str(h))
 
-    head_hash = ledger_hashes[-1] if ledger_hashes else hashlib.sha256(b"netpulse-genesis").hexdigest()
+    head_hash = ledger_hashes[-1] if ledger_hashes else hashlib.sha256(b"netwide-genesis").hexdigest()
 
     chain_of_custody = {
         "@type": "case-investigation:ChainOfCustody",
-        "uco-core:name": "NetPulse Tamper-Evident SHA-256 Event Ledger",
-        "netpulse:ledgerHeadHash": head_hash,
-        "netpulse:ledgerEntriesCount": len(ledger_entries),
-        "netpulse:verificationWindowHours": window_hours,
+        "uco-core:name": "Netwide Tamper-Evident SHA-256 Event Ledger",
+        "netwide:ledgerHeadHash": head_hash,
+        "netwide:ledgerEntriesCount": len(ledger_entries),
+        "netwide:verificationWindowHours": window_hours,
     }
 
     # 5. Assemble JSON-LD Graph Bundle
@@ -152,7 +152,7 @@ def build_case_evidence_bundle(
     # 6. Cryptographic Manifest Signature
     canonical_bytes = json.dumps(bundle, sort_keys=True).encode("utf-8")
     sig = hmac.new(signing_secret.encode("utf-8"), canonical_bytes, hashlib.sha256).hexdigest()
-    bundle["netpulse:signature"] = {
+    bundle["netwide:signature"] = {
         "algorithm": "HMAC-SHA256",
         "manifest_sha256": hashlib.sha256(canonical_bytes).hexdigest(),
         "signature_hex": sig,
@@ -163,15 +163,15 @@ def build_case_evidence_bundle(
 
 def verify_evidence_bundle(bundle: Dict[str, Any], signing_secret: Optional[str] = None) -> Dict[str, Any]:
     """Offline standalone verification of a CASE/UCO evidence bundle."""
-    sig_block = bundle.get("netpulse:signature")
+    sig_block = bundle.get("netwide:signature")
     if not sig_block or not isinstance(sig_block, dict):
-        return {"valid": False, "error": "Missing netpulse:signature block"}
+        return {"valid": False, "error": "Missing netwide:signature block"}
 
     sig_hex = sig_block.get("signature_hex")
     manifest_hash = sig_block.get("manifest_sha256")
 
     # Reconstruct un-signed bundle payload
-    bundle_copy = {k: v for k, v in bundle.items() if k != "netpulse:signature"}
+    bundle_copy = {k: v for k, v in bundle.items() if k != "netwide:signature"}
     canonical_bytes = json.dumps(bundle_copy, sort_keys=True).encode("utf-8")
     calculated_manifest = hashlib.sha256(canonical_bytes).hexdigest()
 
@@ -197,8 +197,8 @@ def verify_evidence_bundle(bundle: Dict[str, Any], signing_secret: Optional[str]
     evidence_count = sum(1 for n in graph if n.get("@type") == "case-investigation:Evidence")
 
     inference = next((n for n in graph if n.get("@type") == "case-investigation:Inference"), {})
-    verdict_grade = inference.get("netpulse:verdictGrade", "UNKNOWN")
-    calibrated_p = inference.get("netpulse:calibratedProbability", 0.0)
+    verdict_grade = inference.get("netwide:verdictGrade", "UNKNOWN")
+    calibrated_p = inference.get("netwide:calibratedProbability", 0.0)
 
     return {
         "valid": True,

@@ -1,4 +1,4 @@
-"""NetPulse Sovereign Proof Mode — Evidence-Graded Attribution & Vector Fusion Engine.
+"""Netwide Sovereign Proof Mode — Evidence-Graded Attribution & Vector Fusion Engine.
 
 Implements S11 & S12 Proof Mode specifications:
 - 16 independent physical, cryptographic, and protocol evidence vectors

@@ -1,13 +1,13 @@
 """
-Rich Terminal CLI & Live TUI Guardian for NetPulse.
+Rich Terminal CLI & Live TUI Guardian for Netwide.
 Commands:
-  python3 -m netpulse scan                -> Instant multi-vector subnet scan & Rich device matrix
-  python3 -m netpulse watch               -> Live auto-refreshing Terminal TUI Network Guardian
-  python3 -m netpulse wifi                -> 2.4/5 GHz RF Spectrum & Co-Located Hidden SSID De-Cloaker
-  python3 -m netpulse speedtest           -> Cloudflare Multi-Stream WAN Throughput & Jitter Test
-  python3 -m netpulse wol <MAC>           -> Transmit IEEE 802 Wake-on-LAN Magic Packet
-  python3 -m netpulse roku <IP> <KEY>     -> Send live Roku ECP remote keypress (Home, VolumeMute, FindRemote, etc.)
-  python3 -m netpulse serve [--port 8765] -> Launch the Sovereign Web Command Center + WebSocket Daemon
+  python3 -m netwide scan                -> Instant multi-vector subnet scan & Rich device matrix
+  python3 -m netwide watch               -> Live auto-refreshing Terminal TUI Network Guardian
+  python3 -m netwide wifi                -> 2.4/5 GHz RF Spectrum & Co-Located Hidden SSID De-Cloaker
+  python3 -m netwide speedtest           -> Cloudflare Multi-Stream WAN Throughput & Jitter Test
+  python3 -m netwide wol <MAC>           -> Transmit IEEE 802 Wake-on-LAN Magic Packet
+  python3 -m netwide roku <IP> <KEY>     -> Send live Roku ECP remote keypress (Home, VolumeMute, FindRemote, etc.)
+  python3 -m netwide serve [--port 8765] -> Launch the Sovereign Web Command Center + WebSocket Daemon
 """
 
 from __future__ import annotations
@@ -29,15 +29,15 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
 
-from netpulse.database import net_db
-from netpulse.fingerprint import (
+from netwide.database import net_db
+from netwide.fingerprint import (
     DeviceProfile,
     audit_network_threats,
     compute_network_security_posture,
     run_full_network_scan,
 )
-from netpulse.oui import oui_db
-from netpulse.probers import (
+from netwide.oui import oui_db
+from netwide.probers import (
     audit_local_workstation_sockets,
     calculate_subnet_cidr,
     detect_active_interface,
@@ -45,8 +45,8 @@ from netpulse.probers import (
     send_roku_keypress,
     send_wake_on_lan,
 )
-from netpulse import __version__
-from netpulse.wireless import fetch_wan_intelligence, run_wan_speedtest, scan_bluetooth_radar, wireless_engine
+from netwide import __version__
+from netwide.wireless import fetch_wan_intelligence, run_wan_speedtest, scan_bluetooth_radar, wireless_engine
 
 console = Console(width=145 if not sys.stdout.isatty() else None)
 
@@ -85,7 +85,7 @@ def cmd_scan() -> None:
     net = detect_active_interface()
     console.print(
         Panel(
-            f"[bold cyan]NETPULSE v{__version__}[/bold cyan] — Active Interface [bold green]{net.interface}[/bold green] "
+            f"[bold cyan]NETWIDE v{__version__}[/bold cyan] — Active Interface [bold green]{net.interface}[/bold green] "
             f"([bold]{net.ip}[/bold] on [bold]{net.cidr}[/bold] • Gateway [bold]{net.gateway_ip}[/bold] • "
             f"SSID [bold yellow]{net.ssid}[/bold yellow] Ch {net.channel}) • "
             f"IEEE OUI Database: [bold]{oui_db.loaded_count:,}[/bold] prefixes",
@@ -211,7 +211,7 @@ def cmd_audit() -> None:
     for _, p_info in posture.get("pillars", {}).items():
         p_lines.append(f"  • {p_info['label']}: [bold cyan]{p_info['score']}/{p_info['max']}[/bold cyan]")
 
-    console.print(Panel("\n".join(p_lines), title="NETPULSE // Cryptographic & Security Posture Audit", border_style="cyan"))
+    console.print(Panel("\n".join(p_lines), title="NETWIDE // Cryptographic & Security Posture Audit", border_style="cyan"))
 
     tbl = Table(title="Per-Host Cryptographic & Vulnerability Matrix", show_lines=True, header_style="bold cyan")
     tbl.add_column("IPv4 / Host", style="bold white")
@@ -341,14 +341,14 @@ def cmd_cidr(cidr_str: str) -> None:
 
 
 def cmd_graph() -> None:
-    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    from netwide.desktop import ensure_daemon_running, DAEMON_URL
     import urllib.request, json
     ensure_daemon_running()
     with urllib.request.urlopen(f"{DAEMON_URL}/api/graph", timeout=15) as resp:
         res = json.loads(resp.read().decode())
     console.print(Panel(
         f"[bold cyan]Nodes:[/bold cyan] {res.get('count_nodes')} • [bold yellow]Edges:[/bold yellow] {res.get('count_edges')}",
-        title="NETPULSE // Unified Device Identity Graph", border_style="cyan"))
+        title="NETWIDE // Unified Device Identity Graph", border_style="cyan"))
     tbl = Table(title="Identity Graph Nodes", show_lines=True)
     tbl.add_column("Node ID", style="bold white"); tbl.add_column("Kind", style="cyan"); tbl.add_column("Label", style="green")
     for n in res.get("nodes", [])[:40]:
@@ -357,11 +357,11 @@ def cmd_graph() -> None:
 
 
 def cmd_ble() -> None:
-    from netpulse.ble_census import scan_ble_census
+    from netwide.ble_census import scan_ble_census
     res = scan_ble_census()
     console.print(Panel(
         f"[bold cyan]BLE Devices:[/bold cyan] {res.get('count')} • Backend: {res.get('backend')} • Stage 11",
-        title="NETPULSE // BLE Continuity Census", border_style="cyan"))
+        title="NETWIDE // BLE Continuity Census", border_style="cyan"))
     tbl = Table(title="BLE Advertisers", show_lines=True)
     tbl.add_column("Addr", style="bold white"); tbl.add_column("Name/Vendor", style="green")
     for d in res.get("devices", [])[:40]:
@@ -370,7 +370,7 @@ def cmd_ble() -> None:
 
 
 def cmd_metrics() -> None:
-    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    from netwide.desktop import ensure_daemon_running, DAEMON_URL
     import urllib.request
     ensure_daemon_running()
     with urllib.request.urlopen(f"{DAEMON_URL}/api/metrics", timeout=15) as resp:
@@ -379,14 +379,14 @@ def cmd_metrics() -> None:
 
 
 def cmd_threat() -> None:
-    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    from netwide.desktop import ensure_daemon_running, DAEMON_URL
     import urllib.request, json
     ensure_daemon_running()
     with urllib.request.urlopen(f"{DAEMON_URL}/api/threat-field", timeout=15) as resp:
         res = json.loads(resp.read().decode())
     console.print(Panel(
         f"[bold cyan]Coherence:[/bold cyan] {res.get('coherence')} • Devices in field: {res.get('devices_in_field')}",
-        title="NETPULSE // Threat Field (Collapse)", border_style="cyan"))
+        title="NETWIDE // Threat Field (Collapse)", border_style="cyan"))
     tbl = Table(title="Per-Device Field Strength", show_lines=True)
     tbl.add_column("Device", style="bold white"); tbl.add_column("Field Strength", style="yellow")
     for f in res.get("field", [])[:25]:
@@ -395,21 +395,21 @@ def cmd_threat() -> None:
 
 
 def cmd_explain(device_key: str) -> None:
-    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    from netwide.desktop import ensure_daemon_running, DAEMON_URL
     import urllib.request, json
     ensure_daemon_running()
     payload = json.dumps({"device_key": device_key, "question": "why am I seeing this?"}).encode()
     req = urllib.request.Request(f"{DAEMON_URL}/api/explain", data=payload, headers={"Content-Type": "application/json"}, method="POST")
     with urllib.request.urlopen(req, timeout=15) as resp:
         res = json.loads(resp.read().decode())
-    console.print(Panel(res.get("explanation", ""), title="NETPULSE // Copilot Explanation (Confirm-gated)", border_style="cyan"))
+    console.print(Panel(res.get("explanation", ""), title="NETWIDE // Copilot Explanation (Confirm-gated)", border_style="cyan"))
     for s in res.get("suggested_commands", []):
         console.print(f" • {s}")
     console.print("[dim]Nothing executed — pass confirm via control plane to act.[/dim]")
 
 
 def cmd_posture() -> None:
-    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    from netwide.desktop import ensure_daemon_running, DAEMON_URL
     import urllib.request, json
     ensure_daemon_running()
     with urllib.request.urlopen(f"{DAEMON_URL}/api/posture/diff", timeout=15) as resp:
@@ -418,7 +418,7 @@ def cmd_posture() -> None:
 
 
 def cmd_passive(mode: str = "") -> None:
-    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    from netwide.desktop import ensure_daemon_running, DAEMON_URL
     import urllib.request, json
     ensure_daemon_running()
     if mode == "run":
@@ -431,20 +431,20 @@ def cmd_passive(mode: str = "") -> None:
         res = json.loads(resp.read().decode())
     console.print(Panel(
         f"[bold cyan]Channels:[/bold cyan] {res.get('budget', {}).get('channels')} • Total dwell: {res.get('budget', {}).get('total_dwell_s')}s • Frames: {res.get('frames_total')}",
-        title="NETPULSE // Passive Census (Stage 13)", border_style="cyan"))
+        title="NETWIDE // Passive Census (Stage 13)", border_style="cyan"))
 
 
 def cmd_digest() -> None:
-    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    from netwide.desktop import ensure_daemon_running, DAEMON_URL
     import urllib.request, json
     ensure_daemon_running()
     with urllib.request.urlopen(f"{DAEMON_URL}/api/digest", timeout=15) as resp:
         res = json.loads(resp.read().decode())
-    console.print(Panel(res.get("text", ""), title="NETPULSE // Daily Digest", border_style="cyan"))
+    console.print(Panel(res.get("text", ""), title="NETWIDE // Daily Digest", border_style="cyan"))
 
 
 def cmd_ar(bssid: str) -> None:
-    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    from netwide.desktop import ensure_daemon_running, DAEMON_URL
     import urllib.request, json, urllib.parse
     ensure_daemon_running()
     url = f"{DAEMON_URL}/api/ar/room?bssid={urllib.parse.quote(bssid)}"
@@ -454,7 +454,7 @@ def cmd_ar(bssid: str) -> None:
 
 
 def cmd_scan_strategy(env: str = "home") -> None:
-    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    from netwide.desktop import ensure_daemon_running, DAEMON_URL
     import urllib.request, json, urllib.parse
     ensure_daemon_running()
     with urllib.request.urlopen(f"{DAEMON_URL}/api/scan-strategy?env={urllib.parse.quote(env)}", timeout=15) as resp:
@@ -463,7 +463,7 @@ def cmd_scan_strategy(env: str = "home") -> None:
 
 
 def cmd_sinkhole(domain: str = "") -> None:
-    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    from netwide.desktop import ensure_daemon_running, DAEMON_URL
     import urllib.request, json
     ensure_daemon_running()
     if domain:
@@ -479,7 +479,7 @@ def cmd_sinkhole(domain: str = "") -> None:
 
 
 def cmd_rules(json_arg: str = "") -> None:
-    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    from netwide.desktop import ensure_daemon_running, DAEMON_URL
     import urllib.request, json
     ensure_daemon_running()
     if json_arg:
@@ -496,7 +496,7 @@ def cmd_rules(json_arg: str = "") -> None:
 
 
 def cmd_control(device_key: str, capability: str, action: str) -> None:
-    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    from netwide.desktop import ensure_daemon_running, DAEMON_URL
     import urllib.request, json
     ensure_daemon_running()
     payload = json.dumps({"capability": capability, "action": action}).encode()
@@ -510,7 +510,7 @@ def cmd_control(device_key: str, capability: str, action: str) -> None:
 
 
 def cmd_accuracy() -> None:
-    from netpulse.accuracy import evaluate_accuracy
+    from netwide.accuracy import evaluate_accuracy
     res = evaluate_accuracy()
     gate_status = "PASSED" if res["brier_gate_passed"] else "FAILED"
     gate_color = "green" if res["brier_gate_passed"] else "red"
@@ -537,7 +537,7 @@ def cmd_accuracy() -> None:
 
 
 def cmd_evidence_export(device_key: str, out_path: str = "") -> None:
-    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    from netwide.desktop import ensure_daemon_running, DAEMON_URL
     import urllib.request, json
     ensure_daemon_running()
     req = urllib.request.Request(
@@ -552,14 +552,14 @@ def cmd_evidence_export(device_key: str, out_path: str = "") -> None:
             console.print(f"[red]Export failed: {res.get('error')}[/red]")
             raise SystemExit(1)
         bundle = res["bundle"]
-        target_path = out_path or f"netpulse_evidence_{device_key.replace(':', '')}.jsonld"
+        target_path = out_path or f"netwide_evidence_{device_key.replace(':', '')}.jsonld"
         with open(target_path, "w", encoding="utf-8") as f:
             json.dump(bundle, f, indent=2)
         console.print(Panel(
             f"[bold green]Exported CASE/UCO 1.3 Admissible Evidence Bundle[/bold green]\n"
             f"Device:       [bold cyan]{device_key}[/bold cyan]\n"
             f"Bundle ID:    [white]{bundle.get('@id')}[/white]\n"
-            f"Signature:    [dim]{bundle.get('netpulse:signature', {}).get('signature_hex', '')[:32]}...[/dim]\n"
+            f"Signature:    [dim]{bundle.get('netwide:signature', {}).get('signature_hex', '')[:32]}...[/dim]\n"
             f"Saved to:     [bold yellow]{target_path}[/bold yellow]",
             border_style="green",
             title="CASE / UCO Forensic Export",
@@ -567,8 +567,8 @@ def cmd_evidence_export(device_key: str, out_path: str = "") -> None:
 
 
 def cmd_evidence_verify(file_path: str) -> None:
-    from netpulse.evidence_bundle import verify_evidence_bundle
-    from netpulse.billing import subscription_engine
+    from netwide.evidence_bundle import verify_evidence_bundle
+    from netwide.billing import subscription_engine
     import json
     with open(file_path, "r", encoding="utf-8") as f:
         bundle = json.load(f)
@@ -591,7 +591,7 @@ def cmd_evidence_verify(file_path: str) -> None:
 
 
 def cmd_chronicle(wrapped: bool = False) -> None:
-    from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+    from netwide.desktop import ensure_daemon_running, DAEMON_URL
     import urllib.request, json
     ensure_daemon_running()
     endpoint = f"{DAEMON_URL}/api/chronicle/wrapped" if wrapped else f"{DAEMON_URL}/api/chronicle"
@@ -600,7 +600,7 @@ def cmd_chronicle(wrapped: bool = False) -> None:
         res = json.loads(resp.read().decode())
         if wrapped:
             console.print(Panel(
-                f"[bold magenta]NetPulse Wrapped — Year-End Local Intelligence[/bold magenta]\n"
+                f"[bold magenta]Netwide Wrapped — Year-End Local Intelligence[/bold magenta]\n"
                 f"Year:               [bold cyan]{res.get('year')}[/bold cyan]\n"
                 f"Devices Tracked:    [bold yellow]{res.get('total_devices_tracked')}[/bold yellow]\n"
                 f"Top Ecosystem:      [bold green]{res.get('top_hardware_ecosystem')}[/bold green]\n"
@@ -622,12 +622,12 @@ def cmd_chronicle(wrapped: bool = False) -> None:
 
 def main(argv: List[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        prog="netpulse",
-        description="NetPulse — Sovereign Network Intelligence & Deep Fingerprinting Suite",
+        prog="netwide",
+        description="Netwide — Sovereign Network Intelligence & Deep Fingerprinting Suite",
     )
     parser.add_argument(
         "--version", action="version",
-        version=f"NetPulse v{__version__}",
+        version=f"Netwide v{__version__}",
     )
     sub = parser.add_subparsers(dest="command")
 
@@ -656,7 +656,7 @@ def main(argv: List[str] | None = None) -> None:
     p_roku.add_argument("key", help="Key name (Home, PowerOff, PowerOn, VolumeUp, VolumeDown, VolumeMute, FindRemote, etc.)")
 
     p_serve = sub.add_parser("serve", help="Launch the Sovereign Real-Time Web Command Center")
-    p_serve.add_argument("--host", default=os.environ.get("NETPULSE_HOST", "127.0.0.1"), help="Bind host (default 127.0.0.1; set NETPULSE_HOST=0.0.0.0 for LAN/Docker)")
+    p_serve.add_argument("--host", default=os.environ.get("NETWIDE_HOST", "127.0.0.1"), help="Bind host (default 127.0.0.1; set NETWIDE_HOST=0.0.0.0 for LAN/Docker)")
     p_serve.add_argument("--port", type=int, default=8765, help="Bind port (default 8765)")
 
     sub.add_parser("desktop", help="Launch the Native PyQt6 Desktop App + System Tray Guardian")
@@ -679,7 +679,7 @@ def main(argv: List[str] | None = None) -> None:
     p_ar.add_argument("bssid", help="BSSID to locate")
     p_exp = sub.add_parser("explain", help="Copilot explanation for a device (confirm-gated)")
     p_exp.add_argument("device_key", help="Device key / MAC / IP")
-    p_ctrl = sub.add_parser("control", help="Universal control: netpulse control <device_key> <capability> <action>")
+    p_ctrl = sub.add_parser("control", help="Universal control: netwide control <device_key> <capability> <action>")
     p_ctrl.add_argument("device_key", help="Device key / MAC / IP")
     p_ctrl.add_argument("capability", help="power | media | lighting | network")
     p_ctrl.add_argument("action", help="status | on | off | play | pause | volume | reboot")
@@ -691,7 +691,7 @@ def main(argv: List[str] | None = None) -> None:
     p_ev_ver = sub.add_parser("evidence-verify", help="Bet 1 Standalone FOSS verifier for CASE/UCO evidence bundles")
     p_ev_ver.add_argument("file", help="Path to evidence bundle JSON-LD")
     p_chr = sub.add_parser("chronicle", help="Bet 4 Longitudinal Network Chronicle & Wrapped summary")
-    p_chr.add_argument("--wrapped", action="store_true", help="Print NetPulse Wrapped summary")
+    p_chr.add_argument("--wrapped", action="store_true", help="Print Netwide Wrapped summary")
 
     p_lic = sub.add_parser("license", help="Sovereign Cryptographic License & Subscription Manager")
     p_lic.add_argument(
@@ -703,7 +703,7 @@ def main(argv: List[str] | None = None) -> None:
     )
     p_lic.add_argument("--tier", default="enterprise", choices=["free", "pro", "enterprise"], help="Subscription tier to mint")
     p_lic.add_argument("--plan", default="lifetime", choices=["monthly", "annual", "lifetime", "trial"], help="Billing cycle")
-    p_lic.add_argument("--email", default="founder@netpulse.local", help="Subscriber email or organization")
+    p_lic.add_argument("--email", default="founder@netwide.local", help="Subscriber email or organization")
     p_lic.add_argument("--session", default="", help="Stripe Checkout Session ID (cs_live_...) for checkout/verify")
     p_lic.add_argument("--key", default="", help="License key to activate or JTI to revoke")
 
@@ -762,7 +762,7 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
         if not ok:
             raise SystemExit(1)  # semantic failure must surface in exit code
     elif cmd == "desktop":
-        from netpulse.desktop import launch_desktop_app
+        from netwide.desktop import launch_desktop_app
         launch_desktop_app()
     elif cmd == "graph":
         cmd_graph()
@@ -799,7 +799,7 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
     elif cmd == "chronicle":
         cmd_chronicle(getattr(args, "wrapped", False))
     elif cmd == "export":
-        from netpulse.desktop import ensure_daemon_running, DAEMON_URL
+        from netwide.desktop import ensure_daemon_running, DAEMON_URL
         import urllib.request, json
         ensure_daemon_running()
         req = urllib.request.Request(f"{DAEMON_URL}/api/export/report", data=b"{}", headers={"Content-Type": "application/json"}, method="POST")
@@ -814,15 +814,15 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
         port = getattr(args, "port", 8765)
         console.print(
             Panel(
-                f"[bold green]Launching NETPULSE Web Command Center[/bold green]\n"
+                f"[bold green]Launching NETWIDE Web Command Center[/bold green]\n"
                 f"Local URL:  [bold cyan]http://localhost:{port}[/bold cyan]\n"
                 f"LAN URL:    [bold cyan]http://192.168.12.225:{port}[/bold cyan]",
                 border_style="cyan",
             )
         )
-        uvicorn.run("netpulse.server:app", host=host, port=port, log_level="info")
+        uvicorn.run("netwide.server:app", host=host, port=port, log_level="info")
     elif cmd == "authority":
-        from netpulse import license_authority
+        from netwide import license_authority
         act = getattr(args, "action", "show")
         if act == "show":
             priv = license_authority.load_private_key()
@@ -833,9 +833,9 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
                     f"Private key file: [white]{license_authority.private_key_path()}[/white]\n"
                     f"Private key present on this host: "
                     f"{'[green]yes[/green]' if priv else '[red]no[/red]'}\n\n"
-                    f"[dim]Licenses signed with this key verify on ANY NetPulse node.\n"
+                    f"[dim]Licenses signed with this key verify on ANY Netwide node.\n"
                     f"Without it, this node can only verify its own legacy HMAC keys.[/dim]",
-                    title="NetPulse License Authority",
+                    title="Netwide License Authority",
                     border_style="cyan",
                 )
             )
@@ -856,7 +856,7 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
                 )
             )
     elif cmd == "license":
-        from netpulse.billing import subscription_engine
+        from netwide.billing import subscription_engine
         act = getattr(args, "action", "status")
         if act == "mint":
             minted = subscription_engine.mint_license_key(
@@ -868,7 +868,7 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
                 subscription_engine.activate_license_key(minted["license_key"])
             console.print(
                 Panel(
-                    f"[bold green]Minted Cryptographic NetPulse License Key[/bold green]\n"
+                    f"[bold green]Minted Cryptographic Netwide License Key[/bold green]\n"
                     f"License ID: [bold cyan]{minted['jti']}[/bold cyan]\n"
                     f"Tier:       [bold yellow]{minted['tier_name']}[/bold yellow] ({minted['plan'].upper()})\n"
                     f"Subscriber: [white]{minted['email']}[/white]\n"
@@ -901,7 +901,7 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
                     f"Session:   [bold cyan]{res.get('session_id', '')}[/bold cyan]\n"
                     f"Pay here:  [bold emerald]{res.get('checkout_url', '')}[/bold emerald]\n\n"
                     f"[dim]After payment, activate instantly with:\n"
-                    f"netpulse license verify --session {res.get('session_id', '')}[/dim]",
+                    f"netwide license verify --session {res.get('session_id', '')}[/dim]",
                     title="Secure Checkout",
                     border_style="green",
                 )
@@ -930,7 +930,7 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
                     f"Subscriber: [white]{minted.get('email', '')}[/white]\n"
                     f"Signed Key: [bold emerald]{minted.get('license_key', '')}[/bold emerald]\n"
                     f"[dim]Deliver this key to the customer, or they can run:\n"
-                    f"netpulse license activate {minted.get('license_key', '')}[/dim]",
+                    f"netwide license activate {minted.get('license_key', '')}[/dim]",
                     title="Activation Complete",
                     border_style="green",
                 )
@@ -952,7 +952,7 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
                 raise SystemExit(1)
         elif act == "list":
             keys = subscription_engine.list_minted_licenses()
-            t = Table(title="Minted NetPulse Cryptographic Licenses", box=box.ROUNDED)
+            t = Table(title="Minted Netwide Cryptographic Licenses", box=box.ROUNDED)
             t.add_column("JTI", style="cyan")
             t.add_column("Tier", style="yellow")
             t.add_column("Plan")
@@ -979,7 +979,7 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
                     f"Subscriber:  [white]{st['email']}[/white]\n"
                     f"Expires:     [white]{st['expires_human']}[/white]\n"
                     f"License Key: [dim]{st['license_key_masked']}[/dim]",
-                    title="NetPulse Node Subscription Status",
+                    title="Netwide Node Subscription Status",
                     border_style="cyan",
                 )
             )

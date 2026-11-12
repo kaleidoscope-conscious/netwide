@@ -3,9 +3,9 @@ import pathlib
 import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from netpulse.ar_fusion import fuse_rssi_mag, room_for_device
-from netpulse.rules import audit_payload, compile_rule, validate_rule
-from netpulse.digest import build_digest
+from netwide.ar_fusion import fuse_rssi_mag, room_for_device
+from netwide.rules import audit_payload, compile_rule, validate_rule
+from netwide.digest import build_digest
 
 def test_fuse_same_room():
     out = fuse_rssi_mag(-50, 30.0, 90.0)
@@ -38,7 +38,7 @@ def test_digest():
 
 def test_wave4_api():
     from fastapi.testclient import TestClient
-    from netpulse.server import app
+    from netwide.server import app
     c = TestClient(app)
     assert c.get("/api/ar/room?bssid=AA%3ABB%3ACC%3ADD%3AEE%3A01").status_code == 200
     assert c.get("/api/digest").status_code == 200

@@ -5,14 +5,14 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 def test_passive_run_gated():
     from fastapi.testclient import TestClient
-    from netpulse.server import app
+    from netwide.server import app
     c = TestClient(app)
     r = c.post("/api/passive/census/run")
     assert r.status_code in (200, 402)
 
 def test_db_busy_timeout():
     import inspect
-    from netpulse.database import NetworkDatabase
+    from netwide.database import NetworkDatabase
     src = inspect.getsource(NetworkDatabase._connect)
     assert "busy_timeout" in src and "15.0" in src
 
@@ -22,6 +22,6 @@ def test_ttl_normalize_comment():
 
 def test_ledger_limit_param():
     from fastapi.testclient import TestClient
-    from netpulse.server import app
+    from netwide.server import app
     c = TestClient(app)
     assert c.get("/api/ledger/verify?limit=50").status_code == 200

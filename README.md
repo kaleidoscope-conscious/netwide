@@ -1,22 +1,22 @@
-# NetPulse v4.6.0
+# Netwide v4.7.0
 
-[![Release v4.6.0](https://img.shields.io/badge/release-v4.6.0-10b981?style=for-the-badge)](https://github.com/kaleidoscope-conscious/netpulse/releases/tag/v4.6.0)
+[![Release v4.7.0](https://img.shields.io/badge/release-v4.7.0-10b981?style=for-the-badge)](https://github.com/kaleidoscope-conscious/netpulse/releases/tag/v4.7.0)
 [![Tests](https://img.shields.io/badge/pytest-139%2F139_passing-34d399?style=for-the-badge)](https://github.com/kaleidoscope-conscious/netpulse/actions)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776ab?style=for-the-badge)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-source--available%20%2B%20commercial_tiers-crimson?style=for-the-badge)](LICENSE.md)
 [![Storefront](https://img.shields.io/badge/Storefront-Founder's_Lifetime_%24149-7c3aed?style=for-the-badge)](https://kaleidoscope-conscious.github.io/netpulse/)
-[![Android APK](https://img.shields.io/badge/Android-15-APK-0284c7?style=for-the-badge&logo=android)](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.6.0/NetPulse-Mobile-v4.6.0.apk)
-[![PyPI](https://img.shields.io/badge/pypi-netPulse-4.6.0-3775ab?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/netpulse/)
-[![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fkaleidoscope-conscious%2Fnetpulse-2496ed?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/kaleidoscope-conscious/netpulse/pkgs/container/netpulse)
+[![Android APK](https://img.shields.io/badge/Android-15-APK-0284c7?style=for-the-badge&logo=android)](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.7.0/Netwide-Mobile-v4.7.0.apk)
+[![PyPI](https://img.shields.io/badge/pypi-netPulse-4.6.0-3775ab?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/netwide/)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fkaleidoscope-conscious%2Fnetwide-2496ed?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/kaleidoscope-conscious/netpulse/pkgs/container/netwide)
 [![Discussions](https://img.shields.io/badge/discussions-Q%26A%20%2B%20roadmap-6e40c9?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kaleidoscope-conscious/netpulse/discussions)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor_♥-GitHub-db61fc?style=for-the-badge&logo=githubsponsors)](https://github.com/sponsors/kaleidoscopeAI)
 [![Donate via PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?style=for-the-badge&logo=paypal)](https://paypal.me/jgraham1000)
 
 > **See every device on your network — and who's really behind it.**
-> NetPulse is a 100% on-device network intelligence suite: it unmasks hidden & spoofed Wi-Fi gadgets, fingerprints 47,035+ hardware vendors, audits the cryptographic protocols your devices actually speak, watches live wire traffic (DPI/JA3/SNI), and lets you **quarantine the freeloader in one click**.
+> Netwide is a 100% on-device network intelligence suite: it unmasks hidden & spoofed Wi-Fi gadgets, fingerprints 47,035+ hardware vendors, audits the cryptographic protocols your devices actually speak, watches live wire traffic (DPI/JA3/SNI), and lets you **quarantine the freeloader in one click**.
 > No cloud. No account. No telemetry. Your network stays yours.
 
-![NetPulse Banner](play_store_assets/feature_graphic_1024x500.png)
+![Netwide Banner](play_store_assets/feature_graphic_1024x500.png)
 
 | | |
 |---|---|
@@ -31,22 +31,22 @@
 ## ⚡ Quick Start
 
 ```bash
-git clone https://github.com/kaleidoscope-conscious/netpulse.git && cd netpulse && ./install.sh
+git clone https://github.com/kaleidoscope-conscious/netpulse.git && cd netwide && ./install.sh
 ```
 
 ```bash
 # Native desktop command center (PyQt6 + WebEngine) + system-tray guardian
-python3 -m netpulse desktop
+python3 -m netwide desktop
 
 # Headless daemon & API  →  http://127.0.0.1:8765
-python3 -m netpulse serve --host 0.0.0.0 --port 8765
+python3 -m netwide serve --host 0.0.0.0 --port 8765
 
 # Docker (host networking for raw-socket scans)
 docker compose up -d
 ```
 
-📱 **Android:** [NetPulse-Mobile-v4.6.0.apk](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.6.0/NetPulse-Mobile-v4.6.0.apk) ·
-[Google Play .AAB](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.6.0/NetPulse-Mobile-PlayStore-v4.6.0.aab)
+📱 **Android:** [Netwide-Mobile-v4.7.0.apk](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.7.0/Netwide-Mobile-v4.7.0.apk) ·
+[Google Play .AAB](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.7.0/Netwide-Mobile-PlayStore-v4.7.0.aab)
 
 ---
 
@@ -54,12 +54,12 @@ docker compose up -d
 
 | Channel | Command / link |
 | :--- | :--- |
-| 🐍 **PyPI** | `pip install netpulse` |
+| 🐍 **PyPI** | `pip install netwide` |
 | 🐳 **Docker (GHCR)** | `docker pull ghcr.io/kaleidoscope-conscious/netpulse:latest` |
 | 🐳 **Docker Compose** | `docker compose up -d` |
-| 🖥️ **Source** | `git clone https://github.com/kaleidoscope-conscious/netpulse.git && cd netpulse && ./install.sh` |
-| 📦 **Release bundle** | [tar.gz · APK · AAB · wheel](https://github.com/kaleidoscope-conscious/netpulse/releases/tag/v4.6.0) |
-| 📱 **Android** | [signed APK](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.6.0/NetPulse-Mobile-v4.6.0.apk) · [Play .AAB](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.6.0/NetPulse-Mobile-PlayStore-v4.6.0.aab) |
+| 🖥️ **Source** | `git clone https://github.com/kaleidoscope-conscious/netpulse.git && cd netwide && ./install.sh` |
+| 📦 **Release bundle** | [tar.gz · APK · AAB · wheel](https://github.com/kaleidoscope-conscious/netpulse/releases/tag/v4.7.0) |
+| 📱 **Android** | [signed APK](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.7.0/Netwide-Mobile-v4.7.0.apk) · [Play .AAB](https://github.com/kaleidoscope-conscious/netpulse/releases/download/v4.7.0/Netwide-Mobile-PlayStore-v4.7.0.aab) |
 | 🧾 **Verified checksums** | `SHA256SUMS.txt` on every release |
 
 > Publishing to Docker Hub, PyPI and Flathub is one secret away — see
@@ -77,7 +77,7 @@ Licenses are **Ed25519-signed** (public key ships with the app, private key neve
 | **Pro Guardian (`pro`)** | $9.99/mo · $99/yr · **$69 lifetime** | [Monthly](https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b) · [Annual](https://buy.stripe.com/28E8wP248g0Q38oaCdcbC1a) · [Lifetime](https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19) | 10-Stage Hidden De-Cloaker, RF Geiger walk-around finder, 24h presence heatmap, smart-home/TV/Sonos/console control, 4-ring area scan (3 nodes) |
 | **Sovereign Enterprise (`enterprise`)** | $29.99/mo · $299/yr · **$149 lifetime** | [Monthly](https://buy.stripe.com/4gM7sLbEIaGw6kA5hTcbC1e) · [Annual](https://buy.stripe.com/28EeVd2485mcaAQaCdcbC1d) · [Lifetime](https://buy.stripe.com/14A8wPaAE5mc7oEaCdcbC1c) | Guardian Shield quarantine, SSH HASSH / SMB2 / DNSSEC / NTP auditors, wire DPI + JA3 + p0f, camera sweep, gateway control, Nmap `-sV`, MTR, forensic dossier export (25 nodes) |
 
-**How activation works:** buy on the web (Stripe Payment Link) or inside the app → Stripe confirms payment → NetPulse verifies the session against Stripe and mints + activates your signed key automatically. No email round-trip, no waiting.
+**How activation works:** buy on the web (Stripe Payment Link) or inside the app → Stripe confirms payment → Netwide verifies the session against Stripe and mints + activates your signed key automatically. No email round-trip, no waiting.
 
 📖 Full operations runbook: [`runbook/GOLIVE_PAYMENTS.md`](runbook/GOLIVE_PAYMENTS.md) · 🌐 Live storefront: **https://kaleidoscope-conscious.github.io/netpulse/**
 
@@ -86,7 +86,7 @@ Licenses are **Ed25519-signed** (public key ships with the app, private key neve
 ## 🧰 Key Capabilities
 
 ### Deep LAN Fingerprinting, Binary Protocol & Cryptographic Intelligence
-- **47,035+ IEEE OUI Hardware Database + LAA Virtual BSSID & IPv6 EUI-64 De-Masking**: unmasks randomized LAA MACs via SLAAC EUI-64 `FF:FE` bit-inversion, unmasks virtual mesh BSSIDs (`first_octet & 0xFD`) to their parent IEEE OUI, and provides instant full-text vendor/HQ/MAC/EUI-64 search (`/api/oui/search`, `netpulse oui <query>`).
+- **47,035+ IEEE OUI Hardware Database + LAA Virtual BSSID & IPv6 EUI-64 De-Masking**: unmasks randomized LAA MACs via SLAAC EUI-64 `FF:FE` bit-inversion, unmasks virtual mesh BSSIDs (`first_octet & 0xFD`) to their parent IEEE OUI, and provides instant full-text vendor/HQ/MAC/EUI-64 search (`/api/oui/search`, `netwide oui <query>`).
 - **Cryptographic & Transport Security Auditors**:
   - **SSHv2 Binary `KEXINIT` & HASSH Fingerprinting (`:22`)**: RFC 4253 binary parser extracting all 10 algorithm lists, computing the **Salesforce HASSH Server MD5 fingerprint**, detecting Post-Quantum Hybrid KEX (`sntrup761x25519-sha512`, `mlkem768x25519`), and grading cipher/KEX posture (`A+` to `C`).
   - **SMB2/SMB3 Binary `NEGOTIATE` Dialect & NTLM-Relay Auditor (`:445`)**: pure-binary NetBIOS + `\xfeSMB` handshake inspector extracting negotiated dialect (`SMB 2.0.2`–`3.1.1`), Server GUID, capabilities (`ENCRYPTION`, `MULTI_CHANNEL`), and SMB Packet Signing enforcement.
@@ -118,47 +118,47 @@ Licenses are **Ed25519-signed** (public key ships with the app, private key neve
 - **Observability**: Prometheus (`/api/metrics`), posture diffs, daily digest, detection-rule compiler with SHA-256 manifest.
 - **Simple / Expert UI**: a verdict bar answers "Am I safe?" with the single top fix; per-device `OK / Check / Fix now` badges; accordions instead of ten stacked panels.
 
-### 🗼 Operator Console (v4.6.0)
+### 🗼 Operator Console (v4.7.0)
 Two **private** operator surfaces ship with the daemon — token-gated, loopback-only by default, never published:
 - **Business Control Room** (`/admin`) — paying customers, active licenses, lifetime revenue vs. MRR/ARR, lead funnel, Stripe status, 30-day mint chart, per-customer table. Operator licenses are reported separately from real revenue.
 - **Watchtower** (`/watchtower`) — live request feed (method/path/status/latency/client), who is using the node right now, WebSocket session count, top endpoints, active alerts, and the license ledger — all in-memory, nothing leaves the machine.
 
-### 🔐 Cryptographic Licensing (v4.6.0)
+### 🔐 Cryptographic Licensing (v4.7.0)
 - Keys: `NP1-<TIER>-<payload>-<signature>` — **Ed25519** operator-signed, verifiable offline on any install.
-- Private key lives at `~/.config/netpulse/authority_ed25519.key` (mode 600); the **public** key ships in the app and can only verify.
+- Private key lives at `~/.config/netwide/authority_ed25519.key` (mode 600); the **public** key ships in the app and can only verify.
 - Stripe Checkout + hosted Payment Links + signed webhooks (fail-closed, replay-protected, idempotent).
 - Privileged actions (mint/revoke/configure) always require the Sovereign Admin token.
 
 ---
 
-## 🖥️ CLI Reference (`python3 -m netpulse`)
+## 🖥️ CLI Reference (`python3 -m netwide`)
 
 ```bash
-python3 -m netpulse scan                  # Deep multi-vector subnet scan & Rich device matrix
-python3 -m netpulse watch                 # Live auto-refreshing Terminal TUI Network Guardian
-python3 -m netpulse wifi                  # 2.4/5 GHz RF Spectrum, 10-Stage De-Cloaker & Channel Optimizer
-python3 -m netpulse audit                 # 5-Pillar Subnet Security & Cryptographic Posture Audit
-python3 -m netpulse domain cloudflare.com # DNS (A/AAAA/MX/NS/SPF/DMARC), TLS :443 X.509 & HTTP/3 Recon
-python3 -m netpulse sockets               # Audit local workstation listening ports, PIDs & RX/TX counters
-python3 -m netpulse cidr 192.168.12.0/24  # IPv4 / IPv6 Subnet & CIDR Calculator
-python3 -m netpulse oui Sonos             # Search 47,035+ IEEE OUI prefixes or unmask IPv6 EUI-64
-python3 -m netpulse speedtest             # Multi-stream WAN download/upload & Bufferbloat benchmark
-python3 -m netpulse graph                 # Unified Device Identity Graph
-python3 -m netpulse ble                   # BLE Continuity census (Stage 11)
-python3 -m netpulse passive               # Passive census dwell schedule & frames
-python3 -m netpulse metrics               # Prometheus exposition
-python3 -m netpulse threat                # Threat Field (collapse)
-python3 -m netpulse digest                # Daily posture digest
-python3 -m netpulse explain <key>         # Copilot: why this verdict?
-python3 -m netpulse control <key> power status # Universal control
-python3 -m netpulse scan-strategy home    # Adaptive bandit state
-python3 -m netpulse sinkhole bad.example  # DNS sinkhole add
-python3 -m netpulse rules                 # Detection rules list/compile
-python3 -m netpulse ar <bssid>            # AR room estimate
-python3 -m netpulse license status        # Active tier, expiry & masked key
-python3 -m netpulse license checkout --tier pro --plan lifetime   # Create a Stripe Checkout session
-python3 -m netpulse license verify --session cs_live_...          # Verify payment → mint + activate
-python3 -m netpulse authority show        # Ed25519 license authority status
+python3 -m netwide scan                  # Deep multi-vector subnet scan & Rich device matrix
+python3 -m netwide watch                 # Live auto-refreshing Terminal TUI Network Guardian
+python3 -m netwide wifi                  # 2.4/5 GHz RF Spectrum, 10-Stage De-Cloaker & Channel Optimizer
+python3 -m netwide audit                 # 5-Pillar Subnet Security & Cryptographic Posture Audit
+python3 -m netwide domain cloudflare.com # DNS (A/AAAA/MX/NS/SPF/DMARC), TLS :443 X.509 & HTTP/3 Recon
+python3 -m netwide sockets               # Audit local workstation listening ports, PIDs & RX/TX counters
+python3 -m netwide cidr 192.168.12.0/24  # IPv4 / IPv6 Subnet & CIDR Calculator
+python3 -m netwide oui Sonos             # Search 47,035+ IEEE OUI prefixes or unmask IPv6 EUI-64
+python3 -m netwide speedtest             # Multi-stream WAN download/upload & Bufferbloat benchmark
+python3 -m netwide graph                 # Unified Device Identity Graph
+python3 -m netwide ble                   # BLE Continuity census (Stage 11)
+python3 -m netwide passive               # Passive census dwell schedule & frames
+python3 -m netwide metrics               # Prometheus exposition
+python3 -m netwide threat                # Threat Field (collapse)
+python3 -m netwide digest                # Daily posture digest
+python3 -m netwide explain <key>         # Copilot: why this verdict?
+python3 -m netwide control <key> power status # Universal control
+python3 -m netwide scan-strategy home    # Adaptive bandit state
+python3 -m netwide sinkhole bad.example  # DNS sinkhole add
+python3 -m netwide rules                 # Detection rules list/compile
+python3 -m netwide ar <bssid>            # AR room estimate
+python3 -m netwide license status        # Active tier, expiry & masked key
+python3 -m netwide license checkout --tier pro --plan lifetime   # Create a Stripe Checkout session
+python3 -m netwide license verify --session cs_live_...          # Verify payment → mint + activate
+python3 -m netwide authority show        # Ed25519 license authority status
 ```
 
 ---
@@ -180,17 +180,17 @@ python3 -m netpulse authority show        # Ed25519 license authority status
 
 ---
 
-## 📣 Share NetPulse
+## 📣 Share Netwide
 
 - 🌐 **Storefront & docs**: https://kaleidoscope-conscious.github.io/netpulse/
 - 💬 **Discussions**: https://github.com/kaleidoscope-conscious/netpulse/discussions
 - 🐛 **Issues & roadmap**: https://github.com/kaleidoscope-conscious/netpulse/issues
 - 📋 **Promo kit (copy-paste posts + share links)**: https://gist.github.com/kaleidoscope-conscious/8d5adee1d7fb31ef81522dca0f7506e9
-- 🐦 **[Share on X](https://twitter.com/intent/tweet?text=NetPulse%20-%20see%20every%20device%20on%20your%20Wi-Fi%2C%20unmask%20hidden%20gadgets%2C%20quarantine%20freeloaders.%20100%25%20on-device.&url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetpulse%2F)** · **[Reddit](https://www.reddit.com/submit?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetpulse%2F&title=NetPulse%3A%20see%20every%20device%20on%20your%20network)** · **[LinkedIn](https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetpulse%2F)** · **[HN](https://news.ycombinator.com/submitlink?u=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetpulse%2F&t=NetPulse%3A%20see%20every%20device%20on%20your%20network)** · **[Telegram](https://t.me/share/url?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetpulse%2F&text=NetPulse%3A%20see%20every%20device%20on%20your%20network)** · **[WhatsApp](https://wa.me/?text=NetPulse%3A%20see%20every%20device%20on%20your%20network%20-%20https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetpulse%2F)**
+- 🐦 **[Share on X](https://twitter.com/intent/tweet?text=Netwide%20-%20see%20every%20device%20on%20your%20Wi-Fi%2C%20unmask%20hidden%20gadgets%2C%20quarantine%20freeloaders.%20100%25%20on-device.&url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F)** · **[Reddit](https://www.reddit.com/submit?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F&title=Netwide%3A%20see%20every%20device%20on%20your%20network)** · **[LinkedIn](https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F)** · **[HN](https://news.ycombinator.com/submitlink?u=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F&t=Netwide%3A%20see%20every%20device%20on%20your%20network)** · **[Telegram](https://t.me/share/url?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F&text=Netwide%3A%20see%20every%20device%20on%20your%20network)** · **[WhatsApp](https://wa.me/?text=Netwide%3A%20see%20every%20device%20on%20your%20network%20-%20https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F)**
 
 ---
 
-## ❤️ Support NetPulse
+## ❤️ Support Netwide
 
 Development is sovereign-funded by the community:
 
@@ -209,8 +209,8 @@ Software requires a written licence.
 
 Full terms: [`LICENSE.md`](LICENSE.md) · privacy policy: `privacy.html`.
 
-*Want NetPulse packaged for F-Droid, Flathub, your distro, or an awesome-list
+*Want Netwide packaged for F-Droid, Flathub, your distro, or an awesome-list
 entry? Those platforms require an OSI-approved licence — say the word and the
 Community Edition can be relicensed (e.g. AGPL-3.0) in a single commit.*
 
-© NetPulse — built for people who want their network back.
+© Netwide — built for people who want their network back.

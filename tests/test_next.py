@@ -3,7 +3,7 @@ import pathlib
 import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from netpulse.firmware import analyze_firmware, is_rfc1918_target, shannon_entropy
+from netwide.firmware import analyze_firmware, is_rfc1918_target, shannon_entropy
 
 def test_firmware_analyze_elf():
     blob = b"\x7fELF" + b"A" * 200 + b"Linux version 5.10.0" + b"v1.2.3" + b"B" * 100
@@ -25,7 +25,7 @@ def test_firmware_ssrf_guard():
     assert is_rfc1918_target("https://example.com/fw.bin") is False
 
 def test_db_graph_and_evidence():
-    from netpulse.database import NetworkDatabase
+    from netwide.database import NetworkDatabase
     import tempfile, os
     with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tf:
         path = tf.name
@@ -49,7 +49,7 @@ def test_db_graph_and_evidence():
         os.unlink(path)
 
 def test_quarantine_firewall_graceful():
-    from netpulse.probers import quarantine_engine
+    from netwide.probers import quarantine_engine
     fw = quarantine_engine._set_firewall_drop("192.168.99.99", True)
     assert "backend" in fw
     assert "actions" in fw
@@ -58,7 +58,7 @@ def test_quarantine_firewall_graceful():
 
 def test_new_endpoints_next():
     from fastapi.testclient import TestClient
-    from netpulse.server import app
+    from netwide.server import app
     c = TestClient(app)
     assert c.get("/api/actions").status_code == 200
     assert c.get("/api/actions").json()["ok"] is True

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Google Play Console Graphical Asset Generator for NetPulse v4.6.0.
+Google Play Console Graphical Asset Generator for Netwide v4.7.0.
 Generates exact-resolution 24-bit/32-bit opaque PNG assets required by Google Play Store:
   - icon_512x512.png (512x512 App Icon)
   - feature_graphic_1024x500.png (1024x500 Feature Graphic)
@@ -125,7 +125,7 @@ def generate_icon_512() -> Path:
 
     draw.rounded_rectangle([136, 412, 376, 462], radius=16, fill=BG_DARK, outline=CYAN, width=2)
     f_badge = _font(24, bold=True, mono=True)
-    draw.text((166, 423), "NETPULSE v4.6", fill=CYAN, font=f_badge)
+    draw.text((166, 423), "NETWIDE v4.6", fill=CYAN, font=f_badge)
 
     out = OUT_DIR / "icon_512x512.png"
     img.save(out, "PNG")
@@ -144,9 +144,9 @@ def generate_feature_graphic_1024x500() -> Path:
 
     # Left side branding & value props
     draw.rounded_rectangle([38, 36, 365, 76], radius=10, fill=TINT_CYAN, outline=CYAN, width=2)
-    draw.text((54, 46), "NETPULSE TACTICAL ENGINE v4.6", fill=CYAN, font=_font(16, bold=True, mono=True))
+    draw.text((54, 46), "NETWIDE TACTICAL ENGINE v4.6", fill=CYAN, font=_font(16, bold=True, mono=True))
 
-    draw.text((38, 92), "NETPULSE", fill=TEXT_MAIN, font=_font(62, bold=True))
+    draw.text((38, 92), "NETWIDE", fill=TEXT_MAIN, font=_font(62, bold=True))
     draw.text((38, 166), "HIDDEN WIFI DE-CLOAKER & LAN GUARDIAN", fill=EMERALD, font=_font(21, bold=True, mono=True))
 
     bullets = [
@@ -178,11 +178,11 @@ def _phone_frame(title: str, subtitle: str, active_tab: int) -> tuple[Image.Imag
     draw.rounded_rectangle([40, 40, 1040, 250], radius=24, fill=BG_PANEL, outline=CYAN, width=3)
     draw.text((76, 68), title, fill=CYAN, font=_font(40, bold=True))
     draw.text((76, 132), subtitle, fill=TEXT_MAIN, font=_font(24, bold=False))
-    draw.text((76, 184), "NETPULSE v4.6.0 • ANDROID NATIVE + LAN BRIDGE", fill=EMERALD, font=_font(20, bold=True, mono=True))
+    draw.text((76, 184), "NETWIDE v4.7.0 • ANDROID NATIVE + LAN BRIDGE", fill=EMERALD, font=_font(20, bold=True, mono=True))
 
     draw.rounded_rectangle([40, 280, 1040, 1860], radius=32, fill=(8, 13, 26), outline=BORDER, width=4)
     draw.rounded_rectangle([70, 310, 1010, 390], radius=14, fill=BG_CARD, outline=BORDER, width=2)
-    draw.text((96, 334), "NETPULSE // FIELD SCANNER", fill=CYAN, font=_font(24, bold=True, mono=True))
+    draw.text((96, 334), "NETWIDE // FIELD SCANNER", fill=CYAN, font=_font(24, bold=True, mono=True))
     draw.rounded_rectangle([750, 324, 986, 376], radius=12, fill=TINT_EMERALD, outline=EMERALD, width=2)
     draw.text((776, 337), "PRO GUARDIAN", fill=EMERALD, font=_font(20, bold=True, mono=True))
 
@@ -390,7 +390,7 @@ def generate_tablet_screenshot_1920x1080() -> Path:
     _draw_grid(draw, 1920, 1080, step=48)
 
     draw.rounded_rectangle([24, 20, 1896, 104], radius=16, fill=BG_PANEL, outline=CYAN, width=3)
-    draw.text((52, 42), "NETPULSE v4.6.0 — ENTERPRISE TACTICAL WORKBENCH", fill=CYAN, font=_font(28, bold=True, mono=True))
+    draw.text((52, 42), "NETWIDE v4.7.0 — ENTERPRISE TACTICAL WORKBENCH", fill=CYAN, font=_font(28, bold=True, mono=True))
     draw.rounded_rectangle([1490, 36, 1868, 88], radius=12, fill=TINT_PURPLE, outline=PURPLE, width=2)
     draw.text((1514, 50), "SOVEREIGN ENTERPRISE TIER", fill=PURPLE, font=_font(20, bold=True, mono=True))
 

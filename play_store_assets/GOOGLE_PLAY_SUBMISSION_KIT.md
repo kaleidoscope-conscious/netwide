@@ -1,28 +1,28 @@
-# NetPulse v4.5.0 — Google Play Store Submission & Monetization Kit
+# Netwide v4.5.0 — Google Play Store Submission & Monetization Kit
 
 ## 1. Signed App Binary (Ready to Upload)
 - **Google Play Android App Bundle (`.aab`)**:
-  - Path: `/home/jg/Desktop/NetPulse-Mobile-PlayStore.aab` (also at `/home/jg/netpulse/static/NetPulse-Mobile-PlayStore.aab`)
-  - Package Name (`applicationId`): `com.netpulse.mobile`
+  - Path: `/home/jg/Desktop/Netwide-Mobile-PlayStore.aab` (also at `/home/jg/netwide/static/Netwide-Mobile-PlayStore.aab`)
+  - Package Name (`applicationId`): `com.netwide.mobile`
   - Version Code: `45` (`4.5.0`)
   - Target SDK: `35` (Android 15) / Min SDK: `26` (Android 8.0)
   - Format: Protobuf `aapt2 --proto-format` + `BundleConfig.pb` (`SHA256withRSA` signed)
 - **Direct APK (Sideload / Enterprise Distribution)**:
-  - Path: `/home/jg/Desktop/NetPulse-Mobile.apk`
+  - Path: `/home/jg/Desktop/Netwide-Mobile.apk`
 
 ---
 
 ## 2. Store Listing Copy (Copy & Paste into Play Console)
 - **App Name (30 chars max)**:
-  `NetPulse: WiFi & LAN Guardian`
+  `Netwide: WiFi & LAN Guardian`
 - **Short Description (80 chars max)**:
   `8-stage hidden WiFi de-cloaker, RF Geiger counter, DPI radar & smart IoT control`
 - **Category**: `Tools` or `Productivity` (Tags: `Network Tools`, `Wi-Fi Analyzer`, `Security`)
-- **Privacy Policy URL**: `https://<your-domain>/privacy` (Served natively by NetPulse at `GET /privacy`)
+- **Privacy Policy URL**: `https://<your-domain>/privacy` (Served natively by Netwide at `GET /privacy`)
 
 ---
 
-## 3. Graphical Assets (`/home/jg/netpulse/play_store_assets/`)
+## 3. Graphical Assets (`/home/jg/netwide/play_store_assets/`)
 | Asset Type | Resolution | File |
 | :--- | :--- | :--- |
 | **App Icon** | 512 × 512 (Opaque RGB PNG) | `icon_512x512.png` |
@@ -42,7 +42,7 @@
 
 ### B. Location & Nearby Wi-Fi Devices Permission Declaration
 - **Why does your app need `ACCESS_FINE_LOCATION` and `NEARBY_WIFI_DEVICES`?**
-  > "NetPulse is a Wi-Fi spectrum analyzer, hidden SSID de-cloaker, and LAN security scanner. Android OS mandates `ACCESS_FINE_LOCATION` and `NEARBY_WIFI_DEVICES` permissions to call `WifiManager.getScanResults()` for inspecting nearby 802.11 BSSIDs, RSSI dBm signal levels, channels, and beacon Information Elements. Physical GPS coordinates are never stored or transmitted off-device."
+  > "Netwide is a Wi-Fi spectrum analyzer, hidden SSID de-cloaker, and LAN security scanner. Android OS mandates `ACCESS_FINE_LOCATION` and `NEARBY_WIFI_DEVICES` permissions to call `WifiManager.getScanResults()` for inspecting nearby 802.11 BSSIDs, RSSI dBm signal levels, channels, and beacon Information Elements. Physical GPS coordinates are never stored or transmitted off-device."
 
 ---
 
@@ -50,5 +50,5 @@
 | Tier | Monthly SKU / Price | Annual SKU / Price | Free Trial |
 | :--- | :--- | :--- | :--- |
 | **Community Free** | `$0` | `$0` | Unlimited |
-| **Pro Guardian** | `netpulse_pro_monthly` (`$9.99/mo`) | `netpulse_pro_annual` (`$99.00/yr`) | 7 Days |
-| **Sovereign Enterprise** | `netpulse_ent_monthly` (`$29.99/mo`) | `netpulse_ent_annual` (`$299.00/yr`) | — |
+| **Pro Guardian** | `netwide_pro_monthly` (`$9.99/mo`) | `netwide_pro_annual` (`$99.00/yr`) | 7 Days |
+| **Sovereign Enterprise** | `netwide_ent_monthly` (`$29.99/mo`) | `netwide_ent_annual` (`$299.00/yr`) | — |

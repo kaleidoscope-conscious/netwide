@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version tag to publish (e.g. v4.6.0)"
+        description: "Version tag to publish (e.g. v4.7.0)"
         required: false
         default: ""
 
@@ -95,8 +95,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/netpulse:${{ steps.ver.outputs.version }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/netpulse:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/netwide:${{ steps.ver.outputs.version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/netwide:latest
 
       - name: Make GHCR package public
         continue-on-error: true
@@ -106,7 +106,7 @@ jobs:
         run: |
           # New GHCR packages default to private; make the image pullable without a token.
           for API in "orgs/$OWNER" "users/$OWNER"; do
-            URL="https://api.github.com/$API/packages/container/netpulse"
+            URL="https://api.github.com/$API/packages/container/netwide"
             CODE=$(curl -s -o /tmp/ghcr.json -w "%{http_code}" -X PATCH \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
@@ -123,5 +123,5 @@ jobs:
         run: |
           echo "### Published v${{ steps.ver.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- GHCR: \`ghcr.io/${{ github.repository }}:${{ steps.ver.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Docker Hub: \`${{ secrets.DOCKERHUB_USERNAME }}/netpulse\` (skipped without credentials)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- PyPI: \`pip install netpulse\` (skipped without PYPI_API_TOKEN)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Docker Hub: \`${{ secrets.DOCKERHUB_USERNAME }}/netwide\` (skipped without credentials)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- PyPI: \`pip install netwide\` (skipped without PYPI_API_TOKEN)" >> "$GITHUB_STEP_SUMMARY"

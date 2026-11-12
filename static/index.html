@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NetPulse Enterprise — Network Inventory, Deep Telemetry &amp; Device Control Workbench</title>
+  <title>Netwide Enterprise — Network Inventory, Deep Telemetry &amp; Device Control Workbench</title>
   <link rel="stylesheet" href="/vendor/leaflet.css" />
   <script src="/vendor/leaflet.js"></script>
   <style>
@@ -616,7 +616,7 @@
       <div class="app-mark">NP</div>
       <div>
         <div class="app-title">
-          NetPulse v4.6.0
+          Netwide v4.7.0
           <span class="status-indicator"><span class="status-dot"></span><span id="wsStateLabel">Connected</span></span>
         </div>
         <div class="app-subtitle" id="plainSubtitle">Find everything on your network, spot hidden devices, fix issues in one click. Runs locally — no cloud.</div>
@@ -628,7 +628,7 @@
       <button class="btn btn-primary" onclick="triggerManualScan()" id="scanBtn">⚡ Scan</button>
       <button class="btn btn-primary" onclick="triggerAreaScan()" id="areaScanBtn" style="background:#0284c7;border-color:#0369a1;">📡 Find hidden Wi-Fi</button>
       <button class="btn" onclick="jumpToWorkspaceTab('packets')" id="secBtn">🛡 Security check</button>
-      <button class="btn" onclick="shareNetPulse()" id="shareBtn" title="Spread the word about NetPulse">📣 Share</button>
+      <button class="btn" onclick="shareNetwide()" id="shareBtn" title="Spread the word about Netwide">📣 Share</button>
       <details>
         <summary class="btn" style="cursor:pointer;">More ▾</summary>
         <div style="display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:6px;margin-top:4px;">
@@ -637,7 +637,7 @@
           <button class="btn" onclick="jumpToWorkspaceTab('toolkit')" id="toolkitBtn" style="border-color:#38bdf8;color:#7dd3fc;">🛠 Tools &amp; DNS lookup</button>
           <button class="btn" onclick="openOuiModal()" id="ouiBtn">🔍 Maker lookup (47k)</button>
           <button class="btn" onclick="exportForensicReport()" id="exportBtn">📄 Export report</button>
-          <a class="btn" href="/api/export/csv" download="NetPulse_Inventory.csv" style="text-decoration:none;">⬇ CSV</a>
+          <a class="btn" href="/api/export/csv" download="Netwide_Inventory.csv" style="text-decoration:none;">⬇ CSV</a>
           <button class="btn btn-primary" onclick="openMobileQrModal()" id="mobileQrBtn" style="background:#059669;border-color:#10b981;">📱 Phone &amp; APK</button>
           <a class="btn btn-primary" href="/launch" style="background:#7c3aed;border-color:#a855f7;text-decoration:none;display:inline-flex;align-items:center;">🚀 Launch Hub</a>
         </div>
@@ -1185,17 +1185,17 @@
 <script>
 
 
-      const NETPULSE_STOREFRONT = "https://kaleidoscope-conscious.github.io/netpulse/";
-    const NETPULSE_SHARE_TEXT = "Your Wi-Fi has a guest list. NetPulse shows it - every device, who made it, and whether anything's hiding. 100% on-device, free tier forever.";
+      const NETWIDE_STOREFRONT = "https://kaleidoscope-conscious.github.io/netpulse/";
+    const NETWIDE_SHARE_TEXT = "Your Wi-Fi has a guest list. Netwide shows it - every device, who made it, and whether anything's hiding. 100% on-device, free tier forever.";
 
-    function shareNetPulse() {
+    function shareNetwide() {
       const urls = [
-        ["X / Twitter", "https://twitter.com/intent/tweet?text=" + encodeURIComponent(NETPULSE_SHARE_TEXT + " " + NETPULSE_STOREFRONT)],
-        ["Reddit", "https://www.reddit.com/submit?url=" + encodeURIComponent(NETPULSE_STOREFRONT) + "&title=" + encodeURIComponent("NetPulse - see every device on your Wi-Fi")],
-        ["LinkedIn", "https://www.linkedin.com/sharing/share-offsite/?url=" + encodeURIComponent(NETPULSE_STOREFRONT)],
-        ["Hacker News", "https://news.ycombinator.com/submitlink?u=" + encodeURIComponent(NETPULSE_STOREFRONT) + "&t=" + encodeURIComponent("NetPulse - see every device on your Wi-Fi")],
-        ["Telegram", "https://t.me/share/url?url=" + encodeURIComponent(NETPULSE_STOREFRONT) + "&text=" + encodeURIComponent(NETPULSE_SHARE_TEXT)],
-        ["WhatsApp", "https://wa.me/?text=" + encodeURIComponent(NETPULSE_SHARE_TEXT + " " + NETPULSE_STOREFRONT)],
+        ["X / Twitter", "https://twitter.com/intent/tweet?text=" + encodeURIComponent(NETWIDE_SHARE_TEXT + " " + NETWIDE_STOREFRONT)],
+        ["Reddit", "https://www.reddit.com/submit?url=" + encodeURIComponent(NETWIDE_STOREFRONT) + "&title=" + encodeURIComponent("Netwide - see every device on your Wi-Fi")],
+        ["LinkedIn", "https://www.linkedin.com/sharing/share-offsite/?url=" + encodeURIComponent(NETWIDE_STOREFRONT)],
+        ["Hacker News", "https://news.ycombinator.com/submitlink?u=" + encodeURIComponent(NETWIDE_STOREFRONT) + "&t=" + encodeURIComponent("Netwide - see every device on your Wi-Fi")],
+        ["Telegram", "https://t.me/share/url?url=" + encodeURIComponent(NETWIDE_STOREFRONT) + "&text=" + encodeURIComponent(NETWIDE_SHARE_TEXT)],
+        ["WhatsApp", "https://wa.me/?text=" + encodeURIComponent(NETWIDE_SHARE_TEXT + " " + NETWIDE_STOREFRONT)],
       ];
       const box = document.getElementById("npShareBox");
       box.innerHTML = "";
@@ -1214,7 +1214,7 @@
       copyBtn.className = "btn";
       copyBtn.textContent = "\u{1F517} Copy link";
       copyBtn.addEventListener("click", function () {
-        navigator.clipboard.writeText(NETPULSE_STOREFRONT);
+        navigator.clipboard.writeText(NETWIDE_STOREFRONT);
         showWorkbenchToast("Storefront link copied", "#38bdf8");
       });
       box.appendChild(copyBtn);
@@ -3622,7 +3622,7 @@
     }
 
     async function startStripeCheckout(tier) {
-      const email = (document.getElementById('subEmailInput')?.value || 'subscriber@netpulse.io').trim();
+      const email = (document.getElementById('subEmailInput')?.value || 'subscriber@netwide.io').trim();
       const statusMsg = document.getElementById('subActionStatus');
       if (statusMsg) {
         statusMsg.style.color = '#38bdf8';
@@ -3700,7 +3700,7 @@
       await refreshSubscriptionModal();
     }
 
-    const NETPULSE_PAYMENT_LINKS = {
+    const NETWIDE_PAYMENT_LINKS = {
       'pro_lifetime': 'https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19',
       'pro_annual': 'https://buy.stripe.com/28E8wP248g0Q38oaCdcbC1a',
       'pro_monthly': 'https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b',
@@ -3721,7 +3721,7 @@
         if (res && res.ok && res.checkout_url) { location.href = res.checkout_url; return; }
       } catch (_) {}
       // 2) Fallback: hosted Stripe Payment Link (works without a local Stripe key).
-      const link = NETPULSE_PAYMENT_LINKS[`${tier}_${plan}`];
+      const link = NETWIDE_PAYMENT_LINKS[`${tier}_${plan}`];
       if (link) { location.href = link; }
       else if (typeof showPricingToast === 'function') {
         showPricingToast('Checkout unavailable for this plan', '#f87171');
@@ -3737,12 +3737,12 @@
         }).then(r => r.json());
         if (res && res.ok && res.checkout_url) { location.href = res.checkout_url; return; }
       } catch (_) {}
-      const link = NETPULSE_PAYMENT_LINKS[`${tier}_${plan}`];
+      const link = NETWIDE_PAYMENT_LINKS[`${tier}_${plan}`];
       if (link) { location.href = link; }
     }
 
     async function adminMintAndActivate(tier, plan) {
-      const email = (document.getElementById('mintEmailInput')?.value || document.getElementById('subEmailInput')?.value || 'founder@netpulse.local').trim();
+      const email = (document.getElementById('mintEmailInput')?.value || document.getElementById('subEmailInput')?.value || 'founder@netwide.local').trim();
       const admin_token = (document.getElementById('adminTokenInput')?.value || '').trim();
       const res = await fetch('/api/subscription/admin/mint', {
         method: 'POST',
@@ -3765,7 +3765,7 @@
     }
 
     async function startFreeTrial() {
-      const email = (document.getElementById('subEmailInput')?.value || 'trial@netpulse.io').trim();
+      const email = (document.getElementById('subEmailInput')?.value || 'trial@netwide.io').trim();
       const res = await fetch('/api/subscription/trial', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -3784,7 +3784,7 @@
       const sub = (appState && appState.subscription) || {};
       const keyVal = (document.getElementById('licenseKeyInput')?.value || sub.license_key_masked || '').trim();
       const cert = {
-        product: "NetPulse v4.6.0 Sovereign Network & RF Intelligence Suite",
+        product: "Netwide v4.7.0 Sovereign Network & RF Intelligence Suite",
         tier: sub.tier_name || "Community Edition",
         plan: sub.plan || "free",
         subscriber_email: sub.email || "",
@@ -3797,9 +3797,9 @@
       const blob = new Blob([JSON.stringify(cert, null, 2)], {type: 'application/json'});
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `NetPulse-License-${sub.jti || 'certificate'}.json`;
+      a.download = `Netwide-License-${sub.jti || 'certificate'}.json`;
       a.click();
-      showWorkbenchToast(`⬇ Downloaded NetPulse-License-${sub.jti || 'certificate'}.json`, '#10b981');
+      showWorkbenchToast(`⬇ Downloaded Netwide-License-${sub.jti || 'certificate'}.json`, '#10b981');
     }
 
     async function revokeMintedKey(jti) {
@@ -4124,7 +4124,7 @@
       <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #1f2838;padding-bottom:12px;margin-bottom:14px;">
         <div>
           <div style="font-size:18px;font-weight:800;color:#fff;display:flex;align-items:center;gap:10px;">
-            <span>💎 NetPulse Sovereign Subscription &amp; Cryptographic License Engine</span>
+            <span>💎 Netwide Sovereign Subscription &amp; Cryptographic License Engine</span>
             <span id="subActiveTierName" class="tag tag-blue">Community Edition</span>
           </div>
           <div id="subActiveMeta" class="mono" style="font-size:11.5px;color:#94a3b8;margin-top:4px;">Loading active node license…</div>
@@ -4149,7 +4149,7 @@
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="font-size:12px;color:#94a3b8;">Subscriber Email:</span>
-          <input type="email" id="subEmailInput" class="input-field" style="min-width:210px;height:30px;" placeholder="operator@domain.com" value="founder@netpulse.io" />
+          <input type="email" id="subEmailInput" class="input-field" style="min-width:210px;height:30px;" placeholder="operator@domain.com" value="founder@netwide.io" />
         </div>
       </div>
 
@@ -4227,14 +4227,14 @@
       <details id="adminMintDetails" style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:10px;padding:12px 14px;">
         <summary style="cursor:pointer;font-weight:700;font-size:12.5px;color:#a78bfa;">⚙ Sovereign Admin Key Generator (Mint Keys) &amp; Stripe Billing Configuration</summary>
         <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
-          <span style="font-size:11.5px;color:#94a3b8;white-space:nowrap;">Admin Master Token (`~/.config/netpulse/admin.token`):</span>
+          <span style="font-size:11.5px;color:#94a3b8;white-space:nowrap;">Admin Master Token (`~/.config/netwide/admin.token`):</span>
           <input type="password" id="adminTokenInput" class="input-field mono" style="flex:1;height:28px;" placeholder="Auto-authenticated on 127.0.0.1 loopback (required for remote LAN/WAN admin)" />
         </div>
         <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
           <div style="border:1px solid #1f2838;border-radius:8px;padding:12px;">
             <div style="font-weight:700;font-size:12px;color:#34d399;margin-bottom:6px;">1. Instant Cryptographic Key Minter (HMAC-SHA256)</div>
             <div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">Mint and activate signed keys for customers, field handsets, or founder lifetime access:</div>
-            <input type="text" id="mintEmailInput" class="input-field" style="width:100%;margin-bottom:8px;" placeholder="Recipient email (e.g. customer@company.com)" value="founder@netpulse.io" />
+            <input type="text" id="mintEmailInput" class="input-field" style="width:100%;margin-bottom:8px;" placeholder="Recipient email (e.g. customer@company.com)" value="founder@netwide.io" />
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
               <button class="btn btn-sm btn-primary" onclick="adminMintAndActivate('pro', 'monthly')">Mint Pro (Monthly)</button>
               <button class="btn btn-sm btn-primary" onclick="adminMintAndActivate('pro', 'annual')">Mint Pro (Annual)</button>
@@ -4302,7 +4302,7 @@
       <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #1f2838;padding-bottom:12px;margin-bottom:16px;">
         <div>
           <div style="font-size:17px;font-weight:800;color:#fff;display:flex;align-items:center;gap:10px;">
-            <span>📱 NetPulse Mobile Field App &amp; Native Android APK</span>
+            <span>📱 Netwide Mobile Field App &amp; Native Android APK</span>
             <span id="qrSsidBadge" class="badge badge-emerald">Wi-Fi: 192.168.12.225:8765</span>
           </div>
           <div style="font-size:12px;color:#94a3b8;margin-top:4px;">
@@ -4324,11 +4324,11 @@
 
         <!-- QR 2: Signed Native Android APK -->
         <div style="background:#0b0f17;border:1px solid #1f2b3e;border-radius:10px;padding:16px;text-align:center;">
-          <div style="font-weight:700;font-size:13.5px;color:#34d399;margin-bottom:4px;">2. Native Android App (NetPulse-Mobile.apk)</div>
+          <div style="font-weight:700;font-size:13.5px;color:#34d399;margin-bottom:4px;">2. Native Android App (Netwide-Mobile.apk)</div>
           <div id="qrApkSizeBadge" style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Direct On-Phone Wi-Fi TSF Hardware + Magnetometer (µT) + 48-Thread Subnet Sweeper</div>
           <div id="qrApkSvgWrap" style="width:176px;height:176px;margin:0 auto 10px auto;"></div>
-          <div id="qrApkUrlText" style="font-family:var(--font-mono);font-size:11.5px;color:#e2e8f0;margin-bottom:10px;">http://192.168.12.225:8765/download/NetPulse-Mobile.apk</div>
-          <a href="/download/NetPulse-Mobile.apk" download class="btn btn-primary" style="width:100%;justify-content:center;text-decoration:none;background:#059669;border-color:#10b981;">⬇ Download NetPulse-Mobile.apk</a>
+          <div id="qrApkUrlText" style="font-family:var(--font-mono);font-size:11.5px;color:#e2e8f0;margin-bottom:10px;">http://192.168.12.225:8765/download/Netwide-Mobile.apk</div>
+          <a href="/download/Netwide-Mobile.apk" download class="btn btn-primary" style="width:100%;justify-content:center;text-decoration:none;background:#059669;border-color:#10b981;">⬇ Download Netwide-Mobile.apk</a>
         </div>
       </div>
     </div>
@@ -4465,11 +4465,11 @@
   <div id="npShareModal" onclick="closeShareModal()" style="display:none;position:fixed;inset:0;z-index:12000;background:rgba(5,8,17,.85);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px;">
     <div style="background:#0d1322;border:1px solid #38bdf8;border-radius:14px;max-width:560px;width:100%;padding:22px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-        <h3 style="font-size:18px;color:#fff;">📣 Share NetPulse</h3>
+        <h3 style="font-size:18px;color:#fff;">📣 Share Netwide</h3>
         <button class="btn" onclick="closeShareModal()">✕ Close</button>
       </div>
       <p style="color:#94a3b8;font-size:13px;margin-bottom:14px;">
-        Free, open source and 100% on-device. If NetPulse found something on your network, pass it on.
+        Free, open source and 100% on-device. If Netwide found something on your network, pass it on.
       </p>
       <div id="npShareBox" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
     </div>

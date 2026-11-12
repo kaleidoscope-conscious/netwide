@@ -1,7 +1,7 @@
 """
-Native Linux PyQt6 Desktop Application for NetPulse.
+Native Linux PyQt6 Desktop Application for Netwide.
 Features:
-- Auto-spawns or attaches to the local NetPulse Reconnaissance Daemon (127.0.0.1:8765)
+- Auto-spawns or attaches to the local Netwide Reconnaissance Daemon (127.0.0.1:8765)
 - Native PyQt6 QMainWindow + QWebEngineView with hardware acceleration
 - Native Ubuntu / GNOME System Tray Guardian (QSystemTrayIcon) with quick actions
 - Native OS Desktop Notifications (notify-send / Tray notifications)
@@ -28,7 +28,7 @@ from typing import Optional
 os.environ.setdefault("QTWEBENGINE_DISABLE_SANDBOX", "1")
 os.environ.setdefault("QT_AUTO_SCREEN_SCALE_FACTOR", "1")
 
-ICON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "netpulse-icon.svg")
+ICON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "netwide-icon.svg")
 DEFAULT_PORT = 8765
 DAEMON_URL = f"http://127.0.0.1:{DEFAULT_PORT}"
 
@@ -51,7 +51,7 @@ def ensure_daemon_running(port: int = DEFAULT_PORT) -> None:
 
     def _run_server() -> None:
         import uvicorn
-        uvicorn.run("netpulse.server:app", host="127.0.0.1", port=port, log_level="warning")
+        uvicorn.run("netwide.server:app", host="127.0.0.1", port=port, log_level="warning")
 
     t = threading.Thread(target=_run_server, daemon=True)
     t.start()
@@ -65,7 +65,7 @@ def ensure_daemon_running(port: int = DEFAULT_PORT) -> None:
 def send_os_notification(title: str, body: str) -> None:
     try:
         subprocess.Popen(
-            ["notify-send", "-i", ICON_PATH, "-a", "NetPulse", title, body],
+            ["notify-send", "-i", ICON_PATH, "-a", "Netwide", title, body],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -95,15 +95,15 @@ def launch_desktop_app() -> None:
         return
 
     app = QApplication(sys.argv)
-    app.setApplicationName("NetPulse")
-    app.setApplicationDisplayName("NetPulse — Sovereign Network Intelligence")
+    app.setApplicationName("Netwide")
+    app.setApplicationDisplayName("Netwide — Sovereign Network Intelligence")
     app.setOrganizationName("Antigravity Sovereign Systems")
 
     icon = QIcon(ICON_PATH) if os.path.exists(ICON_PATH) else QIcon()
     app.setWindowIcon(icon)
 
     win = QMainWindow()
-    win.setWindowTitle("NetPulse Workbench — Network Inventory, Deep Telemetry & Endpoint Control")
+    win.setWindowTitle("Netwide Workbench — Network Inventory, Deep Telemetry & Endpoint Control")
     win.setWindowIcon(icon)
     win.resize(1580, 960)
     win.setStyleSheet(
@@ -167,10 +167,10 @@ def launch_desktop_app() -> None:
                 status_bar.showMessage(f"Opening external link in system browser: {url_str}")
                 if not QDesktopServices.openUrl(url):
                     subprocess.Popen(["xdg-open", url_str], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                send_os_notification("NetPulse External Link", f"Opened {url_str} in browser")
+                send_os_notification("Netwide External Link", f"Opened {url_str} in browser")
             self.deleteLater()
 
-    class NetPulseWebEnginePage(QWebEnginePage):
+    class NetwideWebEnginePage(QWebEnginePage):
         def __init__(self, view: QWebEngineView) -> None:
             super().__init__(view)
             self._view = view
@@ -181,11 +181,11 @@ def launch_desktop_app() -> None:
             self._popups.append(popup)
             return popup
 
-    custom_page = NetPulseWebEnginePage(webview)
+    custom_page = NetwideWebEnginePage(webview)
     webview.setPage(custom_page)
 
     def _on_download_requested(download: QWebEngineDownloadRequest) -> None:
-        suggested = download.downloadFileName() or "NetPulse_Download.bin"
+        suggested = download.downloadFileName() or "Netwide_Download.bin"
         desktop_dir = os.path.expanduser("~/Desktop")
         target_dir = desktop_dir if os.path.isdir(desktop_dir) else os.path.expanduser("~")
         download.setDownloadDirectory(target_dir)
@@ -193,7 +193,7 @@ def launch_desktop_app() -> None:
         download.accept()
         save_path = os.path.join(target_dir, suggested)
         status_bar.showMessage(f"Downloading {suggested} -> {save_path}…")
-        send_os_notification("NetPulse File Saved", f"Downloaded {suggested} to {save_path}")
+        send_os_notification("Netwide File Saved", f"Downloaded {suggested} to {save_path}")
 
     webview.page().profile().downloadRequested.connect(_on_download_requested)
     webview.setUrl(QUrl(DAEMON_URL))
@@ -213,9 +213,9 @@ def launch_desktop_app() -> None:
                 with urllib.request.urlopen(req, timeout=30) as resp:
                     data = json.loads(resp.read().decode())
                 msg = data.get("summary") or f"{label} completed."
-                send_os_notification("NetPulse Workbench", msg)
+                send_os_notification("Netwide Workbench", msg)
             except Exception as e:
-                send_os_notification("NetPulse Workbench", f"{label} error: {e}")
+                send_os_notification("Netwide Workbench", f"{label} error: {e}")
 
         threading.Thread(target=_worker, daemon=True).start()
         QTimer.singleShot(1800, webview.reload)
@@ -271,12 +271,12 @@ def launch_desktop_app() -> None:
             try:
                 with urllib.request.urlopen(f"{DAEMON_URL}/api/export/csv", timeout=15) as resp:
                     csv_bytes = resp.read()
-                out_path = os.path.expanduser("~/Desktop/NetPulse_Device_Inventory.csv")
+                out_path = os.path.expanduser("~/Desktop/Netwide_Device_Inventory.csv")
                 with open(out_path, "wb") as f:
                     f.write(csv_bytes)
-                send_os_notification("NetPulse CSV Exported", f"Saved inventory to {out_path}")
+                send_os_notification("Netwide CSV Exported", f"Saved inventory to {out_path}")
             except Exception as e:
-                send_os_notification("NetPulse CSV Export Error", str(e))
+                send_os_notification("Netwide CSV Export Error", str(e))
 
         threading.Thread(target=_csv_worker, daemon=True).start()
 
@@ -315,9 +315,9 @@ def launch_desktop_app() -> None:
     tray: Optional[QSystemTrayIcon] = None
     if QSystemTrayIcon.isSystemTrayAvailable():
         tray = QSystemTrayIcon(icon, win)
-        tray.setToolTip("NetPulse — Sovereign Network Guardian")
+        tray.setToolTip("Netwide — Sovereign Network Guardian")
         tray_menu = QMenu()
-        a_show = tray_menu.addAction("Open NetPulse Command Center")
+        a_show = tray_menu.addAction("Open Netwide Command Center")
         assert a_show is not None
         a_show.triggered.connect(lambda: (win.showNormal(), win.activateWindow()))
         a_scan = tray_menu.addAction("⚡ Trigger Deep Subnet Scan")
@@ -336,7 +336,7 @@ def launch_desktop_app() -> None:
         assert a_exp is not None
         a_exp.triggered.connect(lambda: _api_post("/api/export/report", "Forensic Dossier Export"))
         tray_menu.addSeparator()
-        a_quit = tray_menu.addAction("Quit NetPulse Desktop")
+        a_quit = tray_menu.addAction("Quit Netwide Desktop")
         assert a_quit is not None
         a_quit.triggered.connect(app.quit)
         tray.setContextMenu(tray_menu)
@@ -375,8 +375,8 @@ def launch_desktop_app() -> None:
                     f"Optimal RF: 2.4G Ch {ch24} / 5G Ch {ch5}  |  "
                     f"[Ctrl+R] Scan  [Ctrl+F] OUI Search  [Ctrl+Shift+E] CSV"
                 )
-                title = f"NetPulse — Security Grade {grade} ({score}/100) • {on_cnt} Hosts Online"
-                tooltip = f"NetPulse — Grade {grade} ({score}/100) • {on_cnt}/{tot_cnt} Online"
+                title = f"Netwide — Security Grade {grade} ({score}/100) • {on_cnt} Hosts Online"
+                tooltip = f"Netwide — Grade {grade} ({score}/100) • {on_cnt}/{tot_cnt} Online"
                 posture_bridge.posture_ready.emit(summary, title, tooltip)
             except Exception as exc:
                 logging.getLogger(__name__).debug("posture poll failed: %s", exc)
@@ -390,7 +390,7 @@ def launch_desktop_app() -> None:
 
     win.show()
     send_os_notification(
-        "NetPulse Active",
+        "Netwide Active",
         "Sovereign Network & RF Reconnaissance Desktop Suite is online.",
     )
     sys.exit(app.exec())

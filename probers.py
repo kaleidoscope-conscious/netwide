@@ -39,7 +39,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Callable, Deque, Dict, List, Optional, Set, Tuple
 
-from netpulse.oui import oui_db, unmask_eui64_ipv6_mac
+from netwide.oui import oui_db, unmask_eui64_ipv6_mac
 
 
 @dataclass
@@ -334,7 +334,7 @@ def fetch_upnp_xml_descriptor(location_url: str) -> Dict[str, Any]:
     """Download and parse a UPnP / DIAL XML device description document."""
     info: Dict[str, Any] = {"location": location_url}
     try:
-        req = urllib.request.Request(location_url, headers={"User-Agent": "NetPulse/2.0 UPnP/1.1"})
+        req = urllib.request.Request(location_url, headers={"User-Agent": "Netwide/2.0 UPnP/1.1"})
         with urllib.request.urlopen(req, timeout=1.8) as resp:
             xml_bytes = resp.read(65536)
         root = ET.fromstring(xml_bytes)
@@ -482,7 +482,7 @@ def probe_dial_apps(ip: str, port: int = 8060) -> List[Dict[str, Any]]:
     def _check_app(app_name: str) -> Optional[Dict[str, Any]]:
         url = f"http://{ip}:{port}/dial/{app_name}"
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "NetPulse/3.0 DIAL/2.1"})
+            req = urllib.request.Request(url, headers={"User-Agent": "Netwide/3.0 DIAL/2.1"})
             with urllib.request.urlopen(req, timeout=0.6) as resp:
                 xml_txt = resp.read(8192).decode("utf-8", errors="ignore")
                 st_m = re.search(r"<state>([^<]+)</state>", xml_txt, re.IGNORECASE)
@@ -512,7 +512,7 @@ def control_dial_app(ip: str, app_name: str, action: str = "launch", port: int =
     clean_app = urllib.parse.quote(app_name.strip())
     if action == "stop":
         url = f"http://{ip}:{port}/dial/{clean_app}/run"
-        req = urllib.request.Request(url, method="DELETE", headers={"User-Agent": "NetPulse/3.0 DIAL/2.1"})
+        req = urllib.request.Request(url, method="DELETE", headers={"User-Agent": "Netwide/3.0 DIAL/2.1"})
     else:
         url = f"http://{ip}:{port}/dial/{clean_app}"
         body_bytes = payload.encode("utf-8") if payload else b""
@@ -520,7 +520,7 @@ def control_dial_app(ip: str, app_name: str, action: str = "launch", port: int =
             url,
             data=body_bytes,
             method="POST",
-            headers={"Content-Type": "text/plain; charset=utf-8", "User-Agent": "NetPulse/3.0 DIAL/2.1"},
+            headers={"Content-Type": "text/plain; charset=utf-8", "User-Agent": "Netwide/3.0 DIAL/2.1"},
         )
     try:
         with urllib.request.urlopen(req, timeout=3.0) as resp:
@@ -540,7 +540,7 @@ def probe_roku_ecp(ip: str) -> Optional[Dict[str, Any]]:
     info: Dict[str, Any] = {}
     try:
         url = f"http://{ip}:8060/query/device-info"
-        req = urllib.request.Request(url, headers={"User-Agent": "NetPulse/3.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "Netwide/3.0"})
         with urllib.request.urlopen(req, timeout=1.5) as resp:
             xml_data = resp.read(65536)
         root = ET.fromstring(xml_data)
@@ -628,7 +628,7 @@ def probe_spotify_connect(ip: str, mdns_services: List[Dict[str, Any]], open_por
 
     for url in candidate_urls:
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "NetPulse/2.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": "Netwide/2.0"})
             with urllib.request.urlopen(req, timeout=1.5) as resp:
                 data = json.loads(resp.read(32768).decode("utf-8", errors="ignore"))
                 if isinstance(data, dict) and ("brandDisplayName" in data or "remoteName" in data or "deviceType" in data):
@@ -770,7 +770,7 @@ def probe_tmobile_gateway(ip: str) -> Optional[Dict[str, Any]]:
     """
     url = f"http://{ip}/TMI/v1/gateway?get=all"
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "NetPulse/4.2"})
+        req = urllib.request.Request(url, headers={"User-Agent": "Netwide/4.2"})
         with urllib.request.urlopen(req, timeout=2.8) as resp:
             data = json.loads(resp.read(65536).decode("utf-8", errors="ignore"))
             if isinstance(data, dict) and ("device" in data or "signal" in data):
@@ -966,7 +966,7 @@ def inspect_http_or_tls_port(ip: str, port: int) -> Dict[str, Any]:
         scheme = "https" if is_tls else "http"
         try:
             ctx = ssl._create_unverified_context() if is_tls else None
-            req = urllib.request.Request(f"{scheme}://{ip}:{port}/", headers={"User-Agent": "NetPulse/5.0"})
+            req = urllib.request.Request(f"{scheme}://{ip}:{port}/", headers={"User-Agent": "Netwide/5.0"})
             with urllib.request.urlopen(req, timeout=1.2, context=ctx) as resp:
                 srv = resp.headers.get("Server")
                 if srv:
@@ -1136,9 +1136,9 @@ def control_spotify_zeroconf(ip: str, endpoint_url: str = "", action: str = "get
     try:
         if action == "resetUsers":
             data_bytes = urllib.parse.urlencode({"action": "resetUsers"}).encode("utf-8")
-            req = urllib.request.Request(base_url, data=data_bytes, method="POST", headers={"User-Agent": "NetPulse/3.0"})
+            req = urllib.request.Request(base_url, data=data_bytes, method="POST", headers={"User-Agent": "Netwide/3.0"})
         else:
-            req = urllib.request.Request(f"{base_url}?action=getInfo", headers={"User-Agent": "NetPulse/3.0"})
+            req = urllib.request.Request(f"{base_url}?action=getInfo", headers={"User-Agent": "Netwide/3.0"})
         with urllib.request.urlopen(req, timeout=2.0) as resp:
             raw = resp.read(32768).decode("utf-8", errors="ignore")
             try:
@@ -1162,7 +1162,7 @@ def probe_http_endpoint_custom(ip: str, port: int, path: str = "/", method: str 
             url,
             data=b"" if method.upper() == "POST" else None,
             method=method.upper(),
-            headers={"User-Agent": "NetPulse-Workbench/3.0"},
+            headers={"User-Agent": "Netwide-Workbench/3.0"},
         )
         with urllib.request.urlopen(req, timeout=3.0, context=ctx) as resp:
             body = resp.read(32768).decode("utf-8", errors="ignore")
@@ -1294,7 +1294,7 @@ def control_tmobile_gateway(
     """
     result: Dict[str, Any] = {"ip": ip, "action": action, "authenticated": False}
     try:
-        gw_req = urllib.request.Request(f"http://{ip}/TMI/v1/gateway?get=all", headers={"User-Agent": "NetPulse/3.5"})
+        gw_req = urllib.request.Request(f"http://{ip}/TMI/v1/gateway?get=all", headers={"User-Agent": "Netwide/3.5"})
         with urllib.request.urlopen(gw_req, timeout=2.5) as r:
             result["gateway_all"] = json.loads(r.read(65536).decode("utf-8", errors="ignore"))
     except Exception as e:
@@ -1312,7 +1312,7 @@ def control_tmobile_gateway(
             f"http://{ip}/TMI/v1/auth/login",
             data=login_payload,
             method="POST",
-            headers={"Content-Type": "application/json", "User-Agent": "NetPulse/3.5"},
+            headers={"Content-Type": "application/json", "User-Agent": "Netwide/3.5"},
         )
         with urllib.request.urlopen(login_req, timeout=3.0) as r:
             auth_data = json.loads(r.read(16384).decode("utf-8", errors="ignore"))
@@ -1323,7 +1323,7 @@ def control_tmobile_gateway(
             return result
 
         result["authenticated"] = True
-        auth_headers = {"Authorization": f"Bearer {token}", "User-Agent": "NetPulse/3.5"}
+        auth_headers = {"Authorization": f"Bearer {token}", "User-Agent": "Netwide/3.5"}
 
         if action == "reboot":
             reb_req = urllib.request.Request(
@@ -1732,7 +1732,7 @@ def probe_google_cast_eureka(
         try:
             req = urllib.request.Request(
                 f"http://{ip}:8008/setup/eureka_info?params=version,audio,name,build_info,detail,device_info,net,wifi,setup,settings&options=detail",
-                headers={"User-Agent": "NetPulse/4.5"},
+                headers={"User-Agent": "Netwide/4.5"},
             )
             with urllib.request.urlopen(req, timeout=1.2) as r:
                 data = json.loads(r.read(32768).decode("utf-8", errors="ignore"))
@@ -1906,7 +1906,7 @@ def probe_smart_iot_and_tv(ip: str, open_ports: List[int]) -> Dict[str, Any]:
     if 80 in open_ports and not info:
         for path in ("/shelly", "/rpc/Shelly.GetDeviceInfo"):
             try:
-                req = urllib.request.Request(f"http://{ip}{path}", headers={"User-Agent": "NetPulse/4.5"})
+                req = urllib.request.Request(f"http://{ip}{path}", headers={"User-Agent": "Netwide/4.5"})
                 with urllib.request.urlopen(req, timeout=0.9) as r:
                     data = json.loads(r.read(8192).decode("utf-8", errors="ignore"))
                     if isinstance(data, dict) and ("mac" in data or "model" in data or "app" in data):
@@ -1920,7 +1920,7 @@ def probe_smart_iot_and_tv(ip: str, open_ports: List[int]) -> Dict[str, Any]:
     # 3. Samsung Tizen TV (:8001/api/v2/)
     if 8001 in open_ports or 8002 in open_ports:
         try:
-            req = urllib.request.Request(f"http://{ip}:8001/api/v2/", headers={"User-Agent": "NetPulse/4.5"})
+            req = urllib.request.Request(f"http://{ip}:8001/api/v2/", headers={"User-Agent": "Netwide/4.5"})
             with urllib.request.urlopen(req, timeout=1.0) as r:
                 data = json.loads(r.read(16384).decode("utf-8", errors="ignore"))
                 dev = data.get("device", {})
@@ -1966,7 +1966,7 @@ def control_smart_home_device(ip: str, protocol: str, action: str = "status") ->
                 url = f"http://{ip}/relay/0?turn={act}"
             else:
                 url = f"http://{ip}/shelly"
-            req = urllib.request.Request(url, headers={"User-Agent": "NetPulse/4.5"})
+            req = urllib.request.Request(url, headers={"User-Agent": "Netwide/4.5"})
             with urllib.request.urlopen(req, timeout=2.0) as r:
                 return {"ok": True, "ip": ip, "protocol": proto, "action": act, "response": json.loads(r.read(8192).decode("utf-8", errors="ignore"))}
         elif proto == "google_cast":
@@ -2070,7 +2070,7 @@ def probe_ssh_kex_and_hostkeys(ip: str, port: int = 22, timeout: float = 1.4) ->
         if not banner_line.startswith("SSH-"):
             return None
 
-        s.sendall(b"SSH-2.0-NetPulse_5.0\r\n")
+        s.sendall(b"SSH-2.0-Netwide_5.0\r\n")
 
         # If the first recv already contained the binary packet after the banner newline, preserve remainder
         nl_idx = banner_bytes.find(b"\n")
@@ -2307,7 +2307,7 @@ def probe_extended_iot_and_infra(ip: str, open_ports: List[int]) -> Dict[str, An
         try:
             req = urllib.request.Request(
                 f"http://{ip}:1400/xml/device_description.xml",
-                headers={"User-Agent": "NetPulse/5.0"},
+                headers={"User-Agent": "Netwide/5.0"},
             )
             with urllib.request.urlopen(req, timeout=1.2) as r:
                 xml_bytes = r.read(65536)
@@ -2336,7 +2336,7 @@ def probe_extended_iot_and_infra(ip: str, open_ports: List[int]) -> Dict[str, An
     # 2. Philips Hue Bridge (:80/api/config)
     if 80 in open_ports:
         try:
-            req = urllib.request.Request(f"http://{ip}/api/config", headers={"User-Agent": "NetPulse/5.0"})
+            req = urllib.request.Request(f"http://{ip}/api/config", headers={"User-Agent": "Netwide/5.0"})
             with urllib.request.urlopen(req, timeout=0.9) as r:
                 data = json.loads(r.read(16384).decode("utf-8", errors="ignore"))
                 if isinstance(data, dict) and data.get("bridgeid") and data.get("modelid"):
@@ -2353,7 +2353,7 @@ def probe_extended_iot_and_infra(ip: str, open_ports: List[int]) -> Dict[str, An
     # 3. Ollama AI Server (:11434/api/tags)
     if 11434 in open_ports:
         try:
-            req = urllib.request.Request(f"http://{ip}:11434/api/tags", headers={"User-Agent": "NetPulse/5.0"})
+            req = urllib.request.Request(f"http://{ip}:11434/api/tags", headers={"User-Agent": "Netwide/5.0"})
             with urllib.request.urlopen(req, timeout=1.0) as r:
                 data = json.loads(r.read(32768).decode("utf-8", errors="ignore"))
                 models = [m.get("name", "") for m in data.get("models", []) if isinstance(m, dict) and m.get("name")]
@@ -2364,7 +2364,7 @@ def probe_extended_iot_and_infra(ip: str, open_ports: List[int]) -> Dict[str, An
     # 4. Plex Media Server (:32400/identity)
     if 32400 in open_ports:
         try:
-            req = urllib.request.Request(f"http://{ip}:32400/identity", headers={"User-Agent": "NetPulse/5.0"})
+            req = urllib.request.Request(f"http://{ip}:32400/identity", headers={"User-Agent": "Netwide/5.0"})
             with urllib.request.urlopen(req, timeout=1.0) as r:
                 xml_txt = r.read(16384).decode("utf-8", errors="ignore")
                 m_ver = re.search(r'version="([^"]+)"', xml_txt)
@@ -2381,7 +2381,7 @@ def probe_extended_iot_and_infra(ip: str, open_ports: List[int]) -> Dict[str, An
     # 5. Unauthenticated Docker Engine API (:2375/version)
     if 2375 in open_ports:
         try:
-            req = urllib.request.Request(f"http://{ip}:2375/version", headers={"User-Agent": "NetPulse/5.0"})
+            req = urllib.request.Request(f"http://{ip}:2375/version", headers={"User-Agent": "Netwide/5.0"})
             with urllib.request.urlopen(req, timeout=1.0) as r:
                 data = json.loads(r.read(16384).decode("utf-8", errors="ignore"))
                 if isinstance(data, dict) and data.get("Version"):
@@ -2520,7 +2520,7 @@ def probe_upnp_igd_nat_mappings(gateway_ip: str, upnp_location: str = "", timeou
     service_type = "urn:schemas-upnp-org:service:WANIPConnection:1"
     for loc in candidate_locs:
         try:
-            req = urllib.request.Request(loc, headers={"User-Agent": "NetPulse/5.0"})
+            req = urllib.request.Request(loc, headers={"User-Agent": "Netwide/5.0"})
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 xml_bytes = r.read(65536)
             root = ET.fromstring(xml_bytes)
@@ -3092,7 +3092,7 @@ class HostQuarantineManager:
                             r = subprocess.run(cmd_base, capture_output=True, timeout=2.0)
                             actions.append(f"{' '.join(cmd_base)} -> rc={r.returncode}")
                     else:  # nft
-                        table = "netpulse_quarantine"
+                        table = "netwide_quarantine"
                         if drop:
                             subprocess.run(["nft", "add", "table", "ip", table], capture_output=True, timeout=2.0)
                             subprocess.run(["nft", "add", "chain", "ip", table, "fwd", "{ type filter hook forward priority 0; }"], capture_output=True, timeout=2.0)
@@ -3526,7 +3526,7 @@ def probe_domain_and_wan_target(target: str) -> Dict[str, Any]:
     try:
         req = urllib.request.Request(
             f"https://{clean_t}/",
-            headers={"User-Agent": "NetPulse/4.5"},
+            headers={"User-Agent": "Netwide/4.5"},
             method="HEAD",
         )
         h0 = time.perf_counter()

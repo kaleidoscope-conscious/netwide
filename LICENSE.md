@@ -1,6 +1,6 @@
-# NetPulse License
+# Netwide License
 
-**NetPulse v4.6.0 — source-available, with a free Community Edition and paid
+**Netwide v4.7.0 — source-available, with a free Community Edition and paid
 Pro Guardian / Sovereign Enterprise tiers.**
 
 > This file states the licensing position of the code in this repository so that
@@ -13,7 +13,7 @@ Pro Guardian / Sovereign Enterprise tiers.**
 
 ## 1. Definitions
 
-- **"Software"** — the NetPulse source code, artwork, documentation, and build
+- **"Software"** — the Netwide source code, artwork, documentation, and build
   tooling in this repository, including the daemon (`server.py`), the CLI
   (`cli.py`), the desktop app (`desktop.py`), the Android app (`android/`), and
   the web interfaces in `static/`.
@@ -55,7 +55,7 @@ the same, and the Community Edition remains fully usable.
 
 ## 4. Commercial use of the Paid Tiers
 
-If you want to use NetPulse in a commercial context — including managed
+If you want to use Netwide in a commercial context — including managed
 deployments for clients, MSP/MSP-style service work, integration into a
 product you sell, or use across multiple sites — you need a written licence
 from the Operator. Contact details are on the storefront and in
@@ -64,7 +64,7 @@ from the Operator. Contact details are on the storefront and in
 ## 5. Attribution
 
 If you publicly redistribute the Software or a derivative, please keep the
-NetPulse attribution in the About/README. The name "NetPulse" and the project
+Netwide attribution in the About/README. The name "Netwide" and the project
 logo are trademarks of the Operator and may not be used to endorse a product
 that is not the Software.
 
@@ -90,4 +90,4 @@ exploitable findings publicly until a fix has shipped.
 
 The Operator may update these terms in a new release. Terms are pinned to the
 release tag you obtained the Software from; the version in this file applies
-to v4.6.0.
+to v4.7.0.

@@ -1,6 +1,6 @@
-# geminitodoinstructions — NetPulse: Making It Truly Groundbreaking
+# geminitodoinstructions — Netwide: Making It Truly Groundbreaking
 
-*NetPulse v4.5.0 — Sovereign Network Intelligence, 10-Stage 802.11 TSF De-Cloaking, Cryptographic Protocol Auditing, Wire DPI & Active Countermeasures*
+*Netwide v4.5.0 — Sovereign Network Intelligence, 10-Stage 802.11 TSF De-Cloaking, Cryptographic Protocol Auditing, Wire DPI & Active Countermeasures*
 
 > Not another scanner. A local-first atlas that proves what everything on your network *is*, *where it is*, *what it can do to you*, and *how to undo it* — with evidence.
 
@@ -8,7 +8,7 @@
 
 ## 1. TL;DR — The Bet
 
-Fing, Lansweeper, and WiFi analyzers list `IP -> MAC -> vendor`. NetPulse wins by fusing **identity + proof + physics + action** into verdicts:
+Fing, Lansweeper, and WiFi analyzers list `IP -> MAC -> vendor`. Netwide wins by fusing **identity + proof + physics + action** into verdicts:
 
 1. **Identity Graph** across 802.11 / BLE / Wired / Cloud with provenance
 2. **Threat Field** — Boltzmann-ranked hypotheses, not raw findings
@@ -52,7 +52,7 @@ We are not starting from zero. We are starting from a broad surface with broken 
 - **Passive wideband census — Stage 13:** Monitor-mode dwell cyclist, 0.1s/channel + DFS when allowed, management frames only. Ring table `passive_frames(timestamp, freq, frame_type, bssid, rssi, len, raw_hash)` capped 500k rows. This sees stealthy APs active probing never will. Biggest coverage win.
 - **Evidence layer:** `evidence(claim_id, device_key, kind, ref_json, captured_at, sha256, confidence_influence)`. `GET /api/device/{key}/evidence`. Every claim (identity, botnet, de-cloak) links to ≥1 row. Hover any badge = why-this-verdict.
 
-**Why it wins:** Fing has no BLE, no RF covariance, no provenance. This turns NetPulse from labeler into auditor.
+**Why it wins:** Fing has no BLE, no RF covariance, no provenance. This turns Netwide from labeler into auditor.
 
 ### Pillar 2: Intelligence Loop — Threat Field + Adaptive Scanning
 
@@ -96,7 +96,7 @@ We are not starting from zero. We are starting from a broad surface with broken 
 
 - **Enriched profile fields:** JA4+/QUIC, DNS query mix, cloud beacons `{domain, ASN, country, cadence}`, BLE identity, Thread/Matter/Zigbee role, hotspot probability, firmware exposure, risk pipeline from hypotheses. Per-device ribbon of badges, hover = provenance.
 - **Daily/weekly posture diff digest:** Diff `EngineState` snapshots → WS/email `{changed_devices, new_threats, resolved_threats, posture_delta, top_hypotheses}`. Drives retention ("news feed" angle).
-- **Detection-rule compiler (P3):** NetPulse DSL (JSON) → compiled probers with vuln-regex audit + SHA-256 manifest → shipped as Enterprise add-ons. Dockerized tests.
+- **Detection-rule compiler (P3):** Netwide DSL (JSON) → compiled probers with vuln-regex audit + SHA-256 manifest → shipped as Enterprise add-ons. Dockerized tests.
 
 ---
 
@@ -108,10 +108,10 @@ These block every later layer. Intelligence starves on broken parsers.
 2. **Stage-3 verdict precedence:** `wireless.py:736-737` `(A+B) if C else D` → verdict becomes `")"` when no parent. Use explicit branch. Test `startswith(("VERIFIED_","IDENTIFIED_"))` for `server.py:1117`.
 3. **Stage-7/8 MAC:** `bssid[3:8]` is char slice, not octet. Build from `bssid.split(":")`. Same for `[ :5]`, `[12:]` — normalize once to octet tuples + `same_unmasked_oui()` helper.
 4. **MQTT CONNACK:** `probers.py:2241` reads `resp[3]`, should be `resp[2]` (byte0=0x20 type, byte1=flags, byte2=RC). Test vectors: `20 02 00` anon-allowed, `20 02 05` denied. 5.0 adds property-length after RC — don't misread.
-5. **Key drift probers↔fingerprint:** `ollama_ai→ollama`, Sonos camelCase→snake_case, Hue keys, `anonymous_allowed→auth_status`, `security_mode` never populated. Fix: new `netpulse/profile_keys.py` typed dict shared by both. Unit test shape.
+5. **Key drift probers↔fingerprint:** `ollama_ai→ollama`, Sonos camelCase→snake_case, Hue keys, `anonymous_allowed→auth_status`, `security_mode` never populated. Fix: new `netwide/profile_keys.py` typed dict shared by both. Unit test shape.
 6. **nmcli SIGNAL scale:** `wireless.py:265` treats dBm as 0-100%. Add `signal_to_dbm(raw)`: if ≤-30 treat as dBm, 0-100 → `(pct/2)-100`, else reject.
 7. **Hardening:** `_require_tier("forensic_export")` on `GET /api/export/csv`, admin auth on `/api/subscription/deactivate`, CORS allowlist (already patched to env regex — keep), move sync DB to `asyncio.to_thread`, close SQLite conns in `billing.py`, full HMAC tag (not 18-byte truncate), fail-closed webhook, reject `no_payment_required`, enforce `trial_claimed` in lead path + `max_nodes`, rate limiting, TrustedHost, HSTS/CSP, request size cap.
-8. **Subprocess + except policy:** `netpulse/proc.py` `run_with_timeout(cmd, 5.0)` wrapper everywhere; `PassiveWireSniffer.stop()` terminate→wait(2)→kill→reap. Blanket `except: pass` only in cosmetic paths; decision loops log + surface `probe_status`.
+8. **Subprocess + except policy:** `netwide/proc.py` `run_with_timeout(cmd, 5.0)` wrapper everywhere; `PassiveWireSniffer.stop()` terminate→wait(2)→kill→reap. Blanket `except: pass` only in cosmetic paths; decision loops log + surface `probe_status`.
 
 **Effort: S (days). Do not skip.**
 
@@ -146,7 +146,7 @@ Walk a room with phone. HUD shows 3 hidden APs decloaked as `T-Mobile VAP` vs `P
 
 ### Positioning vs Competitors
 
-|  | Fing | Wireshark | Lansweeper | NetPulse |
+|  | Fing | Wireshark | Lansweeper | Netwide |
 |---|---|---|---|---|
 | Consumer simple | ✓ | ✗ | ✗ | ✓ |
 | Forensic deep | ✗ | ✓ | ~ | ✓ |

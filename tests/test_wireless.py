@@ -3,7 +3,7 @@ Unit tests for wireless spectrum, BSSID de-cloaker heuristics, and iw parser.
 """
 
 from unittest.mock import patch
-from netpulse.wireless import (
+from netwide.wireless import (
     wireless_engine,
     _freq_to_channel,
     parse_signal_value,

@@ -1,6 +1,6 @@
-# Contributing to NetPulse
+# Contributing to Netwide
 
-Thanks for looking. NetPulse is a **100% on-device** network intelligence suite: everything it
+Thanks for looking. Netwide is a **100% on-device** network intelligence suite: everything it
 learns stays on the machine it runs on. Contributions that preserve that property are always
 welcome.
 
@@ -12,7 +12,7 @@ the operator's own Stripe webhook flow) will not be merged.
 ## Quick start
 
 ```bash
-git clone https://github.com/kaleidoscope-conscious/netpulse.git && cd netpulse
+git clone https://github.com/kaleidoscope-conscious/netpulse.git && cd netwide
 ./install.sh
 python3 -m pytest tests/ -q     # 139 tests, ~45s
 python3 -m pyflakes .            # must be clean
@@ -57,17 +57,17 @@ Both commands must pass before you open a PR — CI runs exactly these.
 Every PR needs a test. Use the existing isolated sandbox:
 
 ```python
-from netpulse.billing import SubscriptionManager
+from netwide.billing import SubscriptionManager
 mgr = SubscriptionManager(db_path=tempfile.mktemp(suffix=".db"))
 ```
 
-`tests/conftest.py` points `NETPULSE_DB_PATH` at a temp file, so the suite never touches a real
+`tests/conftest.py` points `NETWIDE_DB_PATH` at a temp file, so the suite never touches a real
 database. Do not remove that.
 
 ## Reporting bugs
 
 Open an issue with: version, platform, what you expected, what happened, and the output of
-`netpulse audit` if it is a detection issue. Security bugs → see `SECURITY.md`.
+`netwide audit` if it is a detection issue. Security bugs → see `SECURITY.md`.
 
 ## Pull requests
 

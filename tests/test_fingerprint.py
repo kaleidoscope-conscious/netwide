@@ -1,13 +1,13 @@
 """
-Unit tests for NetPulse device fingerprinting and threat analysis.
+Unit tests for Netwide device fingerprinting and threat analysis.
 """
 
-from netpulse.fingerprint import (
+from netwide.fingerprint import (
     audit_network_threats,
     compute_network_security_posture,
     synthesize_device_profile,
 )
-from netpulse.wireless import MobileFieldTelemetryHub, WirelessSpectrumEngine
+from netwide.wireless import MobileFieldTelemetryHub, WirelessSpectrumEngine
 
 
 def test_gateway_classification_with_tmobile():

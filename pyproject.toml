@@ -3,15 +3,15 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "netpulse"
-version = "4.6.0"
-description = "NetPulse — Sovereign Network Intelligence, 802.11 TSF De-Cloaking, Wire DPI & Active Countermeasures Suite"
+name = "netwide"
+version = "4.7.0"
+description = "Netwide — Sovereign Network Intelligence, 802.11 TSF De-Cloaking, Wire DPI & Active Countermeasures Suite"
 readme = "README.md"
 requires-python = ">=3.10"
-license = "LicenseRef-NetPulse-Commercial"
+license = "LicenseRef-Netwide-Commercial"
 license-files = ["LICENSE.md"]
 authors = [
-    {name = "NetPulse Sovereign Engineering"}
+    {name = "Netwide Sovereign Engineering"}
 ]
 dependencies = [
     "fastapi>=0.110.0",
@@ -34,14 +34,14 @@ dev = [
 ]
 
 [project.scripts]
-netpulse = "netpulse.cli:main"
+netwide = "netwide.cli:main"
 
 [tool.setuptools]
-package-dir = {"netpulse" = "."}
-packages = ["netpulse"]
+package-dir = {"netwide" = "."}
+packages = ["netwide"]
 
 [tool.setuptools.package-data]
-netpulse = [
+netwide = [
     "static/*.html",
     "static/*.svg",
     "static/*.json",

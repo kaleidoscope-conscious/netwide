@@ -17,7 +17,7 @@ import time
 import urllib.request
 from typing import Any, Dict, List, Optional, Tuple
 
-from netpulse.oui import oui_db
+from netwide.oui import oui_db
 
 
 def _freq_to_channel(freq_mhz: int) -> int:
@@ -1324,7 +1324,7 @@ def fetch_wan_intelligence(gateway_ip: str = "192.168.12.1") -> Dict[str, Any]:
 
     for api_url in ("http://ip-api.com/json/?fields=status,message,country,regionName,city,lat,lon,timezone,isp,org,as,query", "https://ipwho.is/"):
         try:
-            req = urllib.request.Request(api_url, headers={"User-Agent": "NetPulse/4.0"})
+            req = urllib.request.Request(api_url, headers={"User-Agent": "Netwide/4.0"})
             with urllib.request.urlopen(req, timeout=2.5) as resp:
                 data = json.loads(resp.read(8192).decode("utf-8", errors="ignore"))
                 if data.get("query") or data.get("ip"):
@@ -1370,7 +1370,7 @@ def run_wan_speedtest(payload_bytes: int = 15_000_000) -> Dict[str, Any]:
     loaded_rtts: List[float] = []
 
     def _download_worker() -> int:
-        req = urllib.request.Request(url, headers={"User-Agent": "NetPulse-SpeedTest/5.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "Netwide-SpeedTest/5.0"})
         total = 0
         with urllib.request.urlopen(req, timeout=8.0) as resp:
             while True:
@@ -1422,7 +1422,7 @@ def run_wan_speedtest(payload_bytes: int = 15_000_000) -> Dict[str, Any]:
         req = urllib.request.Request(
             "https://speed.cloudflare.com/__up",
             data=upload_payload,
-            headers={"User-Agent": "NetPulse-SpeedTest/5.0", "Content-Type": "application/octet-stream"},
+            headers={"User-Agent": "Netwide-SpeedTest/5.0", "Content-Type": "application/octet-stream"},
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=5.0) as resp:

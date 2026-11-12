@@ -1,7 +1,7 @@
 services:
-  netpulse:
+  netwide:
     build: .
-    container_name: netpulse
+    container_name: netwide
     network_mode: host
     cap_add:
       - NET_ADMIN
@@ -11,12 +11,12 @@ services:
         required: false
     environment:
       # Persist the SQLite intel DB on the named volume. Mounting the volume over
-      # /app/netpulse shadowed the entire package source (documented bug) — mount
-      # a dedicated /data dir and point engines at it via NETPULSE_DB_PATH instead.
-      - NETPULSE_DB_PATH=/data/netpulse_intel.db
+      # /app/netwide shadowed the entire package source (documented bug) — mount
+      # a dedicated /data dir and point engines at it via NETWIDE_DB_PATH instead.
+      - NETWIDE_DB_PATH=/data/netwide_intel.db
     volumes:
-      - netpulse_data:/data
+      - netwide_data:/data
     restart: unless-stopped
 
 volumes:
-  netpulse_data:
+  netwide_data:

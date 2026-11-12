@@ -4,12 +4,12 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 def test_passive_schedule_budget():
-    from netpulse.passive_census import coverage_budget, dwell_schedule
+    from netwide.passive_census import coverage_budget, dwell_schedule
     rows = dwell_schedule(10.0)
     assert coverage_budget(rows)["channels"] == len(rows)
 
 def test_db_passive_helpers():
-    from netpulse.database import NetworkDatabase
+    from netwide.database import NetworkDatabase
     import tempfile, os
     with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tf:
         path = tf.name
@@ -23,7 +23,7 @@ def test_db_passive_helpers():
 
 def test_health_and_verify_limit():
     from fastapi.testclient import TestClient
-    from netpulse.server import app
+    from netwide.server import app
     c = TestClient(app)
     assert c.get("/api/passive/census").status_code == 200
     assert c.get("/api/ledger/verify?limit=100").status_code == 200
@@ -36,4 +36,4 @@ def test_demo_exists():
 def test_cli_serve_default_loopback():
     import pathlib
     txt = pathlib.Path(str(pathlib.Path(__file__).resolve().parents[1] / "cli.py")).read_text(encoding="utf-8")
-    assert "127.0.0.1" in txt and "NETPULSE_HOST" in txt
+    assert "127.0.0.1" in txt and "NETWIDE_HOST" in txt

@@ -6,11 +6,11 @@
 <meta name="theme-color" content="#090d14">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="NetPulse">
+<meta name="apple-mobile-web-app-title" content="Netwide">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" type="image/svg+xml" href="/static/icon.svg">
 <link rel="apple-touch-icon" href="/static/icon.svg">
-<title>NetPulse Mobile — Sovereign RF & Network Field Suite</title>
+<title>Netwide Mobile — Sovereign RF & Network Field Suite</title>
 <style>
   :root {
     --bg: #090d14;
@@ -434,7 +434,7 @@
   <div class="brand-row">
     <div class="brand-logo">NP</div>
     <div>
-      <div class="brand-title">NetPulse Mobile</div>
+      <div class="brand-title">Netwide Mobile</div>
       <div class="brand-sub">
         <span id="connDot" class="status-dot"></span>
         <span id="connText">Connecting Node...</span>
@@ -446,7 +446,7 @@
   <div class="top-actions">
     <button class="btn" onclick="openMobileSubscriptionModal()" id="mobileSubBtn" style="border-color:#a78bfa;color:#e9d5ff;">💎 <span id="mobileSubBadge">FREE</span></button>
     <button class="btn btn-primary" onclick="triggerFullMobileScan()" id="btnScanNow">⟳ Scan</button>
-    <a class="btn btn-emerald" href="/download/NetPulse-Mobile.apk" id="btnTopApk" download>⬇ APK</a>
+    <a class="btn btn-emerald" href="/download/Netwide-Mobile.apk" id="btnTopApk" download>⬇ APK</a>
   </div>
 </header>
 
@@ -719,14 +719,14 @@
     <div class="m-card highlight-emerald">
       <div class="card-top">
         <div>
-          <div class="card-title">Download Native Android App (`NetPulse-Mobile.apk`)</div>
+          <div class="card-title">Download Native Android App (`Netwide-Mobile.apk`)</div>
           <div style="font-size:11.5px;color:var(--text-dim);margin-top:3px;">
             Signed Android 15 (API 35) Native Package with direct on-phone hardware Wi-Fi TSF scanner, 48-thread standalone LAN subnet sweeper, hardware Magnetometer (`µT`), and haptic Geiger counter.
           </div>
         </div>
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-        <a href="/download/NetPulse-Mobile.apk" download class="btn btn-emerald" style="flex:1;padding:10px;">⬇ Download NetPulse-Mobile.apk</a>
+        <a href="/download/Netwide-Mobile.apk" download class="btn btn-emerald" style="flex:1;padding:10px;">⬇ Download Netwide-Mobile.apk</a>
         <button class="btn btn-primary" onclick="exportDesktopReport()">📄 Export Forensic Report</button>
       </div>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
@@ -744,7 +744,7 @@
     <div class="m-card highlight-sky">
       <div class="card-title">Sovereign Node Connection (`jg` Engine)</div>
       <div style="font-size:11.5px;color:var(--text-dim);margin-top:2px;">
-        Connects over Wi-Fi to your stationary NetPulse Guardian Node (`192.168.12.225:8765`) for dual-receiver differential RF triangulation and raw 802.11 Information Element inspection.
+        Connects over Wi-Fi to your stationary Netwide Guardian Node (`192.168.12.225:8765`) for dual-receiver differential RF triangulation and raw 802.11 Information Element inspection.
       </div>
       <div style="display:flex;gap:6px;margin-top:8px;">
         <input type="text" id="nodeUrlInput" class="m-input" value="http://192.168.12.225:8765">
@@ -773,7 +773,7 @@
     <div class="m-card">
       <div class="card-title">Standalone On-Phone Hardware Sweeper</div>
       <div style="font-size:11.5px;color:var(--text-dim);margin-top:2px;">
-        When running inside the Native Android APK (`NetPulse-Mobile.apk`), you can scan any Wi-Fi network & `/24` LAN subnet directly from your phone's hardware even when away from home.
+        When running inside the Native Android APK (`Netwide-Mobile.apk`), you can scan any Wi-Fi network & `/24` LAN subnet directly from your phone's hardware even when away from home.
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
         <button class="btn btn-primary" style="flex:1" onclick="runStandalonePhoneWifiScan()">📡 Phone Wi-Fi Scan</button>
@@ -861,7 +861,7 @@
   }
 
   const isNativeAndroid = typeof window.AndroidNative !== 'undefined';
-  let API_BASE = localStorage.getItem('netpulse_node_url') ||
+  let API_BASE = localStorage.getItem('netwide_node_url') ||
     (location.protocol.startsWith('http') ? location.origin : 'http://192.168.12.225:8765');
 
   document.getElementById('nodeUrlInput').value = API_BASE;
@@ -915,7 +915,7 @@
     const val = document.getElementById('nodeUrlInput').value.trim().replace(/\/+$/, '');
     if (val) {
       API_BASE = val;
-      localStorage.setItem('netpulse_node_url', API_BASE);
+      localStorage.setItem('netwide_node_url', API_BASE);
       document.getElementById('setupNodeIp').textContent = API_BASE;
       showToast('Connecting to ' + API_BASE + '...');
       fetchMobileState();
@@ -2025,7 +2025,7 @@
   // ==================== STANDALONE NATIVE ANDROID HARDWARE FUNCTIONS ====================
   function runStandalonePhoneWifiScan(silent = false) {
     if (!isNativeAndroid || !window.AndroidNative.scanNativeWifi) {
-      if (!silent) showToast('Install NetPulse-Mobile.apk for direct on-phone Wi-Fi hardware scanning');
+      if (!silent) showToast('Install Netwide-Mobile.apk for direct on-phone Wi-Fi hardware scanning');
       return;
     }
     try {
@@ -2040,7 +2040,7 @@
 
   function runStandalonePhoneLanSweep() {
     if (!isNativeAndroid || !window.AndroidNative.scanNativeLanSubnet) {
-      showToast('Install NetPulse-Mobile.apk for standalone on-phone subnet sweeping');
+      showToast('Install Netwide-Mobile.apk for standalone on-phone subnet sweeping');
       return;
     }
     showToast('Running 48-thread standalone subnet sweep on phone...');
@@ -2057,7 +2057,7 @@
 
   function runStandalonePhoneSsdpScan() {
     if (!isNativeAndroid || !window.AndroidNative.scanNativeSsdp) {
-      showToast('Install NetPulse-Mobile.apk for standalone on-phone SSDP multicast discovery');
+      showToast('Install Netwide-Mobile.apk for standalone on-phone SSDP multicast discovery');
       return;
     }
     showToast('Sending UDP 239.255.255.250:1900 M-SEARCH from phone...');
@@ -2269,14 +2269,14 @@
       const res = await fetch(API_BASE + '/api/subscription/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier, plan, email: 'mobile@netpulse.io', origin_url: API_BASE })
+        body: JSON.stringify({ tier, plan, email: 'mobile@netwide.io', origin_url: API_BASE })
       }).then(r => r.json());
       if (res.ok && res.checkout_url) {
         window.open(res.checkout_url, '_blank');
       } else {
         // No Stripe key on this node -> hosted Stripe Payment Link (paid checkout).
-        const link = (typeof NETPULSE_PAYMENT_LINKS !== 'undefined')
-          ? NETPULSE_PAYMENT_LINKS[`${tier}_${plan}`]
+        const link = (typeof NETWIDE_PAYMENT_LINKS !== 'undefined')
+          ? NETWIDE_PAYMENT_LINKS[`${tier}_${plan}`]
           : null;
         if (link) {
           showToast('Opening secure Stripe checkout...');
@@ -2319,7 +2319,7 @@
       const res = await fetch(API_BASE + '/api/subscription/trial', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'mobile-trial@netpulse.io' })
+        body: JSON.stringify({ email: 'mobile-trial@netwide.io' })
       }).then(r => r.json());
       showToast(res.ok ? ('✓ ' + res.message) : ('✕ ' + res.error));
       if (res.ok) {
@@ -2331,7 +2331,7 @@
     }
   }
 
-    const NETPULSE_PAYMENT_LINKS = {
+    const NETWIDE_PAYMENT_LINKS = {
       'pro_lifetime': 'https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19',
       'pro_annual': 'https://buy.stripe.com/28E8wP248g0Q38oaCdcbC1a',
       'pro_monthly': 'https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b',
@@ -2346,7 +2346,7 @@
       const res = await fetch(API_BASE + '/api/subscription/admin/mint', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tier, plan, email: 'founder@netpulse.io', auto_activate: true, admin_token })
+        body: JSON.stringify({ tier, plan, email: 'founder@netwide.io', auto_activate: true, admin_token })
       }).then(r => r.json());
       if (res.ok) {
         const inp = document.getElementById('mSubKeyInput');
@@ -2906,7 +2906,7 @@
   <div style="background:#111824;border:1px solid #2e405c;border-radius:14px;width:100%;max-width:520px;padding:14px;margin-top:8px;margin-bottom:24px;">
     <div class="card-top" style="border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:10px;">
       <div>
-        <div class="card-title">💎 NetPulse Subscription &amp; License</div>
+        <div class="card-title">💎 Netwide Subscription &amp; License</div>
         <div class="card-mono" id="mSubCurrentTier">Community Edition (FREE)</div>
       </div>
       <button class="btn" onclick="closeMobileSubscriptionModal()">✕ Close</button>

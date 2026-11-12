@@ -1,11 +1,11 @@
-# NetPulse — 30-Second Demo Script
+# Netwide — 30-Second Demo Script
 
-**Story:** *Apple randomizes your MAC to hide you. NetPulse sees through it — and shows you the packet that proves it.*
+**Story:** *Apple randomizes your MAC to hide you. Netwide sees through it — and shows you the packet that proves it.*
 
 Audience: Hacker News `Show HN`, r/Privacy, YouTube (NetworkChuck-style), TikTok/Reels.
 
 ## 0:00–0:05 — Hook
-Walk into a room with phone in Geiger mode. `netpulse serve` on Pi/laptop, `/mobile` on phone. Say:
+Walk into a room with phone in Geiger mode. `netwide serve` on Pi/laptop, `/mobile` on phone. Say:
 > "Your phone randomizes its MAC per Wi-Fi — so tools like Fing go blind. Ours doesn't."
 
 ## 0:05–0:15 — De-cloak
@@ -19,8 +19,8 @@ Open device → Control → quarantine. Show Undo (`/api/actions` → undo) + le
 > "Local-only. No cloud. Every verdict has proof."
 
 ## Checklist
-- `python -m netpulse scan` (CLI) vs `scripts/benchmark_vs_fing.py` (baseline vs deep)
-- `netpulse graph` / `ble` / `passive` / `metrics` / `digest` for advanced cuts
+- `python -m netwide scan` (CLI) vs `scripts/benchmark_vs_fing.py` (baseline vs deep)
+- `netwide graph` / `ble` / `passive` / `metrics` / `digest` for advanced cuts
 - Endpoints for b-roll: `/api/rf-geiger?bssid=`, `/api/graph`, `/api/threat-field`, `/api/passive/census`
 
 ## Anti-demo (don't show)

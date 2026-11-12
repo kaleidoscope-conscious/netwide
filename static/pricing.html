@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NetPulse — Commercial Pricing, Licensing & Downloads</title>
+  <title>Netwide — Commercial Pricing, Licensing & Downloads</title>
   <style>
     :root {
       --bg: #070a10;
@@ -187,7 +187,7 @@
   <nav class="nav">
     <a href="/?desktop=1" class="brand">
       <div class="logo">NP</div>
-      <span>NetPulse v4.5</span>
+      <span>Netwide v4.5</span>
     </a>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
       <span id="activeLicensePill" class="pill" style="margin:0;">Checking Node License…</span>
@@ -195,7 +195,7 @@
       <a href="/mobile" class="btn">📱 Mobile App</a>
       <a href="/launch" class="btn" style="border-color:#a855f7;color:#e9d5ff;">🚀 Launch Hub</a>
       <a href="/privacy" class="btn">🛡 Privacy</a>
-      <a href="/download/NetPulse-Mobile.apk" download class="btn btn-emerald">⬇ Android 15 APK</a>
+      <a href="/download/Netwide-Mobile.apk" download class="btn btn-emerald">⬇ Android 15 APK</a>
     </div>
   </nav>
 
@@ -210,7 +210,7 @@
       <button id="btnMonthly" class="btn btn-primary" onclick="setCycle('monthly')">Monthly Billing</button>
       <button id="btnAnnual" class="btn" onclick="setCycle('annual')">Annual Billing (Save 17%)</button>
       <button id="btnLifetime" class="btn" style="border-color:#a855f7;color:#e9d5ff;" onclick="setCycle('lifetime')">👑 Founder's Lifetime (One-Time)</button>
-      <input type="email" id="buyerEmail" class="input" style="min-width:250px;" placeholder="Enter subscriber email…" value="founder@netpulse.io" />
+      <input type="email" id="buyerEmail" class="input" style="min-width:250px;" placeholder="Enter subscriber email…" value="founder@netwide.io" />
     </div>
     <div id="heroStatusBanner" style="display:none;max-width:860px;margin:0 auto 12px auto;padding:12px 16px;border-radius:10px;border:1px solid #38bdf8;background:rgba(14,20,32,0.95);font-family:var(--mono);font-size:12.5px;text-align:left;"></div>
   </section>
@@ -351,7 +351,7 @@
       } catch (e) {}
     }
 
-    const NETPULSE_PAYMENT_LINKS = {
+    const NETWIDE_PAYMENT_LINKS = {
       'pro_lifetime': 'https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19',
       'pro_annual': 'https://buy.stripe.com/28E8wP248g0Q38oaCdcbC1a',
       'pro_monthly': 'https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b',
@@ -372,7 +372,7 @@
         if (res && res.ok && res.checkout_url) { location.href = res.checkout_url; return; }
       } catch (_) {}
       // 2) Fallback: hosted Stripe Payment Link (works without a local Stripe key).
-      const link = NETPULSE_PAYMENT_LINKS[`${tier}_${plan}`];
+      const link = NETWIDE_PAYMENT_LINKS[`${tier}_${plan}`];
       if (link) { location.href = link; }
       else if (typeof showPricingToast === 'function') {
         showPricingToast('Checkout unavailable for this plan', '#f87171');
@@ -380,7 +380,7 @@
     }
 
     async function checkout(tier) {
-      const email = document.getElementById('buyerEmail').value.trim() || 'subscriber@netpulse.io';
+      const email = document.getElementById('buyerEmail').value.trim() || 'subscriber@netwide.io';
       showBanner(`⟳ Creating Stripe Checkout Session for <strong>${tier.toUpperCase()} (${cycle.toUpperCase()})</strong>…`, '#38bdf8');
       showPricingToast(`⟳ Connecting to Stripe Checkout (${tier.toUpperCase()})…`, '#38bdf8');
       const res = await fetch('/api/subscription/checkout', {
@@ -405,7 +405,7 @@
     }
 
     async function claimTrial() {
-      const email = document.getElementById('buyerEmail').value.trim() || 'trial@netpulse.io';
+      const email = document.getElementById('buyerEmail').value.trim() || 'trial@netwide.io';
       const res = await fetch('/api/subscription/lead', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},

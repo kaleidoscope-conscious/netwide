@@ -6,19 +6,19 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
 from fastapi.testclient import TestClient
 
-from netpulse.accuracy import GOLDEN_LAB_CORPUS, evaluate_accuracy
-from netpulse.chronicle import (
+from netwide.accuracy import GOLDEN_LAB_CORPUS, evaluate_accuracy
+from netwide.chronicle import (
     compute_device_rhythm_profile,
     generate_network_chronicle,
-    generate_netpulse_wrapped,
+    generate_netwide_wrapped,
 )
-from netpulse.evidence_bundle import build_case_evidence_bundle, verify_evidence_bundle
-from netpulse.fusion import (
+from netwide.evidence_bundle import build_case_evidence_bundle, verify_evidence_bundle
+from netwide.fusion import (
     VECTOR_DEFINITIONS,
     extract_evidence_vectors,
     fuse_evidence,
 )
-from netpulse.server import app
+from netwide.server import app
 
 client = TestClient(app)
 
@@ -121,7 +121,7 @@ def test_evidence_bundle_case_uco_lifecycle():
 
     bundle = build_case_evidence_bundle(device, proof_verdict, ledger, signing_secret=secret)
     assert bundle["@type"] == "case-investigation:InvestigativeBundle"
-    assert "netpulse:signature" in bundle
+    assert "netwide:signature" in bundle
 
     # 1. Verification of untouched bundle must succeed
     v_ok = verify_evidence_bundle(bundle, signing_secret=secret)
@@ -157,7 +157,7 @@ def test_chronicle_and_rhythm_engine():
     assert chronicle["ok"] is True
     assert "narrative" in chronicle
 
-    wrapped = generate_netpulse_wrapped(devices, ledger_events, scan_count=15)
+    wrapped = generate_netwide_wrapped(devices, ledger_events, scan_count=15)
     assert wrapped["ok"] is True
     assert wrapped["total_devices_tracked"] == 1
     assert wrapped["top_hardware_ecosystem"] == "Sonos"
@@ -187,7 +187,7 @@ def test_api_accuracy_and_proof_endpoints():
     # First activate an enterprise key for bundle generation
     mint_resp = client.post(
         "/api/subscription/admin/mint",
-        json={"tier": "enterprise", "plan": "lifetime", "email": "founder@netpulse.io", "auto_activate": True},
+        json={"tier": "enterprise", "plan": "lifetime", "email": "founder@netwide.io", "auto_activate": True},
     )
     assert mint_resp.status_code == 200
 

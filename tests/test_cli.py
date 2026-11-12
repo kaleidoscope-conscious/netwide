@@ -1,9 +1,9 @@
 """
-Tests for NetPulse Rich Terminal CLI commands and exit codes.
+Tests for Netwide Rich Terminal CLI commands and exit codes.
 """
 
 import pytest
-from netpulse.cli import main, cmd_cidr, cmd_oui
+from netwide.cli import main, cmd_cidr, cmd_oui
 
 
 def test_cli_version(capsys):
@@ -11,7 +11,7 @@ def test_cli_version(capsys):
         main(["--version"])
     assert exc.value.code == 0
     captured = capsys.readouterr()
-    assert "4.6.0" in captured.out or "4.6.0" in captured.err
+    assert "4.7.0" in captured.out or "4.7.0" in captured.err
 
 
 def test_cli_cidr_valid(capsys):

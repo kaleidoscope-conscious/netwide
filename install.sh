@@ -6,7 +6,7 @@ PARENT_DIR="$(dirname "$APP_DIR")"
 PYTHON_BIN="$(command -v python3)"
 
 echo "======================================================================"
-echo "  NetPulse v4.5.0 — Production Installer"
+echo "  Netwide v4.5.0 — Production Installer"
 echo "======================================================================"
 
 # 1. Create a virtualenv and install runtime dependencies
@@ -29,9 +29,9 @@ fi
 SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
 mkdir -p "$SYSTEMD_USER_DIR"
 
-cat > "$SYSTEMD_USER_DIR/netpulse-guardian.service" <<EOF
+cat > "$SYSTEMD_USER_DIR/netwide-guardian.service" <<EOF
 [Unit]
-Description=NetPulse Sovereign Network & RF Intelligence Daemon
+Description=Netwide Sovereign Network & RF Intelligence Daemon
 After=network-online.target
 
 [Service]
@@ -39,7 +39,7 @@ Type=simple
 WorkingDirectory=$APP_DIR
 Environment=PYTHONPATH=$PARENT_DIR
 Environment=PYTHONUNBUFFERED=1
-ExecStart=$VENV_PY -m netpulse serve --host 0.0.0.0 --port 8765
+ExecStart=$VENV_PY -m netwide serve --host 0.0.0.0 --port 8765
 Restart=always
 RestartSec=4
 
@@ -48,30 +48,30 @@ WantedBy=default.target
 EOF
 
 systemctl --user daemon-reload
-systemctl --user enable --now netpulse-guardian.service
+systemctl --user enable --now netwide-guardian.service
 
 # 3. Install Desktop Launcher (.desktop)
 APPS_DIR="$HOME/.local/share/applications"
 mkdir -p "$APPS_DIR"
 
-cat > "$APPS_DIR/netpulse.desktop" <<EOF
+cat > "$APPS_DIR/netwide.desktop" <<EOF
 [Desktop Entry]
 Type=Application
-Name=NetPulse Workbench
+Name=Netwide Workbench
 GenericName=Sovereign Network & RF Intelligence Suite
 Comment=Deep LAN Fingerprinting, 802.11 TSF De-Cloaking, Wire DPI & Endpoint Control
-Exec=env PYTHONPATH=$PARENT_DIR $VENV_PY -m netpulse desktop
-Icon=$APP_DIR/static/netpulse-icon.svg
+Exec=env PYTHONPATH=$PARENT_DIR $VENV_PY -m netwide desktop
+Icon=$APP_DIR/static/netwide-icon.svg
 Terminal=false
 Categories=Network;Security;System;Monitor;
 StartupNotify=true
 EOF
 
-chmod +x "$APPS_DIR/netpulse.desktop"
+chmod +x "$APPS_DIR/netwide.desktop"
 
-echo "[✓] systemd service 'netpulse-guardian.service' enabled & running on :8765"
-echo "[✓] Desktop launcher installed to $APPS_DIR/netpulse.desktop"
-echo "[✓] Admin Master Token saved to ~/.config/netpulse/admin.token (0600)"
+echo "[✓] systemd service 'netwide-guardian.service' enabled & running on :8765"
+echo "[✓] Desktop launcher installed to $APPS_DIR/netwide.desktop"
+echo "[✓] Admin Master Token saved to ~/.config/netwide/admin.token (0600)"
 echo "----------------------------------------------------------------------"
 echo "  Workbench URL:  http://127.0.0.1:8765"
 echo "  Storefront URL: http://127.0.0.1:8765/pricing"

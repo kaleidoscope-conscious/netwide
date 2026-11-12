@@ -1,12 +1,12 @@
 """
-Unit tests for NetPulse FastAPI endpoints and API contracts.
+Unit tests for Netwide FastAPI endpoints and API contracts.
 """
 
 import os
 
 from fastapi.testclient import TestClient
 
-from netpulse.server import app
+from netwide.server import app
 
 client = TestClient(app)
 
@@ -83,7 +83,7 @@ def test_api_action_quarantine_stop():
     # 2. Mint & activate Sovereign Enterprise key and verify quarantine endpoint succeeds
     mint_resp = client.post(
         "/api/subscription/admin/mint",
-        json={"tier": "enterprise", "plan": "lifetime", "email": "founder@netpulse.io", "auto_activate": True},
+        json={"tier": "enterprise", "plan": "lifetime", "email": "founder@netwide.io", "auto_activate": True},
     )
     assert mint_resp.status_code == 200
     assert mint_resp.json()["ok"] is True
@@ -115,7 +115,7 @@ def test_mobile_pwa_and_apk_download():
     assert "mobileToggleQuarantine" in resp_pwa.text
     assert "mobileTopoCanvas" in resp_pwa.text
 
-    resp_apk = client.get("/download/NetPulse-Mobile.apk")
+    resp_apk = client.get("/download/Netwide-Mobile.apk")
     assert resp_apk.status_code == 200
     assert len(resp_apk.content) > 10000
 
@@ -126,7 +126,7 @@ def test_health_pricing_and_admin_security():
     assert resp_health.headers.get("X-Content-Type-Options") == "nosniff"
     hdata = resp_health.json()
     assert hdata["status"] == "healthy"
-    assert hdata["version"] == "4.6.0"
+    assert hdata["version"] == "4.7.0"
 
     resp_pricing = client.get("/pricing")
     assert resp_pricing.status_code == 200
@@ -163,7 +163,7 @@ def test_public_storefront_never_offers_unpaid_licenses():
 
 def test_privileged_licensing_requires_admin_token(monkeypatch):
     """Minting/revoking must not be possible from a customer node via loopback."""
-    monkeypatch.delenv("NETPULSE_ALLOW_LOOPBACK_ADMIN", raising=False)
+    monkeypatch.delenv("NETWIDE_ALLOW_LOOPBACK_ADMIN", raising=False)
     for route, payload in (
         ("/api/subscription/admin/mint", {"tier": "enterprise", "plan": "lifetime", "email": "x@y.z"}),
         ("/api/subscription/admin/revoke", {"jti": "np_deadbeef"}),
@@ -254,7 +254,7 @@ def test_admin_dashboard_page_and_business_metrics():
 
 
 def test_google_play_bundle_privacy_and_launch_hub():
-    resp_aab = client.get("/download/NetPulse-Mobile-PlayStore.aab")
+    resp_aab = client.get("/download/Netwide-Mobile-PlayStore.aab")
     assert resp_aab.status_code == 200
     assert len(resp_aab.content) > 10000
 
@@ -310,7 +310,7 @@ def test_oui_search_analytics_telemetry_and_csv_export():
     # 4. CSV export API (ensure Enterprise tier is active)
     client.post(
         "/api/subscription/admin/mint",
-        json={"tier": "enterprise", "plan": "lifetime", "email": "founder@netpulse.io", "auto_activate": True},
+        json={"tier": "enterprise", "plan": "lifetime", "email": "founder@netwide.io", "auto_activate": True},
     )
     resp_csv = client.get("/api/export/csv")
     assert resp_csv.status_code == 200
@@ -331,7 +331,7 @@ def test_ssh_and_smb_audit_tier_gating():
     # Restore Enterprise license and verify DNS audit executes cleanly
     client.post(
         "/api/subscription/admin/mint",
-        json={"tier": "enterprise", "plan": "lifetime", "email": "founder@netpulse.io", "auto_activate": True},
+        json={"tier": "enterprise", "plan": "lifetime", "email": "founder@netwide.io", "auto_activate": True},
     )
     r_dns = client.post("/api/action/dns-audit", json={"ip": "127.0.0.1"})
     assert r_dns.status_code == 200
@@ -374,7 +374,7 @@ def test_all_registered_endpoints_and_websocket_functional():
     # Ensure Enterprise license is active so all gated endpoints run their full handler logic
     r_mint = client.post(
         "/api/subscription/admin/mint",
-        json={"tier": "enterprise", "plan": "lifetime", "email": "founder@netpulse.io", "auto_activate": True},
+        json={"tier": "enterprise", "plan": "lifetime", "email": "founder@netwide.io", "auto_activate": True},
     )
     assert r_mint.status_code == 200
     minted_key = r_mint.json()["license_key"]
@@ -392,8 +392,8 @@ def test_all_registered_endpoints_and_websocket_functional():
         ("GET", "/manifest.json", None, [200]),
         ("GET", "/sw.js", None, [200]),
         ("GET", "/static/icon.svg", None, [200]),
-        ("GET", "/download/NetPulse-Mobile.apk", None, [200]),
-        ("GET", "/download/NetPulse-Mobile-PlayStore.aab", None, [200]),
+        ("GET", "/download/Netwide-Mobile.apk", None, [200]),
+        ("GET", "/download/Netwide-Mobile-PlayStore.aab", None, [200]),
         ("GET", "/api/mobile-qr", None, [200]),
         ("GET", "/api/state", None, [200]),
         ("GET", "/api/hypotheses", None, [200]),
@@ -437,10 +437,10 @@ def test_all_registered_endpoints_and_websocket_functional():
         ("GET", "/api/export/csv", None, [200]),
         ("POST", "/api/export/report", {}, [200]),
         ("GET", "/api/subscription/status", None, [200]),
-        ("POST", "/api/subscription/trial", {"email": "matrix_trial@netpulse.io"}, [200]),
-        ("POST", "/api/subscription/checkout", {"tier": "pro", "plan": "monthly", "email": "test@netpulse.io"}, [200]),
-        ("POST", "/api/subscription/checkout", {"tier": "enterprise", "plan": "lifetime", "email": "founder@netpulse.io"}, [200]),
-        ("POST", "/api/subscription/lead", {"email": "lead@netpulse.io", "source": "github_pages", "use_case": "msp"}, [200]),
+        ("POST", "/api/subscription/trial", {"email": "matrix_trial@netwide.io"}, [200]),
+        ("POST", "/api/subscription/checkout", {"tier": "pro", "plan": "monthly", "email": "test@netwide.io"}, [200]),
+        ("POST", "/api/subscription/checkout", {"tier": "enterprise", "plan": "lifetime", "email": "founder@netwide.io"}, [200]),
+        ("POST", "/api/subscription/lead", {"email": "lead@netwide.io", "source": "github_pages", "use_case": "msp"}, [200]),
         ("GET", "/api/subscription/admin/leads", None, [200]),
         ("POST", "/api/subscription/verify-session", {"session_id": "cs_test_demo"}, [200]),
         ("POST", "/api/subscription/stripe-config", {"secret_key": "", "publishable_key": "", "webhook_secret": ""}, [200]),
@@ -490,8 +490,8 @@ def test_every_html_button_and_link_leads_to_valid_action() -> None:
     # Some links (CSV / evidence export) are tier-gated. Activate an Enterprise
     # licence for this crawl so gated endpoints answer 200, then restore the
     # free-tier node state so later tests are unaffected.
-    from netpulse.billing import subscription_engine as _sub
-    _mint = _sub.mint_license_key(tier="enterprise", plan="lifetime", email="crawler@netpulse.local")
+    from netwide.billing import subscription_engine as _sub
+    _mint = _sub.mint_license_key(tier="enterprise", plan="lifetime", email="crawler@netwide.local")
     _sub.activate_license_key(_mint["license_key"])
 
     for fpath in html_files:

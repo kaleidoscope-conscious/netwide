@@ -18,8 +18,8 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
-from netpulse.oui import MACIntelligence, oui_db, unmask_eui64_ipv6_mac
-from netpulse.probers import (
+from netwide.oui import MACIntelligence, oui_db, unmask_eui64_ipv6_mac
+from netwide.probers import (
     NetworkInterfaceInfo,
     arp_and_neighbor_sweep,
     measure_single_host_latency,

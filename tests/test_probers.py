@@ -1,11 +1,11 @@
 """
-Unit tests for NetPulse network probers, Wake-on-LAN, and XML parsers.
+Unit tests for Netwide network probers, Wake-on-LAN, and XML parsers.
 """
 
 import struct
 import uuid
 
-from netpulse.probers import (
+from netwide.probers import (
     HostQuarantineManager,
     _build_dnssec_query_packet,
     _build_smb2_negotiate_packet,

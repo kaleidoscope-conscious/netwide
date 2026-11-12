@@ -1,5 +1,5 @@
 """
-Unit tests for NetPulse Cryptographic License Engine, 3-Tier Entitlements & Stripe Webhook HMAC verification.
+Unit tests for Netwide Cryptographic License Engine, 3-Tier Entitlements & Stripe Webhook HMAC verification.
 """
 
 import hashlib
@@ -8,7 +8,7 @@ import json
 import os
 import tempfile
 
-from netpulse.billing import SubscriptionManager
+from netwide.billing import SubscriptionManager
 
 
 def test_mint_and_verify_license_key():
@@ -44,7 +44,7 @@ def test_mint_and_verify_license_key():
         assert mgr.check_feature_access("quarantine")[0] is False
 
         # Mint & activate Sovereign Enterprise Lifetime key -> all features allowed
-        minted_ent = mgr.mint_license_key(tier="enterprise", plan="lifetime", email="founder@netpulse.io")
+        minted_ent = mgr.mint_license_key(tier="enterprise", plan="lifetime", email="founder@netwide.io")
         assert minted_ent["expires_at"] == 0
         mgr.activate_license_key(minted_ent["license_key"])
         assert mgr.check_feature_access("quarantine")[0] is True
@@ -63,7 +63,7 @@ def test_tampered_license_key_rejected():
         db_path = os.path.join(tmpdir, "sub_tamper.db")
         mgr = SubscriptionManager(db_path=db_path)
 
-        minted = mgr.mint_license_key(tier="pro", plan="annual", email="sec@netpulse.io")
+        minted = mgr.mint_license_key(tier="pro", plan="annual", email="sec@netwide.io")
         key = minted["license_key"]
         # Tamper with signature
         tampered = key[:-2] + ("AA" if not key.endswith("AA") else "BB")
@@ -88,10 +88,10 @@ def test_stripe_webhook_hmac_verification():
                     "id": "cs_test_999",
                     "payment_status": "paid",
                     "customer": "cus_test_888",
-                    "customer_email": "stripe_buyer@netpulse.io",
+                    "customer_email": "stripe_buyer@netwide.io",
                     "metadata": {
-                        "netpulse_tier": "enterprise",
-                        "netpulse_plan": "annual",
+                        "netwide_tier": "enterprise",
+                        "netwide_plan": "annual",
                     },
                 }
             },
@@ -134,7 +134,7 @@ def test_stripe_webhook_hmac_verification():
                     "id": "cs_test_unpaid",
                     "payment_status": "unpaid",
                     "customer": "cus_test_unpaid",
-                    "metadata": {"netpulse_tier": "enterprise"},
+                    "metadata": {"netwide_tier": "enterprise"},
                 }
             },
         }
@@ -153,13 +153,13 @@ def test_operator_signed_license_verifies_on_a_customer_node():
     """Ed25519 license authority: a key minted by the operator verifies anywhere."""
     import os as _os
     import tempfile as _tempfile
-    from netpulse import license_authority as _authority
-    from netpulse.billing import SubscriptionManager as _SM
+    from netwide import license_authority as _authority
+    from netwide.billing import SubscriptionManager as _SM
 
     key_path = _tempfile.mktemp(suffix=".authority.key")
     public, private_hex = _authority.generate_keypair()
-    _os.environ["NETPULSE_LICENSE_KEY_PATH"] = key_path
-    _os.environ["NETPULSE_LICENSE_PUBLIC_KEY"] = public
+    _os.environ["NETWIDE_LICENSE_KEY_PATH"] = key_path
+    _os.environ["NETWIDE_LICENSE_PUBLIC_KEY"] = public
     try:
         with open(key_path, "w", encoding="utf-8") as fh:
             fh.write(private_hex)
@@ -182,8 +182,8 @@ def test_operator_signed_license_verifies_on_a_customer_node():
         assert activated.get("ok") is True
         assert customer.get_subscription_status().get("tier") == "enterprise"
     finally:
-        _os.environ.pop("NETPULSE_LICENSE_KEY_PATH", None)
-        _os.environ.pop("NETPULSE_LICENSE_PUBLIC_KEY", None)
+        _os.environ.pop("NETWIDE_LICENSE_KEY_PATH", None)
+        _os.environ.pop("NETWIDE_LICENSE_PUBLIC_KEY", None)
         if _os.path.exists(key_path):
             _os.remove(key_path)
 
@@ -192,8 +192,8 @@ def test_license_signature_scheme_is_recorded_in_payload():
     """The payload declares its signature scheme so verifiers pick the right path."""
     import json as _json
     import tempfile as _tempfile
-    from netpulse.billing import _b64url_decode
-    from netpulse.billing import SubscriptionManager as _SM
+    from netwide.billing import _b64url_decode
+    from netwide.billing import SubscriptionManager as _SM
 
     mgr = _SM(db_path=_tempfile.mktemp(suffix=".db"))
     minted = mgr.mint_license_key(tier="pro", plan="monthly", email="probe@example.com")

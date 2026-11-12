@@ -1,6 +1,6 @@
-"""Entrypoint for `python3 -m netpulse`."""
+"""Entrypoint for `python3 -m netwide`."""
 
-from netpulse.cli import main
+from netwide.cli import main
 
 if __name__ == "__main__":
     main()

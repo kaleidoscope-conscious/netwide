@@ -1,4 +1,4 @@
-"""NetPulse Sovereign Accuracy Harness & Confusion-Cost Scoring Engine.
+"""Netwide Sovereign Accuracy Harness & Confusion-Cost Scoring Engine.
 
 Implements S12 specifications:
 - Golden fixture corpus: replayable dumps & synthetic adversarial scenarios:
@@ -18,7 +18,7 @@ import time
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
-from netpulse.fusion import (
+from netwide.fusion import (
     VECTOR_DEFINITIONS,
     extract_evidence_vectors,
     fuse_evidence,
@@ -261,7 +261,7 @@ def evaluate_accuracy(corpus: Optional[List[Dict[str, Any]]] = None) -> Dict[str
                 if is_agreeing:
                     vector_stats[v.vector_id]["agreement_count"] += 1
 
-        from netpulse.fusion import normalize_brand_token
+        from netwide.fusion import normalize_brand_token
         is_grade_correct = verdict.grade == expected_grade
         is_brand_correct = (
             expected_brand.lower() in verdict.primary_claim.lower()

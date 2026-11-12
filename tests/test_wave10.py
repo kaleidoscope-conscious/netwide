@@ -3,7 +3,7 @@ import pathlib
 import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from netpulse.raft import MeshNode, partition_key
+from netwide.raft import MeshNode, partition_key
 
 def test_raft_majority():
     m = MeshNode("n1")
@@ -17,7 +17,7 @@ def test_partition_deterministic():
 
 def test_mesh_policy_api():
     from fastapi.testclient import TestClient
-    from netpulse.server import app
+    from netwide.server import app
     c = TestClient(app)
     assert c.get("/api/mesh/status").status_code == 200
     assert c.post("/api/mesh/heartbeat", json={"from": "n2"}).status_code == 200

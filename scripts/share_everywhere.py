@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-NetPulse — Multi-Platform Sharing Engine.
+Netwide — Multi-Platform Sharing Engine.
 
-Publishes the NetPulse launch kit to every platform that accepts a post, so
+Publishes the Netwide launch kit to every platform that accepts a post, so
 distribution is one command instead of a checklist.
 
 Design
 ------
 * **Dry run by default.** `--live` actually posts. Nothing is sent without it.
-* Credentials come from the environment or `~/.config/netpulse/social.env`
+* Credentials come from the environment or `~/.config/netwide/social.env`
   (never committed, never echoed).
 * Channels that need no credentials (GitHub Discussions) run automatically.
 * Every channel reports PASS / SKIP / FAIL so a single run tells you exactly
@@ -35,7 +35,7 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ENV_FILE = Path(os.path.expanduser("~")) / ".config" / "netpulse" / "social.env"
+ENV_FILE = Path(os.path.expanduser("~")) / ".config" / "netwide" / "social.env"
 
 # --------------------------------------------------------------------------
 # Launch kit — every link here is live and verified.
@@ -43,7 +43,7 @@ ENV_FILE = Path(os.path.expanduser("~")) / ".config" / "netpulse" / "social.env"
 KIT = {
     "repo": "https://github.com/kaleidoscope-conscious/netpulse",
     "storefront": "https://kaleidoscope-conscious.github.io/netpulse/",
-    "release": "https://github.com/kaleidoscope-conscious/netpulse/releases/tag/v4.6.0",
+    "release": "https://github.com/kaleidoscope-conscious/netpulse/releases/tag/v4.7.0",
     "discussions": "https://github.com/kaleidoscope-conscious/netpulse/discussions",
     "demo": "https://kaleidoscope-conscious.github.io/netpulse/",
     "sponsor": "https://github.com/sponsors/kaleidoscopeAI",
@@ -54,10 +54,10 @@ KIT = {
     "buy_ent_monthly": "https://buy.stripe.com/4gM7sLbEIaGw6kA5hTcbC1e",
 }
 
-TITLE = "NetPulse — see every device on your Wi-Fi, unmask hidden gadgets, quarantine freeloaders"
+TITLE = "Netwide — see every device on your Wi-Fi, unmask hidden gadgets, quarantine freeloaders"
 
 BODY_SHORT = (
-    "NetPulse is a 100% on-device network intelligence suite: it unmasks hidden & spoofed "
+    "Netwide is a 100% on-device network intelligence suite: it unmasks hidden & spoofed "
     "Wi-Fi gadgets, fingerprints 47,035+ hardware vendors, audits the crypto your devices "
     "actually speak, watches live wire traffic (DPI/JA3/SNI), and lets you quarantine the "
     "freeloader in one click. No cloud, no account, no telemetry."
@@ -105,7 +105,7 @@ def log(channel: str, status: str, detail: str = "") -> None:
 
 
 def load_env() -> None:
-    """Load ~/.config/netpulse/social.env without overriding real env vars."""
+    """Load ~/.config/netwide/social.env without overriding real env vars."""
     if ENV_FILE.exists():
         for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
             line = line.strip()
@@ -169,7 +169,7 @@ def post_reddit(text: str, live: bool) -> None:
         tok = http("POST", "https://www.reddit.com/api/v1/access_token",
                    data={"grant_type": "password", "username": user, "password": pwd},
                    headers={"Authorization": f"Basic {__import__('base64').b64encode(f'{cid}:{secret}'.encode()).decode()}",
-                            "User-Agent": "netpulse-share/4.6"})
+                            "User-Agent": "netwide-share/4.6"})
         access = tok.get("access_token", "")
         subs = ["networking", "homelab", "cybersecurity", "selfhosted"]
         posted = 0
@@ -177,7 +177,7 @@ def post_reddit(text: str, live: bool) -> None:
             try:
                 http("POST", "https://oauth.reddit.com/api/submit",
                      data={"sr": sub, "kind": "self", "title": TITLE, "text": text, "api_type": "json"},
-                     headers={"Authorization": f"bearer {access}", "User-Agent": "netpulse-share/4.6"})
+                     headers={"Authorization": f"bearer {access}", "User-Agent": "netwide-share/4.6"})
                 posted += 1
             except Exception:
                 continue
@@ -190,7 +190,7 @@ def post_reddit(text: str, live: bool) -> None:
 
 def post_linkedin(text: str, live: bool) -> None:
     token = env("LINKEDIN_ACCESS_TOKEN")
-    urn = env("LINKEDIN_AUTHOR_URN") or "urn:li:organization:netpulse"
+    urn = env("LINKEDIN_AUTHOR_URN") or "urn:li:organization:netwide"
     if not token:
         return log("linkedin", SKIP, "set LINKEDIN_ACCESS_TOKEN (+ LINKEDIN_AUTHOR_URN)")
     if not live:
@@ -321,7 +321,7 @@ def post_devto(text: str, live: bool) -> None:
         http("POST", "https://dev.to/api/articles",
              data=json.dumps({"title": TITLE, "published": True, "body_markdown": text,
                               "tags": ["security", "networking", "opensource", "selfhosted", "linux"],
-                              "canonical_url": KIT["repo"], "series": "NetPulse"}),
+                              "canonical_url": KIT["repo"], "series": "Netwide"}),
              headers={"Content-Type": "application/json", "api-key": key})
         log("devto", PASS, "published")
     except urllib.error.HTTPError as e:
@@ -359,7 +359,7 @@ def post_producthunt(text: str, live: bool) -> None:
         http("POST", "https://api.producthunt.com/v2/api/graphql",
              data=json.dumps({"query": """mutation($name:String!,$tagline:String!,$description:String!,$website:String!){
                 createProduct(input:{name:$name,tagline:$tagline,description:$description,website:$website,links:{website:$website}}){id,name}}""",
-                              "variables": {"name": "NetPulse", "tagline": "On-device network intelligence & LAN guardian",
+                              "variables": {"name": "Netwide", "tagline": "On-device network intelligence & LAN guardian",
                                             "description": text[:400], "website": KIT["storefront"]}}),
              headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"})
         log("producthunt", PASS, "launch created")
@@ -383,7 +383,7 @@ def post_github_discussions(text: str, live: bool) -> None:
         out = subprocess.run(
             ["gh", "api", "graphql", "-f", "query=" + query,
              "-f", "repoId=R_kgDOVni70Q", "-f", "categoryId=DIC_kwDOVni70c4DK7gH",
-             "-f", "title=NetPulse v4.6.0 — on-device network intelligence suite",
+             "-f", "title=Netwide v4.7.0 — on-device network intelligence suite",
              "-F", f"body=@{script}"],
             capture_output=True, text=True, timeout=90,
         )
@@ -415,7 +415,7 @@ CHANNELS = [
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Share NetPulse everywhere possible.")
+    ap = argparse.ArgumentParser(description="Share Netwide everywhere possible.")
     ap.add_argument("--live", action="store_true", help="actually post (default: dry run)")
     ap.add_argument("--only", default="", help="comma-separated channel list")
     ap.add_argument("--copy", default="", help="path to a copy file overriding the kit")
@@ -450,7 +450,7 @@ def main() -> int:
     print(f"\n{'=' * 60}")
     print(f"{posted} ready · {skipped} need credentials · {failed} failed")
     if skipped:
-        print("\nMissing credentials (add to ~/.config/netpulse/social.env):")
+        print("\nMissing credentials (add to ~/.config/netwide/social.env):")
         for name, status, detail in results:
             if status == SKIP:
                 print(f"  - {name}: {detail}")

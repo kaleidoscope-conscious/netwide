@@ -1,5 +1,5 @@
 """
-FastAPI + WebSocket Real-Time Command Center Server for NetPulse.
+FastAPI + WebSocket Real-Time Command Center Server for Netwide.
 Provides:
 - Continuous background Multi-Vector LAN Scanner + Passive Wire Sniffer (tshark)
 - Live WebSocket telemetry broadcast (/ws)
@@ -35,35 +35,35 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from netpulse.billing import subscription_engine
-from netpulse.database import net_db
-from netpulse.fingerprint import (
+from netwide.billing import subscription_engine
+from netwide.database import net_db
+from netwide.fingerprint import (
     audit_network_threats,
     compute_network_security_posture,
     run_full_network_scan,
 )
-from netpulse.ble_census import classify_hidden_tether, correlate_ble_to_lan, scan_ble_census
-from netpulse.explain import explain_device
-from netpulse.firmware import fetch_and_audit as firmware_fetch_and_audit
-from netpulse.intel_hypotheses import compute_threat_field, generate_hypotheses
-from netpulse.metrics import posture_diff, prometheus_text
-from netpulse.oui import oui_db
-from netpulse.profile_keys import CONTROL_CAPABILITIES, GRAPH_DEVICE_KINDS, GRAPH_RELATIONS
-from netpulse.ar_fusion import room_for_device
-from netpulse.passive_census import coverage_budget, dwell_schedule
-from netpulse.raft import MeshNode, partition_key
-from netpulse.digest import build_digest
-from netpulse.openwrt import ubus_firewall_add, ubus_status
-from netpulse.rules import audit_payload, compile_rule
-from netpulse.scan_strategy import UCB1Bandit, dwell_for_arm
-from netpulse.fusion import extract_evidence_vectors, fuse_evidence
-from netpulse.accuracy import evaluate_accuracy
-from netpulse.evidence_bundle import build_case_evidence_bundle, verify_evidence_bundle
-from netpulse.chronicle import (
+from netwide.ble_census import classify_hidden_tether, correlate_ble_to_lan, scan_ble_census
+from netwide.explain import explain_device
+from netwide.firmware import fetch_and_audit as firmware_fetch_and_audit
+from netwide.intel_hypotheses import compute_threat_field, generate_hypotheses
+from netwide.metrics import posture_diff, prometheus_text
+from netwide.oui import oui_db
+from netwide.profile_keys import CONTROL_CAPABILITIES, GRAPH_DEVICE_KINDS, GRAPH_RELATIONS
+from netwide.ar_fusion import room_for_device
+from netwide.passive_census import coverage_budget, dwell_schedule
+from netwide.raft import MeshNode, partition_key
+from netwide.digest import build_digest
+from netwide.openwrt import ubus_firewall_add, ubus_status
+from netwide.rules import audit_payload, compile_rule
+from netwide.scan_strategy import UCB1Bandit, dwell_for_arm
+from netwide.fusion import extract_evidence_vectors, fuse_evidence
+from netwide.accuracy import evaluate_accuracy
+from netwide.evidence_bundle import build_case_evidence_bundle, verify_evidence_bundle
+from netwide.chronicle import (
     generate_network_chronicle,
-    generate_netpulse_wrapped,
+    generate_netwide_wrapped,
 )
-from netpulse.probers import (
+from netwide.probers import (
     NetworkInterfaceInfo,
     PassiveWireSniffer,
     audit_ipv6_posture,
@@ -94,7 +94,7 @@ from netpulse.probers import (
     send_roku_text,
     send_wake_on_lan,
 )
-from netpulse.wireless import (
+from netwide.wireless import (
     build_area_scan_report,
     fetch_wan_intelligence,
     mobile_telemetry_hub,
@@ -277,13 +277,13 @@ class StripeConfigRequest(BaseModel):
 
 
 class StartTrialRequest(BaseModel):
-    email: str = "trial@netpulse.io"
+    email: str = "trial@netwide.io"
 
 
 class MintLicenseRequest(BaseModel):
     tier: str = "enterprise"
     plan: str = "lifetime"
-    email: str = "founder@netpulse.local"
+    email: str = "founder@netwide.local"
     days: Optional[int] = None
     max_nodes: Optional[int] = None
     auto_activate: bool = True
@@ -341,8 +341,8 @@ def _require_admin(request: Request, body_token: str = "", privileged: bool = Fa
     loopback without a token. *Privileged* actions that mint, revoke, or
     reconfigure billing always require the real Sovereign Admin Master Token,
     unless the operator explicitly opts in on that node with
-    NETPULSE_ALLOW_LOOPBACK_ADMIN=1. Without that opt-in a customer running
-    NetPulse on their own machine cannot self-issue licenses.
+    NETWIDE_ALLOW_LOOPBACK_ADMIN=1. Without that opt-in a customer running
+    Netwide on their own machine cannot self-issue licenses.
     """
     hdr_tok = (
         request.headers.get("x-admin-token")
@@ -360,7 +360,7 @@ def _require_admin(request: Request, body_token: str = "", privileged: bool = Fa
     if client_host in ("127.0.0.1", "::1", "localhost", "testclient"):
         if not privileged:
             return None
-        if os.environ.get("NETPULSE_ALLOW_LOOPBACK_ADMIN", "").strip().lower() in ("1", "true", "yes"):
+        if os.environ.get("NETWIDE_ALLOW_LOOPBACK_ADMIN", "").strip().lower() in ("1", "true", "yes"):
             return None
         return JSONResponse(
             {
@@ -485,7 +485,7 @@ class EngineState:
 
         return {
             "meta": {
-                "version": "4.6.0",
+                "version": "4.7.0",
                 "oui_database_size": oui_db.loaded_count,
                 "scan_in_progress": self.scan_in_progress,
                 "scan_count": self.scan_count,
@@ -615,7 +615,7 @@ def _execute_blocking_scan() -> None:
             try:
                 gained = max(0, len(state.devices) - int(getattr(state, "devices_count_before", 0) or 0))
                 dur = max(0.5, time.perf_counter() - t0)
-                from netpulse.scan_strategy import reward_for_scan as _reward
+                from netwide.scan_strategy import reward_for_scan as _reward
                 rw = _reward(gained + len(state.devices) * 0.1, dur, 0)
                 bandit.update(selected_arm, rw)
                 net_db.save_scan_strategy(
@@ -627,9 +627,9 @@ def _execute_blocking_scan() -> None:
                 pass
         except Exception:
             pass
-        # ARP auto-mitigation (opt-in only: NETPULSE_AUTO_QUARANTINE=1)
+        # ARP auto-mitigation (opt-in only: NETWIDE_AUTO_QUARANTINE=1)
         try:
-            if os.environ.get("NETPULSE_AUTO_QUARANTINE", "0") == "1":
+            if os.environ.get("NETWIDE_AUTO_QUARANTINE", "0") == "1":
                 for an in list(state.sniffer.arp_anomalies)[:5]:
                     try:
                         ip = str(an.get("ip") or "")
@@ -749,27 +749,27 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="NetPulse — Sovereign Network Intelligence",
-    version="4.6.0",
+    title="Netwide — Sovereign Network Intelligence",
+    version="4.7.0",
     lifespan=lifespan,
 )
 
 _allowed_cors_origins = [
     o for o in os.environ.get(
-        "NETPULSE_CORS_ORIGINS",
+        "NETWIDE_CORS_ORIGINS",
         "http://127.0.0.1:8765,http://localhost:8765",
     ).split(",")
     if o.strip()
 ]
 
 # Optional shared-secret gate for the live WebSocket feed (/ws).
-_WS_AUTH_TOKEN = os.environ.get("NETPULSE_WS_TOKEN", "").strip()
+_WS_AUTH_TOKEN = os.environ.get("NETWIDE_WS_TOKEN", "").strip()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_cors_origins,
     allow_origin_regex=os.environ.get(
-        "NETPULSE_CORS_ORIGIN_REGEX",
+        "NETWIDE_CORS_ORIGIN_REGEX",
         r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$",
     ),
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
@@ -892,7 +892,7 @@ async def api_health() -> JSONResponse:
         budget = {"ok": True, "used": len(state.devices), "limit": int(sub.get("max_nodes") or 1), "remaining": 0}
     return JSONResponse({
         "status": "healthy",
-        "version": "4.6.0",
+        "version": "4.7.0",
         "oui_database_size": oui_db.loaded_count,
         "sniffer_active": state.sniffer.running,
         "scan_count": state.scan_count,
@@ -960,19 +960,20 @@ async def serve_launch() -> FileResponse:
 # Operator console (Business Control Room + Watchtower).
 # These pages are NOT part of the published storefront and are served only to
 # authenticated operators. Installed assets live in a private directory outside
-# the repo (~/.config/netpulse/operator by default); the in-repo `operator/`
-# folder is a fallback for fresh installs. Override with NETPULSE_OPERATOR_DIR.
+# the repo (~/.config/netwide/operator by default); the in-repo `operator/`
+# folder is a fallback for fresh installs. Override with NETWIDE_OPERATOR_DIR.
 # ---------------------------------------------------------------------------
 OPERATOR_DIR = os.environ.get(
-    "NETPULSE_OPERATOR_DIR",
-    os.path.join(os.path.expanduser("~"), ".config", "netpulse", "operator"),
+    "NETWIDE_OPERATOR_DIR",
+    os.path.join(os.path.expanduser("~"), ".config", "netwide", "operator"),
 )
 OPERATOR_DIR_FALLBACK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "operator")
 
 
 def _operator_page(filename: str) -> Optional[str]:
     """Resolve an operator page from the private dir, falling back to the repo copy."""
-    for base in (OPERATOR_DIR, OPERATOR_DIR_FALLBACK):
+    legacy_dir = os.path.join(os.path.expanduser("~"), ".config", "netpulse", "operator")
+    for base in (OPERATOR_DIR, legacy_dir, OPERATOR_DIR_FALLBACK):
         candidate = os.path.join(base, filename)
         if os.path.exists(candidate):
             return candidate
@@ -1047,27 +1048,27 @@ app.mount(
 )
 
 
-@app.get("/download/NetPulse-Mobile.apk")
+@app.get("/download/Netwide-Mobile.apk")
 async def download_mobile_apk() -> FileResponse:
-    apk_path = os.path.join(STATIC_DIR, "NetPulse-Mobile.apk")
+    apk_path = os.path.join(STATIC_DIR, "Netwide-Mobile.apk")
     if not os.path.exists(apk_path):
-        raise HTTPException(status_code=404, detail="NetPulse-Mobile.apk not found")
+        raise HTTPException(status_code=404, detail="Netwide-Mobile.apk not found")
     return FileResponse(
         apk_path,
         media_type="application/vnd.android.package-archive",
-        filename="NetPulse-Mobile.apk",
+        filename="Netwide-Mobile.apk",
     )
 
 
-@app.get("/download/NetPulse-Mobile-PlayStore.aab")
+@app.get("/download/Netwide-Mobile-PlayStore.aab")
 async def download_mobile_aab() -> FileResponse:
-    aab_path = os.path.join(STATIC_DIR, "NetPulse-Mobile-PlayStore.aab")
+    aab_path = os.path.join(STATIC_DIR, "Netwide-Mobile-PlayStore.aab")
     if not os.path.exists(aab_path):
-        raise HTTPException(status_code=404, detail="NetPulse-Mobile-PlayStore.aab not found")
+        raise HTTPException(status_code=404, detail="Netwide-Mobile-PlayStore.aab not found")
     return FileResponse(
         aab_path,
         media_type="application/octet-stream",
-        filename="NetPulse-Mobile-PlayStore.aab",
+        filename="Netwide-Mobile-PlayStore.aab",
     )
 
 
@@ -1075,9 +1076,9 @@ async def download_mobile_aab() -> FileResponse:
 async def get_mobile_qr() -> JSONResponse:
     host_ip = state.net_info.ip if (state.net_info and state.net_info.ip and state.net_info.ip != "127.0.0.1") else "192.168.12.225"
     mobile_url = f"http://{host_ip}:8765/mobile"
-    apk_url = f"http://{host_ip}:8765/download/NetPulse-Mobile.apk"
-    aab_url = f"http://{host_ip}:8765/download/NetPulse-Mobile-PlayStore.aab"
-    apk_path = os.path.join(STATIC_DIR, "NetPulse-Mobile.apk")
+    apk_url = f"http://{host_ip}:8765/download/Netwide-Mobile.apk"
+    aab_url = f"http://{host_ip}:8765/download/Netwide-Mobile-PlayStore.aab"
+    apk_path = os.path.join(STATIC_DIR, "Netwide-Mobile.apk")
     apk_size_kb = round(os.path.getsize(apk_path) / 1024, 1) if os.path.exists(apk_path) else 0
     return JSONResponse({
         "host_ip": host_ip,
@@ -1086,8 +1087,8 @@ async def get_mobile_qr() -> JSONResponse:
         "mobile_url": mobile_url,
         "apk_url": apk_url,
         "aab_url": aab_url,
-        "apk_desktop_path": os.path.expanduser("~/Desktop/NetPulse-Mobile.apk"),
-        "aab_desktop_path": os.path.expanduser("~/Desktop/NetPulse-Mobile-PlayStore.aab"),
+        "apk_desktop_path": os.path.expanduser("~/Desktop/Netwide-Mobile.apk"),
+        "aab_desktop_path": os.path.expanduser("~/Desktop/Netwide-Mobile-PlayStore.aab"),
         "apk_size_kb": apk_size_kb,
         "mobile_qr_svg": _generate_qr_svg(mobile_url),
         "apk_qr_svg": _generate_qr_svg(apk_url),
@@ -1196,7 +1197,7 @@ async def get_identity_graph(format: str = "json") -> Response:
         if parent:
             edges.append({"src": bssid, "dst": str(parent), "relation": "same_radio", "weight": 0.7, "confidence": ap.get("attribution_confidence") or 0.6})
     if format in ("graphviz", "svg"):
-        lines = ["digraph netpulse {", "  rankdir=LR;"]
+        lines = ["digraph netwide {", "  rankdir=LR;"]
         for n in nodes:
             lines.append(f'  "{n["node_id"]}" [label="{str(n.get("label") or n["node_id"]).replace(chr(34), chr(39))}"]')
         for e in edges:
@@ -1616,7 +1617,7 @@ async def post_mesh_heartbeat(req: Dict[str, Any]) -> JSONResponse:
 
 @app.get("/api/policy/arp")
 async def get_arp_policy() -> JSONResponse:
-    return JSONResponse({"ok": True, "auto_quarantine": os.environ.get("NETPULSE_AUTO_QUARANTINE", "0") == "1"})
+    return JSONResponse({"ok": True, "auto_quarantine": os.environ.get("NETWIDE_AUTO_QUARANTINE", "0") == "1"})
 
 
 @app.post("/api/policy/arp")
@@ -1625,7 +1626,7 @@ async def post_arp_policy(req: Dict[str, Any], request: Request) -> JSONResponse
     if adm:
         return adm
     enabled = bool(req.get("enabled"))
-    os.environ["NETPULSE_AUTO_QUARANTINE"] = "1" if enabled else "0"
+    os.environ["NETWIDE_AUTO_QUARANTINE"] = "1" if enabled else "0"
     await asyncio.to_thread(net_db.append_ledger_entry, "operator", "POLICY_ARP", "auto_quarantine", str(enabled))
     return JSONResponse({"ok": True, "auto_quarantine": enabled})
 
@@ -1730,9 +1731,9 @@ async def get_network_chronicle_endpoint(window_days: int = 7) -> JSONResponse:
 
 @app.get("/api/chronicle/wrapped")
 async def get_chronicle_wrapped_endpoint() -> JSONResponse:
-    """Bet 4 NetPulse Wrapped: year-end local statistics and countermeasure highlights."""
+    """Bet 4 Netwide Wrapped: year-end local statistics and countermeasure highlights."""
     ledger_entries = await asyncio.to_thread(net_db.get_ledger_entries, 500)
-    wrapped = generate_netpulse_wrapped(state.devices, ledger_entries, scan_count=getattr(state, "scan_count", 42))
+    wrapped = generate_netwide_wrapped(state.devices, ledger_entries, scan_count=getattr(state, "scan_count", 42))
     return JSONResponse(wrapped)
 
 
@@ -1765,7 +1766,7 @@ async def proxy_device_image(ip: str) -> Response:
     def _fetch() -> Optional[bytes]:
         for url in candidate_urls:
             try:
-                req = urllib.request.Request(url, headers={"User-Agent": "NetPulse/2.0"})
+                req = urllib.request.Request(url, headers={"User-Agent": "Netwide/2.0"})
                 with urllib.request.urlopen(req, timeout=1.5) as resp:
                     data = resp.read(524288)
                     ctype = resp.headers.get("Content-Type", "")
@@ -2428,7 +2429,7 @@ async def export_inventory_csv() -> Response:
     return Response(
         content=csv_text.encode("utf-8"),
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": 'attachment; filename="NetPulse_Inventory.csv"'},
+        headers={"Content-Disposition": 'attachment; filename="Netwide_Inventory.csv"'},
     )
 
 
@@ -2442,9 +2443,9 @@ async def export_forensic_report() -> JSONResponse:
         snap = state.to_snapshot()
         desktop_dir = os.path.expanduser("~/Desktop")
         os.makedirs(desktop_dir, exist_ok=True)
-        json_path = os.path.join(desktop_dir, "NetPulse_Forensic_Report.json")
-        md_path = os.path.join(desktop_dir, "NetPulse_Forensic_Report.md")
-        csv_path = os.path.join(desktop_dir, "NetPulse_Inventory.csv")
+        json_path = os.path.join(desktop_dir, "Netwide_Forensic_Report.json")
+        md_path = os.path.join(desktop_dir, "Netwide_Forensic_Report.md")
+        csv_path = os.path.join(desktop_dir, "Netwide_Inventory.csv")
 
         with open(json_path, "w", encoding="utf-8") as jf:
             import json as _json
@@ -2455,7 +2456,7 @@ async def export_forensic_report() -> JSONResponse:
 
         posture = snap.get("security_posture") or {}
         lines = [
-            "# NETPULSE WORKBENCH — Forensic Network, 802.11 TSF Attribution & Area Intelligence Report",
+            "# NETWIDE WORKBENCH — Forensic Network, 802.11 TSF Attribution & Area Intelligence Report",
             f"**Generated:** {time.strftime('%Y-%m-%d %H:%M:%S')}  ",
             f"**Interface:** `{snap['interface']['interface']}` (`{snap['interface']['ip']}` on `{snap['interface']['cidr']}`)  ",
             f"**Connected SSID:** `{snap['interface']['ssid']}` (Channel {snap['interface']['channel']}, {snap['interface']['freq_mhz']} MHz)  ",
@@ -2805,7 +2806,7 @@ async def admin_watchtower_endpoint(request: Request) -> JSONResponse:
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket) -> None:
     await ws.accept()
-    # Optional live-stream token gate: set NETPULSE_WS_TOKEN to require
+    # Optional live-stream token gate: set NETWIDE_WS_TOKEN to require
     # `?token=...` from non-loopback peers (desktop app on localhost is exempt).
     if _WS_AUTH_TOKEN:
         client_host = ws.client.host if ws.client else ""

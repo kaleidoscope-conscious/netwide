@@ -1,13 +1,13 @@
 """
-Unit tests for NetPulse SQLite persistence engine and event logging.
+Unit tests for Netwide SQLite persistence engine and event logging.
 """
 
 import os
 import tempfile
 import time
 
-from netpulse.database import NetworkDatabase
-from netpulse.fingerprint import DeviceProfile
+from netwide.database import NetworkDatabase
+from netwide.fingerprint import DeviceProfile
 
 
 def test_database_init_wal():
@@ -190,7 +190,7 @@ def test_tamper_evident_events_ledger():
 
         # 2. Append entries
         e1 = db.append_ledger_entry("operator", "QUARANTINE_ENGAGE", "192.168.1.50", "Isolating rogue device")
-        e2 = db.append_ledger_entry("netpulse_guardian", "SECURITY_ALERT", "192.168.1.50", "ARP spoofing attempt detected")
+        e2 = db.append_ledger_entry("netwide_guardian", "SECURITY_ALERT", "192.168.1.50", "ARP spoofing attempt detected")
         e3 = db.append_ledger_entry("operator", "QUARANTINE_RELEASE", "192.168.1.50", "Released host")
 
         assert e2["prev_hash"] == e1["hash"]

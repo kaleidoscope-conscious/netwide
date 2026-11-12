@@ -3,10 +3,10 @@ import pathlib
 import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from netpulse.scan_strategy import UCB1Bandit, dwell_for_arm, reward_for_scan
-from netpulse.explain import explain_device
-from netpulse.metrics import posture_diff, prometheus_text
-from netpulse.intel_hypotheses import compute_threat_field
+from netwide.scan_strategy import UCB1Bandit, dwell_for_arm, reward_for_scan
+from netwide.explain import explain_device
+from netwide.metrics import posture_diff, prometheus_text
+from netwide.intel_hypotheses import compute_threat_field
 
 def test_ucb1_explores_then_exploits():
     b = UCB1Bandit(arms=["a", "b"])
@@ -37,8 +37,8 @@ def test_prometheus_text():
     snap = {"meta": {"total_devices": 3, "online_devices": 2, "security_score": 90, "high_risk_devices": 1, "scan_count": 7},
             "devices": [{}, {}, {}], "threats": [{"severity": "HIGH"}], "hypotheses_top": [], "hypotheses_total": 4}
     txt = prometheus_text(snap)
-    assert "netpulse_devices_total 3" in txt
-    assert "netpulse_scan_total 7" in txt
+    assert "netwide_devices_total 3" in txt
+    assert "netwide_scan_total 7" in txt
 
 def test_posture_diff():
     before = {"devices": [{"device_key": "A"}], "threats": [{"category": "X", "title": "t1"}], "meta": {"security_score": 80, "scan_count": 1}}
@@ -60,7 +60,7 @@ def test_threat_field():
 
 def test_wave3_api():
     from fastapi.testclient import TestClient
-    from netpulse.server import app
+    from netwide.server import app
     c = TestClient(app)
     assert c.get("/api/metrics").status_code == 200
     assert c.get("/api/threat-field").status_code == 200

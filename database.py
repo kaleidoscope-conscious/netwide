@@ -16,9 +16,16 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
-from netpulse.fingerprint import DeviceProfile
+from netwide.fingerprint import DeviceProfile
 
-DB_PATH = os.environ.get("NETPULSE_DB_PATH") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "netpulse_intel.db")
+_db_dir = os.path.dirname(os.path.abspath(__file__))
+_db_new = os.path.join(_db_dir, "netwide_intel.db")
+_db_legacy = os.path.join(_db_dir, "netpulse_intel.db")
+DB_PATH = (
+    os.environ.get("NETWIDE_DB_PATH")
+    or os.environ.get("NETPULSE_DB_PATH")
+    or (_db_legacy if os.path.exists(_db_legacy) and not os.path.exists(_db_new) else _db_new)
+)
 
 
 class NetworkDatabase:
@@ -233,7 +240,7 @@ class NetworkDatabase:
             (now, t_str, event_type, severity, device_key, ip, device_name, details),
         )
         self.append_ledger_entry(
-            actor="netpulse_guardian",
+            actor="netwide_guardian",
             action=event_type,
             target=f"{device_key}@{ip}",
             details=f"[{severity}] {details}",

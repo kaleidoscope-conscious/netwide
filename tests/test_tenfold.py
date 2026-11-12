@@ -3,15 +3,15 @@ import pathlib
 import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from netpulse.ble_census import (
+from netwide.ble_census import (
     classify_hidden_tether,
     correlate_ble_to_lan,
     parse_apple_continuity,
 )
-from netpulse.intel_hypotheses import FINDING_PLAYBOOK, _hyp_id, generate_hypotheses
-from netpulse.fingerprint import audit_network_threats
-from netpulse.profile_keys import CONTROL_CAPABILITIES, normalize_extended_iot, normalize_mdns_entry
-from netpulse.proc import stop_process_gracefully
+from netwide.intel_hypotheses import FINDING_PLAYBOOK, _hyp_id, generate_hypotheses
+from netwide.fingerprint import audit_network_threats
+from netwide.profile_keys import CONTROL_CAPABILITIES, normalize_extended_iot, normalize_mdns_entry
+from netwide.proc import stop_process_gracefully
 
 def test_apple_continuity_iphone():
     payload = bytes.fromhex("4c00012a")
@@ -105,7 +105,7 @@ def test_proc_stop_gracefully_no_crash():
     assert p.poll() is not None
 
 def test_new_api_surface():
-    from netpulse.server import app
+    from netwide.server import app
     from fastapi.testclient import TestClient
     c = TestClient(app)
     assert c.get("/api/rf-geiger?bssid=00:11:22:33:44:55").status_code == 200

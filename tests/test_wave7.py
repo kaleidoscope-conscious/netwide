@@ -3,7 +3,7 @@ import pathlib
 import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from netpulse.passive_census import coverage_budget, dwell_schedule
+from netwide.passive_census import coverage_budget, dwell_schedule
 
 def test_dwell_schedule():
     rows = dwell_schedule(10.0)
@@ -14,7 +14,7 @@ def test_dwell_schedule():
 
 def test_passive_api_and_cli():
     from fastapi.testclient import TestClient
-    from netpulse.server import app
+    from netwide.server import app
     c = TestClient(app)
     r = c.get("/api/passive/census")
     assert r.status_code == 200
@@ -22,7 +22,7 @@ def test_passive_api_and_cli():
     assert d["stage"] == 13 and "schedule" in d
 
 def test_cli_no_args_exit2():
-    from netpulse.cli import main
+    from netwide.cli import main
     import pytest
     with pytest.raises(SystemExit) as e:
         main([])

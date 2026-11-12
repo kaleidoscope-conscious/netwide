@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate the NetPulse Open Graph / Twitter Card image (1200x630).
+Generate the Netwide Open Graph / Twitter Card image (1200x630).
 
 Used as og:image / twitter:image so every shared link renders a rich preview
 instead of a bare URL. Shares the visual language of the Play Store assets.
@@ -37,7 +37,7 @@ def build() -> pathlib.Path:
 
     # Wordmark
     draw.rounded_rectangle([54, 52, 300, 92], radius=9, fill=(10, 44, 62), outline=CYAN, width=2)
-    draw.text((68, 62), "NETPULSE v4.6", fill=CYAN, font=_font(17, bold=True, mono=True))
+    draw.text((68, 62), "NETWIDE v4.6", fill=CYAN, font=_font(17, bold=True, mono=True))
     draw.text((54, 112), "SEE EVERY DEVICE", fill=TEXT_MAIN, font=_font(52, bold=True))
     draw.text((54, 176), "ON YOUR NETWORK", fill=TEXT_MAIN, font=_font(52, bold=True))
     draw.text((56, 248), "Hidden SSIDs · rogue cameras · crypto audits · live DPI · one-click quarantine",
