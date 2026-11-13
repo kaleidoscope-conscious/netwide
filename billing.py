@@ -596,6 +596,10 @@ class SubscriptionManager:
         is_operator = lambda r: str(r.get("email") or "").strip().lower() == operator_email
         operator_active = [r for r in active if is_operator(r)]
         customer_active = [r for r in active if not is_operator(r)]
+        # A trial licence is not a sale. Keep the two apart so the dashboard and the
+        # funnel never count a free trial as a paying customer.
+        trial_active = [r for r in customer_active if str(r.get("plan") or "").lower() == "trial"]
+        customer_active = [r for r in customer_active if str(r.get("plan") or "").lower() != "trial"]
 
         def _price(r: Dict[str, Any]) -> float:
             return self._PRICE_TABLE.get((r.get("tier"), r.get("plan")), 0.0)
@@ -648,6 +652,7 @@ class SubscriptionManager:
                 "revoked": len(revoked),
                 "operator_active": len(operator_active),
                 "customer_active": len(customer_active),
+                "trial_active": len(trial_active),
                 "by_tier": by_tier,
                 "by_plan": by_plan,
             },
@@ -664,9 +669,25 @@ class SubscriptionManager:
                 "arr_estimate_usd": round(mrr_estimate * 12.0, 2),
                 "operator_license_value_usd": round(operator_value, 2),
             },
+            "funnel": {
+                # leads -> trials -> paid customers, so the operator can see which
+                # step leaks instead of guessing.
+                "leads": len(leads),
+                "trials": max(sum(1 for l in leads if l.get("trial_jti")), len(trial_active)),
+                "paid_customers": len(paid_emails),
+                "trial_to_paid_rate": (
+                    round(len(paid_emails) / sum(1 for l in leads if l.get("trial_jti")), 3)
+                    if sum(1 for l in leads if l.get("trial_jti")) else 0.0
+                ),
+                "lead_to_paid_rate": (round(len(paid_emails) / len(leads), 3) if leads else 0.0),
+                "arpu_usd": (
+                    round(lifetime_revenue / len(paid_emails), 2) if paid_emails else 0.0
+                ),
+            },
             "leads": {
                 "total": len(leads),
                 "trials_claimed": sum(1 for l in leads if l.get("trial_jti")),
+                "with_trial": sum(1 for l in leads if l.get("trial_jti")),
                 "recent": [
                     {
                         "email": l.get("email"),
@@ -1217,11 +1238,19 @@ class SubscriptionManager:
                     """,
                     (clean_email, source.strip() or "web", use_case.strip() or "general", now, now),
                 )
+            # The lead WAS captured — that is a success. The trial is simply
+            # unavailable on this node. Reporting ok:false here made the storefront
+            # show an error and lost the visitor, so the two outcomes are now
+            # reported separately.
             return {
-                "ok": False,
+                "ok": True,
+                "lead_captured": True,
+                "trial_issued": False,
+                "trial_available": False,
                 "already_claimed": True,
-                "error": "The 7-day Pro Guardian free trial has already been used on this node.",
-                "message": "Lead captured — the one-time trial was already claimed on this node.",
+                "message": "Saved — the one-time free trial was already used on this node.",
+                "detail": "The 7-day Pro Guardian trial is issued once per node. Your details are saved; "
+                          "a licence can be issued for this address at any time.",
             }
         now = time.time()
         minted = self.mint_license_key(tier="pro", plan="trial", email=clean_email, days=7, max_nodes=3)
@@ -1243,6 +1272,9 @@ class SubscriptionManager:
         self.activate_license_key(minted["license_key"])
         return {
             "ok": True,
+            "lead_captured": True,
+            "trial_issued": True,
+            "trial_available": True,
             "email": clean_email,
             "source": source,
             "use_case": use_case,

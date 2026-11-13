@@ -696,7 +696,7 @@ def main(argv: List[str] | None = None) -> None:
     p_lic = sub.add_parser("license", help="Sovereign Cryptographic License & Subscription Manager")
     p_lic.add_argument(
         "action",
-        choices=["status", "mint", "activate", "deactivate", "list", "revoke", "checkout", "verify", "deliver"],
+        choices=["status", "mint", "activate", "deactivate", "list", "revoke", "checkout", "verify", "deliver", "operator"],
         default="status",
         nargs="?",
         help="License action",
@@ -1056,6 +1056,22 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
                         border_style="yellow",
                     )
                 )
+        elif act == "operator":
+            email = (args.email or "").strip().lower()
+            if not email or "@" not in email:
+                console.print("[bold red]--email <operator@address> is required.[/bold red]")
+                raise SystemExit(1)
+            subscription_engine._set_config("operator_email", email)
+            console.print(
+                Panel(
+                    f"[bold green]Operator identity set[/bold green]\n"
+                    f"Email: [bold cyan]{email}[/bold cyan]\n\n"
+                    f"[dim]Licences issued to this address are reported as the operator's own\n"
+                    f"licence and are excluded from customer counts and revenue.[/dim]",
+                    title="Licence Authority",
+                    border_style="green",
+                )
+            )
         elif act == "verify":
             session_id = (args.session or args.key or "").strip()
             if not session_id:

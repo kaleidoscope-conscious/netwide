@@ -173,6 +173,27 @@ def test_privileged_licensing_requires_admin_token(monkeypatch):
         assert "Sovereign Admin Master Token" in resp.json().get("error", "")
 
 
+def test_only_one_workflow_deploys_to_pages():
+    """
+    Two deployers racing produces intermittent "deployment request failed ...
+    due to in progress deployment" failures. GitHub's own dynamic pages workflow
+    is the single deployer, so the repo workflow must not deploy as well.
+    """
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    workflow_dir = os.path.join(root_dir, ".github", "workflows")
+    deployers = []
+    for name in sorted(os.listdir(workflow_dir)):
+        if not name.endswith((".yml", ".yaml")):
+            continue
+        text = open(os.path.join(workflow_dir, name), "r", encoding="utf-8").read()
+        if "actions/deploy-pages" in text or "actions/upload-pages-artifact" in text:
+            deployers.append(name)
+    assert not deployers, (
+        "these workflows deploy to Pages and would race with GitHub's dynamic "
+        f"pages workflow: {deployers}"
+    )
+
+
 def test_storefront_never_publishes_internal_docs():
     """The Pages artifact must contain only public storefront files."""
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -1,4 +1,4 @@
-name: Netwide CI & GitHub Pages Storefront
+name: Netwide CI
 
 on:
   push:
@@ -9,12 +9,9 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: "pages"
-  cancel-in-progress: false
 
 jobs:
   verify:
@@ -43,35 +40,3 @@ jobs:
         run: |
           ln -sf "${{ github.workspace }}" ../netwide
           pytest tests/ -q
-
-  deploy-pages:
-    needs: verify
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Stage public storefront only (never publish internal docs)
-        run: |
-          rm -rf .pages_staging
-          mkdir -p .pages_staging/assets
-          cp docs/index.html docs/privacy.html docs/share.html docs/sitemap.xml docs/robots.txt .pages_staging/
-          cp -r play_store_assets/* .pages_staging/assets/
-          cp docs/assets/* .pages_staging/assets/ 2>/dev/null || true
-          echo "Published files:" && ls -R .pages_staging
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: "./.pages_staging"
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
