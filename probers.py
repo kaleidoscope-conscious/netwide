@@ -1512,6 +1512,18 @@ def launch_local_client(ip: str, port: int = 80, protocol: str = "http", usernam
         return {"ok": False, "error": str(e)}
 
 
+def _tshark_supports_field(field: str) -> bool:
+    """Return True when the installed tshark exposes the given display-filter field."""
+    try:
+        out = subprocess.run(["tshark", "-G", "fields"], capture_output=True, text=True, timeout=15)
+        if out.returncode != 0:
+            return False
+        needle = f"\t{field}\t"
+        return any(needle in line for line in out.stdout.splitlines() if "\t" in line)
+    except Exception:
+        return False
+
+
 class PassiveWireSniffer:
     """
     Real-time link-layer broadcast/multicast & deep packet sniffer powered by tshark/dumpcap.
@@ -1520,6 +1532,15 @@ class PassiveWireSniffer:
     """
 
     def __init__(self, interface: str = "wlo1", max_packets: int = 250) -> None:
+        # JA3 is extracted through tshark's dissector field. If the installed
+        # tshark does not expose that field, JA3 cannot be produced at all — which
+        # must be distinguishable from "no JA3 was seen on the wire".
+        self.ja3_supported = _tshark_supports_field("tls.handshake.ja3")
+        self.ja3_note = (
+            "JA3 extraction via the tshark dissector field tls.handshake.ja3"
+            if self.ja3_supported
+            else "JA3 unavailable: the installed tshark does not expose tls.handshake.ja3"
+        )
         self.interface = interface
         self.packets: Deque[Dict[str, Any]] = deque(maxlen=max_packets)
         self.passive_hosts: Dict[str, str] = {}  # IP -> MAC observed on wire

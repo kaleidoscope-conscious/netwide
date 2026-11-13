@@ -497,6 +497,8 @@ class EngineState:
                 "high_risk_devices": len(threats),
                 "security_score": security_posture["score"],
                 "security_grade": security_posture["grade"],
+                "ja3_supported": bool(getattr(self.sniffer, "ja3_supported", False)),
+                "ja3_note": getattr(self.sniffer, "ja3_note", ""),
             },
             "interface": {
                 "interface": self.net_info.interface,
