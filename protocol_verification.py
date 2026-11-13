@@ -131,7 +131,7 @@ def assess_device(device: Dict[str, Any]) -> List[Dict[str, Any]]:
             "dns",
             validation=validation,
             verdict=(
-                f"Resolver reported AD=1 (DNSSEC)" if dns.get("dnssec_validated")
+                "Resolver reported AD=1 (DNSSEC)" if dns.get("dnssec_validated")
                 else "Resolver did not report DNSSEC validation (AD=0)"
             ),
             basis=(
