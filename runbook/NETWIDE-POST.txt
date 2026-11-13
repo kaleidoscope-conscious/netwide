@@ -1,5 +1,5 @@
 NETWIDE — POSTS TO COPY AND PASTE
-(v4.8.0 · https://kaleidoscope-conscious.github.io/netwide/)
+(v4.9.0 · https://kaleidoscope-conscious.github.io/netwide/)
 
 
 ================================================================
@@ -116,7 +116,7 @@ LINKS
 
 Storefront ....... https://kaleidoscope-conscious.github.io/netwide/
 Repo ............ https://github.com/kaleidoscope-conscious/netwide
-Release ......... https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.8.0
+Release ......... https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.9.0
 Press kit page .. https://kaleidoscope-conscious.github.io/netwide/share.html
 
 Buy:

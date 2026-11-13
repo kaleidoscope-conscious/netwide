@@ -1,0 +1,62 @@
+{
+  "openssh-workstation": {
+    "file": "ssh_kexinit_openssh-workstation.bin",
+    "protocol": "ssh-kexinit",
+    "source": "openssh-workstation",
+    "bytes": 1108
+  },
+  "lan-resolver": {
+    "file": "dns_response_lan-resolver.bin",
+    "protocol": "dns-response",
+    "source": "lan-resolver",
+    "bytes": 185,
+    "txid": 20049
+  },
+  "tls_client_cloudflare": {
+    "file": "tls_client_hello_cloudflare.bin",
+    "protocol": "tls-client-hello",
+    "source": "cloudflare",
+    "ja3": "755cbaaa441626ab9e759e8982278df5",
+    "ja3_input": "771,4866-4867-4865-49196-49200-159-52393-52392-52394-49195-49199-158-49188-49192-107-49187-49191-103-49162-49172-57-49161-49171-51-157-156-61-60-53-47-255,11-10-35-16-22-23-13-43-45-51-21,29-23-30-25-24-256-257-258-259-260,0-1-2",
+    "sni": ""
+  },
+  "tls_server_cloudflare": {
+    "file": "tls_server_hello_cloudflare.bin",
+    "protocol": "tls-server-hello",
+    "source": "cloudflare",
+    "ja3s": "907bf3ecef1c987c889946b737b43de8",
+    "ja3s_input": "771,4866,51-43"
+  },
+  "smb2_negotiate_response_synthetic_win311": {
+    "file": "smb2_negotiate_response_synthetic_win311.bin",
+    "bytes": 175,
+    "protocol": "smb2-negotiate-response",
+    "source": "synthetic",
+    "synthetic": true,
+    "note": "Constructed from MS-SMB2 3.2.3.2 (Windows-style 3.1.1 with preauth context)."
+  },
+  "smb2_negotiate_response_synthetic_smb21": {
+    "file": "smb2_negotiate_response_synthetic_smb21.bin",
+    "bytes": 133,
+    "protocol": "smb2-negotiate-response",
+    "source": "synthetic",
+    "synthetic": true,
+    "note": "SMB 2.1, signing enabled but not required -> relay risk indicator."
+  },
+  "ssh_kexinit_synthetic_embedded": {
+    "file": "ssh_kexinit_synthetic_embedded.bin",
+    "bytes": 360,
+    "protocol": "ssh-kexinit",
+    "source": "synthetic",
+    "synthetic": true,
+    "note": "Embedded firmware style algorithm set (no PQ KEX, no CBC)."
+  },
+  "ssh_kexinit_synthetic_legacy": {
+    "file": "ssh_kexinit_synthetic_legacy.bin",
+    "bytes": 223,
+    "protocol": "ssh-kexinit",
+    "source": "synthetic",
+    "synthetic": true,
+    "note": "Legacy server: SHA-1 host key + CBC + SHA-1 MAC (must never grade above D)."
+  }
+}

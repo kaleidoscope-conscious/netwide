@@ -1029,6 +1029,28 @@ def inspect_http_or_tls_port(ip: str, port: int) -> Dict[str, Any]:
                 meta.get("cert_expired"),
                 meta.get("cert_hostname_match"),
             )
+
+            # Native JA3/JA3S: derived from the handshake bytes we exchange, so the
+            # fingerprint is produced whenever the handshake happens — independent of
+            # any packet-capture dissector field.
+            try:
+                from netwide.tls_fingerprint import fingerprint_endpoint
+                fp = fingerprint_endpoint(ip, port, timeout=3.0)
+                if fp.get("ja3"):
+                    meta["ja3"] = fp["ja3"]
+                    meta["ja3_input"] = fp.get("ja3_input", "")
+                    meta["ja3_source"] = "native"
+                    meta["ja3_sni"] = fp.get("sni", "")
+                    meta["ja3_alpn"] = fp.get("alpn", [])
+                if fp.get("ja3s"):
+                    meta["ja3s"] = fp["ja3s"]
+                    meta["ja3s_input"] = fp.get("ja3s_input", "")
+                if not meta.get("tls_version") and fp.get("tls_version"):
+                    meta["tls_version"] = fp["tls_version"]
+                if not meta.get("tls_cipher") and fp.get("tls_cipher"):
+                    meta["tls_cipher"] = fp["tls_cipher"]
+            except Exception:
+                pass
         except Exception:
             pass
 
@@ -2411,8 +2433,11 @@ def _parse_smb2_negotiate_response(data: bytes) -> Optional[Dict[str, Any]]:
     # Parse the response's negotiate contexts (MS-SMB2 3.2.3.2) so 3.1.1 support is
     # evidenced rather than assumed from the dialect revision.
     contexts: List[str] = []
+    # MS-SMB2 3.2.3.2 response layout: SecurityMode(2) DialectRevision(2)
+    # NegotiateContextCount(2) ServerGuid(16) Capabilities(4)
+    # NegotiateContextOffset(4) Reserved2(2)
     ctx_offset = struct.unpack("<I", body[28:32])[0]
-    ctx_count = struct.unpack("<H", body[32:34])[0]
+    ctx_count = struct.unpack("<H", body[6:8])[0]
     # NegotiateContextOffset is relative to the start of the SMB2 header, while
     # `body` starts 64 bytes later (immediately after the header).
     cursor = ctx_offset - 64

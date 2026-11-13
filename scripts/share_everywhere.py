@@ -43,7 +43,7 @@ ENV_FILE = Path(os.path.expanduser("~")) / ".config" / "netwide" / "social.env"
 KIT = {
     "repo": "https://github.com/kaleidoscope-conscious/netwide",
     "storefront": "https://kaleidoscope-conscious.github.io/netwide/",
-    "release": "https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.8.0",
+    "release": "https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.9.0",
     "discussions": "https://github.com/kaleidoscope-conscious/netwide/discussions",
     "demo": "https://kaleidoscope-conscious.github.io/netwide/",
     "sponsor": "https://github.com/sponsors/kaleidoscopeAI",
@@ -383,7 +383,7 @@ def post_github_discussions(text: str, live: bool) -> None:
         out = subprocess.run(
             ["gh", "api", "graphql", "-f", "query=" + query,
              "-f", "repoId=R_kgDOVni70Q", "-f", "categoryId=DIC_kwDOVni70c4DK7gH",
-             "-f", "title=Netwide v4.8.0 — on-device network intelligence suite",
+             "-f", "title=Netwide v4.9.0 — on-device network intelligence suite",
              "-F", f"body=@{script}"],
             capture_output=True, text=True, timeout=90,
         )

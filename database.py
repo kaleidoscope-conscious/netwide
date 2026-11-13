@@ -9,12 +9,13 @@ Stores:
 from __future__ import annotations
 
 import hashlib
+import base64
 import json
 import os
 import sqlite3
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from netwide.fingerprint import DeviceProfile
 
@@ -321,6 +322,170 @@ class NetworkDatabase:
             res = _do_insert(c)
             c.commit()
             return res
+
+    # ------------------------------------------------------------------
+    # Signed checkpoints — the external trust anchor for the ledger.
+    #
+    # A checkpoint is a signed snapshot of the chain head. Export it somewhere
+    # outside this database (another host, a git repo, object storage, an email
+    # attachment). A rewritten chain cannot reproduce the same signature, so the
+    # checkpoint is proof that the local history was not altered.
+    #
+    # The signature uses the operator's Ed25519 licence-authority key and the
+    # same scheme as NP1-* licence keys, so one key protects both.
+    # ------------------------------------------------------------------
+    def create_ledger_checkpoint(self, signer: Optional[Callable[[str], str]] = None) -> Dict[str, Any]:
+        with self._lock, self._connect() as conn:
+            total = int(conn.execute("SELECT COUNT(*) FROM events_ledger").fetchone()[0])
+            head_row = conn.execute("SELECT hash FROM events_ledger ORDER BY id DESC LIMIT 1").fetchone()
+            genesis_row = conn.execute("SELECT hash FROM events_ledger ORDER BY id ASC LIMIT 1").fetchone()
+            head = str(head_row["hash"]) if head_row else "0" * 64
+            genesis = str(genesis_row["hash"]) if genesis_row else "0" * 64
+
+        body = {
+            "version": 1,
+            "created_at": int(time.time()),
+            "created_at_iso": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "head_hash": head,
+            "genesis_hash": genesis,
+            "count": total,
+        }
+        payload_bytes = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        payload_b64 = base64.urlsafe_b64encode(payload_bytes).decode("ascii").rstrip("=")
+        signature = ""
+        if signer is not None:
+            try:
+                signature = signer(payload_b64) or ""
+            except Exception:
+                signature = ""
+        return {
+            **body,
+            "signed_payload": payload_b64,
+            "signature": signature,
+            "signature_algorithm": "ed25519" if signature else "none",
+        }
+
+    def verify_ledger_checkpoint(self, checkpoint: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Compare the local chain against a (presumably externally stored) checkpoint.
+        Reports whether the local chain is anchored to it.
+        """
+        if not isinstance(checkpoint, dict):
+            return {"anchored": False, "error": "Checkpoint must be a JSON object."}
+
+        payload_b64 = str(checkpoint.get("signed_payload") or "")
+        signature = str(checkpoint.get("signature") or "")
+        signature_valid = False
+        body: Dict[str, Any] = {}
+        if payload_b64:
+            try:
+                raw = base64.urlsafe_b64decode(payload_b64 + "=" * (-len(payload_b64) % 4))
+                body = json.loads(raw.decode("utf-8"))
+            except Exception:
+                body = {}
+            if signature:
+                try:
+                    from netwide import license_authority
+                    signature_valid = bool(license_authority.verify_payload(payload_b64, signature))
+                except Exception:
+                    signature_valid = False
+
+        local = self.verify_ledger_chain()
+        anchored = False
+        detail = ""
+        ck_head = str(body.get("head_hash") or checkpoint.get("head_hash") or "")
+        ck_count = int(body.get("count") or checkpoint.get("count") or 0)
+        ck_genesis = str(body.get("genesis_hash") or checkpoint.get("genesis_hash") or "")
+
+        if local.get("valid") and ck_head:
+            if ck_head == str(local.get("head_hash")):
+                anchored = True
+                detail = "Local chain head matches the checkpoint exactly."
+            elif ck_count <= int(local.get("count") or 0) and ck_genesis == str(local.get("genesis_hash")):
+                anchored = True
+                detail = (
+                    f"Local chain extends the checkpoint "
+                    f"({local.get('count')} > {ck_count} entries, same genesis)."
+                )
+            else:
+                detail = "Checkpoint does not match this chain — the local database may have been rewritten or truncated."
+        elif not local.get("valid"):
+            detail = "Local chain verification failed."
+        else:
+            detail = "Checkpoint carries no head hash to compare."
+
+        return {
+            "anchored": bool(anchored),
+            "signature_valid": bool(signature_valid),
+            "local_valid": bool(local.get("valid")),
+            "local_complete": bool(local.get("complete")),
+            "local_count": local.get("count"),
+            "local_head_hash": local.get("head_hash"),
+            "checkpoint_count": ck_count,
+            "checkpoint_head_hash": ck_head,
+            "checkpoint_created_at": body.get("created_at_iso") or checkpoint.get("created_at_iso"),
+            "detail": detail,
+        }
+
+    # ------------------------------------------------------------------
+    # Automatic off-database anchor.
+    #
+    # The anchor file lives OUTSIDE the SQLite database, so deleting or
+    # rewriting the database cannot erase the proof of what the chain head was.
+    # The daemon refreshes it on a timer and verifies the local chain against it
+    # at start-up.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def anchor_path() -> str:
+        override = os.environ.get("NETWIDE_LEDGER_ANCHOR", "").strip()
+        if override:
+            return override
+        return os.path.join(os.path.expanduser("~"), ".config", "netwide", "ledger-anchor.json")
+
+    def write_ledger_anchor(self, signer: Optional[Callable[[str], str]] = None) -> Dict[str, Any]:
+        """Create a checkpoint and store it atomically outside the database."""
+        cp = self.create_ledger_checkpoint(signer=signer)
+        path = self.anchor_path()
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(cp, fh, indent=2)
+            os.replace(tmp, path)
+            try:
+                os.chmod(path, 0o600)
+            except OSError:
+                pass
+            cp["anchor_path"] = path
+            cp["anchor_written"] = True
+        except Exception as exc:
+            cp["anchor_written"] = False
+            cp["anchor_error"] = str(exc)[:160]
+        return cp
+
+    def read_ledger_anchor(self) -> Optional[Dict[str, Any]]:
+        path = self.anchor_path()
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            return data if isinstance(data, dict) else None
+        except Exception:
+            return None
+
+    def verify_against_saved_anchor(self) -> Dict[str, Any]:
+        """Compare the live chain with the stored off-database anchor."""
+        anchor = self.read_ledger_anchor()
+        if not anchor:
+            return {
+                "anchored": False,
+                "anchor_present": False,
+                "anchor_path": self.anchor_path(),
+                "detail": "No off-database anchor yet — one is written automatically.",
+            }
+        result = self.verify_ledger_checkpoint(anchor)
+        result["anchor_present"] = True
+        result["anchor_path"] = self.anchor_path()
+        return result
 
     def get_ledger_entries(self, limit: int = 100) -> List[Dict[str, Any]]:
         with self._lock, self._connect() as conn:

@@ -166,7 +166,22 @@
       </div>
     </div>
 
-    <footer>Netwide Business Control Room · <a href="/">Workbench</a> · <a href="/pricing">Pricing</a> · auto-syncs every 15s</footer>
+      <div class="panel" style="margin-bottom:16px">
+      <h2>Ledger Integrity &amp; External Anchor</h2>
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="btn" onclick="verifyLedger()">🔍 Verify chain</button>
+        <button class="btn" onclick="createCheckpoint()">✍️ Create signed checkpoint</button>
+        <button class="btn" onclick="verifyAnchor()">⚓ Verify against anchor</button>
+        <button class="btn" onclick="downloadCheckpoint()">⬇ Export checkpoint</button>
+      </div>
+      <div id="ledgerOut" style="font-family:var(--mono);font-size:12.5px;line-height:1.6;color:#94a3b8">
+        Chain verification covers the whole ledger and reports a truthful head hash.
+        A signed checkpoint stored off this machine is the proof the chain was not rewritten.
+      </div>
+      <input id="anchorFile" type="file" accept=".json" style="display:none" onchange="importAnchor(this)">
+    </div>
+
+  <footer>Netwide Business Control Room · <a href="/">Workbench</a> · <a href="/pricing">Pricing</a> · auto-syncs every 15s</footer>
 
     <script>
       const REFRESH_SEC = 15;
@@ -213,6 +228,83 @@
           + '<td><span class="tag ' + (r.source === 'stripe' ? 'stripe' : 'manual') + '">' + r.source + '</span></td>'
           + '<td><span class="tag ' + (r.revoked ? 'revoked' : 'active') + '">' + (r.revoked ? 'revoked' : 'active') + '</span></td></tr>'
         ).join('');
+      }
+
+      // ---- Ledger integrity & external anchor ----
+      let lastCheckpoint = null;
+
+      async function verifyLedger() {
+        const out = document.getElementById('ledgerOut');
+        out.textContent = 'Verifying the full chain…';
+        try {
+          const r = await fetch('/api/ledger/verify', { cache: 'no-store' }).then(x => x.json());
+          out.innerHTML = (r.valid
+            ? '<span style="color:#10b981">✓ CHAIN VALID</span>'
+            : '<span style="color:#ef4444">✕ CHAIN BROKEN at id ' + (r.broken_at_id ?? '?') + '</span>')
+            + ' · ' + (r.count ?? 0).toLocaleString() + ' of ' + (r.total_count ?? 0).toLocaleString() + ' entries'
+            + ' · ' + (r.complete ? 'complete' : 'PARTIAL')
+            + '<br>head <code>' + (r.head_hash ?? '').slice(0, 32) + '…</code>'
+            + ' · head verified: ' + (r.head_verified ? 'yes' : 'no')
+            + ' · serialization v' + (r.hash_version ?? '?');
+        } catch (e) { out.textContent = '✕ ' + e.message; }
+      }
+
+      async function createCheckpoint() {
+        const out = document.getElementById('ledgerOut');
+        out.textContent = 'Signing checkpoint…';
+        try {
+          const r = await fetch('/api/ledger/checkpoint', { method: 'POST' }).then(x => x.json());
+          if (r.ok) {
+            lastCheckpoint = r;
+            out.innerHTML = '<span style="color:#10b981">✓ checkpoint signed (' + r.signature_algorithm + ')</span>'
+              + ' · ' + (r.count ?? 0).toLocaleString() + ' entries'
+              + '<br>head <code>' + (r.head_hash ?? '').slice(0, 32) + '…</code>'
+              + '<br><span style="color:#94a3b8">' + (r.note ?? '') + '</span>';
+          } else {
+            out.innerHTML = '<span style="color:#f59e0b">' + (r.error ?? 'checkpoint failed') + '</span>';
+          }
+        } catch (e) { out.textContent = '✕ ' + e.message; }
+      }
+
+      async function verifyAnchor() {
+        const out = document.getElementById('ledgerOut');
+        if (!lastCheckpoint) { out.textContent = 'Create a checkpoint first, then import an anchor file to compare.'; return; }
+        try {
+          const r = await fetch('/api/ledger/anchor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ checkpoint: lastCheckpoint })
+          }).then(x => x.json());
+          out.innerHTML = (r.anchored
+            ? '<span style="color:#10b981">⚓ ANCHORED</span>'
+            : '<span style="color:#f59e0b">⚠ NOT ANCHORED</span>')
+            + ' · signature ' + (r.signature_valid ? 'valid' : 'INVALID')
+            + '<br>' + (r.detail ?? '');
+        } catch (e) { out.textContent = '✕ ' + e.message; }
+      }
+
+      function downloadCheckpoint() {
+        if (!lastCheckpoint) { document.getElementById('ledgerOut').textContent = 'Create a checkpoint first.'; return; }
+        const blob = new Blob([JSON.stringify(lastCheckpoint, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'netwide-ledger-checkpoint.json';
+        a.click();
+      }
+
+      function importAnchor(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            lastCheckpoint = JSON.parse(reader.result);
+            verifyAnchor();
+          } catch (e) {
+            document.getElementById('ledgerOut').textContent = '✕ could not parse checkpoint file';
+          }
+        };
+        reader.readAsText(file);
       }
 
       function render(d) {

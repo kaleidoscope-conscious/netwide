@@ -33,6 +33,9 @@ EXT_IOT_KEYS = {
 SMB_SECURITY_KEYS = (
     "dialect", "dialect_name", "dialect_rev", "signing_enabled",
     "signing_required", "security_mode", "ntlm_relay_risk", "ntlm_relay_risk_basis", "negotiate_contexts",
+    "ja3", "ja3_input", "ja3_source", "ja3_sni", "ja3_alpn", "ja3s", "ja3s_input",
+    "cert_chain_trusted", "cert_chain_verify_code", "cert_expired", "cert_expires_in_days",
+    "cert_hostname_match", "cert_san", "preauth_integrity_supported", "smb31_encryption_supported",
     "server_guid", "capabilities", "security_posture",
 )
 

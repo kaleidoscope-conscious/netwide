@@ -107,7 +107,7 @@ def main() -> int:
     print("\nDone. Remaining manual steps:")
     print(f"  1. GitHub Pages URL becomes https://{owner}.github.io/{NEW_NAME}/ "
           "(update Pages settings if you set a custom domain)")
-    print(f"  2. Publish the rebrand release:  gh release create v4.8.0 --repo {new_repo} ...")
+    print(f"  2. Publish the rebrand release:  gh release create v4.9.0 --repo {new_repo} ...")
     print("  3. Update the promo gist and any social posts that point at the old URLs")
     return 0
 

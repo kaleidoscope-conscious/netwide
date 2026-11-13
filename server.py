@@ -391,6 +391,7 @@ class EngineState:
     def __init__(self) -> None:
         self.net_info: NetworkInterfaceInfo = detect_active_interface()
         self.devices: List[Dict[str, Any]] = []
+        self.ledger_anchor: Dict[str, Any] = {}
         self.wifi_spectrum: Dict[str, Any] = {}
         self.bluetooth_radar: Dict[str, Any] = {}
         self.wan_intel: Dict[str, Any] = {}
@@ -485,7 +486,7 @@ class EngineState:
 
         return {
             "meta": {
-                "version": "4.8.0",
+                "version": "4.9.0",
                 "oui_database_size": oui_db.loaded_count,
                 "scan_in_progress": self.scan_in_progress,
                 "scan_count": self.scan_count,
@@ -499,6 +500,7 @@ class EngineState:
                 "security_grade": security_posture["grade"],
                 "ja3_supported": bool(getattr(self.sniffer, "ja3_supported", False)),
                 "ja3_note": getattr(self.sniffer, "ja3_note", ""),
+                "ledger_anchor": getattr(self, "ledger_anchor", {}),
             },
             "interface": {
                 "interface": self.net_info.interface,
@@ -737,6 +739,55 @@ async def stripe_session_sync_task() -> None:
         await asyncio.sleep(300)
 
 
+async def ledger_anchor_task() -> None:
+    """
+    Keep an off-database anchor of the evidence ledger fresh.
+
+    The anchor file holds a signed snapshot of the chain head. Because it lives
+    outside the SQLite database, a rewritten or truncated database cannot erase
+    the proof of what the chain head was. The chain is also verified against the
+    previous anchor at start-up.
+    """
+    def _signer(payload_b64: str) -> str:
+        try:
+            from netwide import license_authority
+            return license_authority.sign_payload(payload_b64) or ""
+        except Exception:
+            return ""
+
+    has_key = False
+    try:
+        from netwide import license_authority
+        has_key = license_authority.load_private_key() is not None
+    except Exception:
+        has_key = False
+
+    # Verify the existing chain against the stored anchor first (tamper check).
+    try:
+        state.ledger_anchor = await asyncio.to_thread(net_db.verify_against_saved_anchor)
+    except Exception:
+        state.ledger_anchor = {"anchored": False, "detail": "anchor check failed"}
+
+    while True:
+        try:
+            if await asyncio.to_thread(lambda: net_db.verify_ledger_chain().get("valid")):
+                cp = await asyncio.to_thread(net_db.write_ledger_anchor, _signer if has_key else None)
+                state.ledger_anchor = {
+                    "anchored": True,
+                    "anchor_present": True,
+                    "anchor_path": cp.get("anchor_path"),
+                    "count": cp.get("count"),
+                    "head_hash": cp.get("head_hash"),
+                    "signed": bool(cp.get("signature")),
+                    "detail": "Chain head anchored outside the database.",
+                }
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            pass
+        await asyncio.sleep(900)  # refresh the anchor every 15 minutes
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     state._loop = asyncio.get_running_loop()
@@ -744,15 +795,17 @@ async def lifespan(app: FastAPI):
     state.sniffer.start(on_packet=_on_wire_packet)
     task = asyncio.create_task(periodic_scanner_task())
     sync_task = asyncio.create_task(stripe_session_sync_task())
+    anchor_task = asyncio.create_task(ledger_anchor_task())
     yield
     task.cancel()
     sync_task.cancel()
+    anchor_task.cancel()
     state.sniffer.stop()
 
 
 app = FastAPI(
     title="Netwide — Sovereign Network Intelligence",
-    version="4.8.0",
+    version="4.9.0",
     lifespan=lifespan,
 )
 
@@ -894,7 +947,7 @@ async def api_health() -> JSONResponse:
         budget = {"ok": True, "used": len(state.devices), "limit": int(sub.get("max_nodes") or 1), "remaining": 0}
     return JSONResponse({
         "status": "healthy",
-        "version": "4.8.0",
+        "version": "4.9.0",
         "oui_database_size": oui_db.loaded_count,
         "sniffer_active": state.sniffer.running,
         "scan_count": state.scan_count,
@@ -1852,9 +1905,59 @@ async def get_events_ledger(limit: int = 50) -> JSONResponse:
 
 
 @app.get("/api/ledger/verify")
-async def verify_events_ledger(limit: int = 10000) -> JSONResponse:
-    """Cryptographically verify the SHA-256 hash chain of the forensic event ledger."""
-    res = await asyncio.to_thread(net_db.verify_ledger_chain, max(1, min(limit, 50000)))
+async def verify_events_ledger(limit: Optional[int] = None) -> JSONResponse:
+    """
+    Cryptographically verify the SHA-256 hash chain of the forensic event ledger.
+
+    `limit` is optional and defaults to verifying the WHOLE chain. A truncated
+    verification is reported as incomplete rather than being presented as a full pass.
+    """
+    res = await asyncio.to_thread(net_db.verify_ledger_chain, limit)
+    return JSONResponse(res)
+
+
+@app.post("/api/ledger/checkpoint")
+async def create_ledger_checkpoint_endpoint(request: Request) -> JSONResponse:
+    """Create a signed checkpoint of the ledger head (store it off-box as the anchor)."""
+    adm_err = _require_admin(request, privileged=True)
+    if adm_err:
+        return adm_err
+
+    def _signer(payload_b64: str) -> str:
+        from netwide import license_authority
+        return license_authority.sign_payload(payload_b64) or ""
+
+    has_key = False
+    try:
+        from netwide import license_authority
+        has_key = license_authority.load_private_key() is not None
+    except Exception:
+        has_key = False
+    cp = await asyncio.to_thread(net_db.create_ledger_checkpoint, _signer if has_key else None)
+    cp["ok"] = True
+    cp["signed"] = bool(cp.get("signature"))
+    cp["note"] = (
+        "Signature produced with the operator licence-authority key. Store this file "
+        "outside this machine's database — it is the proof the chain was not rewritten."
+        if cp["signed"] else
+        "UNSIGNED checkpoint (no signing key on this host). It still records the chain head, "
+        "but cannot prove the chain was not rewritten."
+    )
+    return JSONResponse(cp)
+
+
+class LedgerAnchorRequest(BaseModel):
+    checkpoint: Dict[str, Any] = {}
+
+
+@app.post("/api/ledger/anchor")
+async def verify_ledger_anchor_endpoint(request: Request, req: LedgerAnchorRequest) -> JSONResponse:
+    """Verify the local chain against an externally stored signed checkpoint."""
+    adm_err = _require_admin(request)
+    if adm_err:
+        return adm_err
+    res = await asyncio.to_thread(net_db.verify_ledger_checkpoint, req.checkpoint or {})
+    res["ok"] = True
     return JSONResponse(res)
 
 

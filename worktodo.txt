@@ -23,7 +23,7 @@ Items verified STALE (already correct in the current code — do not re-open):
   - "SMB never advertises 3.1.1"                 -> the request does advertise
     0x0311 (though it now also carries the required preauth-integrity context).
 
-Items VERIFIED FIXED in v4.8.0 (2026-11-12) after an independent protocol audit:
+Items VERIFIED FIXED in v4.9.0 (2026-11-12) after an independent protocol audit:
   - SSH grading now incorporates weak host keys, weak MACs and BOTH directions;
     all 10 RFC 4253 name-lists plus the trailing boolean/reserved are validated,
     and packet framing is checked.

@@ -1,6 +1,6 @@
 # Netwide Press Kit
 
-**v4.8.0** · live page: https://kaleidoscope-conscious.github.io/netwide/share.html
+**v4.9.0** · live page: https://kaleidoscope-conscious.github.io/netwide/share.html
 
 Everything below is copy-paste ready. Every number is measured from the live system.
 
@@ -177,7 +177,7 @@ Happy to answer questions. The protocol parsers are the part I'm most proud of �
 - Storefront: https://kaleidoscope-conscious.github.io/netwide/
 - Press kit (live): https://kaleidoscope-conscious.github.io/netwide/share.html
 - Repo: https://github.com/kaleidoscope-conscious/netwide
-- Release: https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.8.0
+- Release: https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.9.0
 - Discussions: https://github.com/kaleidoscope-conscious/netwide/discussions
 - Install: `pip install netwide` · `docker compose up -d` · `./install.sh`
 

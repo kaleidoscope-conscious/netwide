@@ -279,11 +279,11 @@ Behaviour:
   ```
   This verifies the payment with Stripe, mints the key, and emails it.
 
-## 4j. Protocol Verification hardening (v4.8.0, 2026-11-12)
+## 4j. Protocol Verification hardening (v4.9.0, 2026-11-12)
 
 An independent source-level audit of the protocol engines was carried out and every
 claim was **reproduced against the running code** before acting. The fixes below
-landed in v4.8.0; the rule now enforced across the product is:
+landed in v4.9.0; the rule now enforced across the product is:
 
 > **A verdict must be supported by evidence. If the evidence is structurally
 > invalid, the parser refuses to grade rather than returning a confident answer.**

@@ -51,6 +51,14 @@ class SecurityFinding:
     title: str
     description: str
     remediation: str
+    # Evidence quality behind this finding:
+    #   definitive - the fact was directly observed from a structurally valid exchange
+    #   strong     - directly observed, but the conclusion is second-hand (e.g. a
+    #                resolver's own assertion such as the DNSSEC AD bit)
+    #   inferred   - the conclusion follows from partial or indirect evidence
+    #   weak       - evidence insufficient to assert the finding confidently
+    confidence: str = "inferred"
+    evidence: str = ""
 
 
 @dataclass
@@ -273,7 +281,9 @@ def synthesize_device_profile(
     if dns_info and (dns_info.get("dns_active") or dns_info.get("dot_port_853_open")):
         profile.dns_info = dns_info
         reasons.append(
-            f"DNS Resolver Audit (:53/:853): {dns_info.get('security_grade')} • DNSSEC AD={dns_info.get('dnssec_validated')}"
+            f"DNS Resolver Audit (:53/:853): {dns_info.get('security_grade')} • "
+            f"DNSSEC AD={dns_info.get('dnssec_validated')} (resolver-reported) • "
+            f"DoT verified={dns_info.get('dot_protocol_works', False)}"
         )
     if ext_iot:
         profile.extended_iot_info = ext_iot
@@ -857,21 +867,40 @@ def synthesize_device_profile(
                     "protections, so it is not by itself proof of a relay vulnerability."
                 ),
                 remediation="Enable 'Microsoft network server: Digitally sign communications (always)' via GPO or set 'server signing = mandatory' in smb.conf.",
+                confidence="definitive",
+                evidence=(
+                    f"SMB2 NEGOTIATE response: dialect {smb_info.get('dialect')}, "
+                    f"security_mode=0x{smb_info.get('security_mode', 0):04x} "
+                    f"(signing enabled={smb_info.get('signing_enabled')}, required={smb_info.get('signing_required')})"
+                ),
             )
         )
         risk += 35
 
-    if ssh_info and (ssh_info.get("weak_kex") or ssh_info.get("weak_ciphers")):
-        weak_items = (ssh_info.get("weak_kex") or []) + (ssh_info.get("weak_ciphers") or [])
+    if ssh_info and (ssh_info.get("weak_kex") or ssh_info.get("weak_ciphers")
+                     or ssh_info.get("weak_hostkeys") or ssh_info.get("weak_macs")):
+        weak_items = ((ssh_info.get("weak_kex") or []) + (ssh_info.get("weak_ciphers") or [])
+                      + (ssh_info.get("weak_hostkeys") or []) + (ssh_info.get("weak_macs") or []))
+        ssh_validation = ssh_info.get("validation") or {}
+        ssh_confidence = "definitive" if ssh_validation.get("complete") else (
+            "inferred" if ssh_validation else "weak")
         findings.append(
             SecurityFinding(
                 severity="MEDIUM",
-                title="Legacy SSHv2 Key Exchange or CBC Ciphers Enabled (:22)",
+                title="Legacy SSHv2 Key Exchange, Host Key, MAC or CBC Ciphers Advertised (:22)",
                 description=(
                     f"SSH daemon on {ip}:22 advertises legacy cryptographic algorithms ({', '.join(weak_items[:4])}) "
-                    f"with HASSH {ssh_info.get('hassh_server')}."
+                    f"with HASSH {ssh_info.get('hassh_server')}. "
+                    f"Algorithms are advertised availability; the negotiated set is only fixed when the key "
+                    f"exchange completes."
                 ),
-                remediation="Restrict KexAlgorithms to curve25519-sha256 / sntrup761x25519-sha512 and disable CBC/SHA-1 in sshd_config.",
+                remediation="Restrict KexAlgorithms to curve25519-sha256 / sntrup761x25519-sha512, HostKeyAlgorithms to ssh-ed25519/rsa-sha2-*, and disable CBC/SHA-1 in sshd_config.",
+                confidence=ssh_confidence,
+                evidence=(
+                    f"RFC 4253 KEXINIT parsed completely (10/10 name-lists, framing valid, HASSH {ssh_info.get('hassh_server')})"
+                    if ssh_validation.get("complete")
+                    else f"KEXINIT evidence incomplete: {ssh_validation.get('failed') or 'banner only'}"
+                ),
             )
         )
         risk += 20
@@ -1045,6 +1074,7 @@ def synthesize_device_profile(
         if p_svc.get("tls_grade"):
             specs[f"TLS Cryptographic Posture (:{pt})"] = (
                 f"Grade {p_svc['tls_grade']} • {p_svc.get('tls_version', '')} • {p_svc.get('tls_cipher', '')}"
+                f" • chain trusted={p_svc.get('cert_chain_trusted')} • expired={p_svc.get('cert_expired')}"
             )
         if p_svc.get("cert_subject"):
             specs[f"X.509 Cert Subject (:{pt})"] = p_svc["cert_subject"]
@@ -1081,8 +1111,10 @@ def synthesize_device_profile(
 
     if dns_info and (dns_info.get("dns_active") or dns_info.get("dot_port_853_open")):
         specs["DNS Resolver Posture (:53/:853)"] = (
-            f"{dns_info.get('security_grade')} • DNSSEC AD={dns_info.get('dnssec_validated')} • "
-            f"DoT 853={dns_info.get('dot_port_853_open')} • RTT {dns_info.get('query_rtt_ms')} ms"
+            f"{dns_info.get('security_grade')} • DNSSEC AD={dns_info.get('dnssec_validated')} (resolver-reported) • "
+            f"DoT verified={dns_info.get('dot_protocol_works', False)} • "
+            f"DoT chain trusted={dns_info.get('dot_tls_chain_trusted', False)} • "
+            f"RTT {dns_info.get('query_rtt_ms')} ms"
         )
         if dns_info.get("version_bind_leak"):
             specs["DNS Chaos version.bind"] = dns_info["version_bind_leak"]

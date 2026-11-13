@@ -707,6 +707,17 @@ def main(argv: List[str] | None = None) -> None:
     p_lic.add_argument("--session", default="", help="Stripe Checkout Session ID (cs_live_...) for checkout/verify")
     p_lic.add_argument("--key", default="", help="License key to activate or JTI to revoke")
 
+    p_led = sub.add_parser("ledger", help="Tamper-evident evidence ledger: checkpoints & verification")
+    p_led.add_argument(
+        "action",
+        choices=["verify", "checkpoint"],
+        default="verify",
+        nargs="?",
+        help="Ledger action",
+    )
+    p_led.add_argument("--out", default="", help="Write the signed checkpoint to this file")
+    p_led.add_argument("--checkpoint", default="", help="Checkpoint file to verify the local chain against")
+
     p_auth = sub.add_parser("authority", help="Ed25519 License Authority key management")
     p_auth.add_argument(
         "action",
@@ -821,6 +832,73 @@ def _dispatch_cli(parser, cmd: str, args) -> None:
             )
         )
         uvicorn.run("netwide.server:app", host=host, port=port, log_level="info")
+    elif cmd == "ledger":
+        import json as _json
+        act = getattr(args, "action", "verify")
+        from netwide import license_authority as _authority
+        from netwide.database import net_db as _net_db
+
+        if act == "checkpoint":
+            def _signer(payload_b64: str) -> str:
+                return _authority.sign_payload(payload_b64) or ""
+
+            cp = _net_db.create_ledger_checkpoint(signer=_signer if _authority.load_private_key() else None)
+            if args.out:
+                with open(args.out, "w", encoding="utf-8") as fh:
+                    _json.dump(cp, fh, indent=2)
+                console.print(
+                    Panel(
+                        f"[bold green]Signed checkpoint written[/bold green]\n"
+                        f"File:     [bold cyan]{args.out}[/bold cyan]\n"
+                        f"Entries:  [white]{cp['count']}[/white]\n"
+                        f"Head:     [dim]{cp['head_hash']}[/dim]\n"
+                        f"Signature:[dim]{cp['signature_algorithm']}[/dim]\n\n"
+                        f"[yellow]Store this file OUTSIDE this machine's database[/yellow] "
+                        f"(another host, a git repo, object storage, an email attachment).\n"
+                        f"[dim]It is the proof that the local chain was not rewritten.[/dim]",
+                        title="Ledger Checkpoint",
+                        border_style="green",
+                    )
+                )
+            else:
+                console.print(_json.dumps(cp, indent=2))
+        else:
+            res = _net_db.verify_ledger_chain()
+            console.print(
+                Panel(
+                    f"[bold {'green' if res.get('valid') else 'red'}]"
+                    f"{res.get('status', 'UNKNOWN')}[/bold {'green' if res.get('valid') else 'red'}]\n"
+                    f"Entries:  [white]{res.get('count')}[/white] of [white]{res.get('total_count')}[/white]"
+                    f"{' (complete)' if res.get('complete') else ' (PARTIAL)'}\n"
+                    f"Head:     [dim]{res.get('head_hash', '')}[/dim]\n"
+                    f"Verified: {'yes' if res.get('head_verified') else 'no'}\n"
+                    f"Hash ver: [white]{res.get('hash_version', '?')}[/white]",
+                    title="Ledger Verification",
+                    border_style="green" if res.get("valid") else "red",
+                )
+            )
+            if args.checkpoint:
+                try:
+                    with open(args.checkpoint, "r", encoding="utf-8") as fh:
+                        cp = _json.load(fh)
+                except Exception as exc:
+                    console.print(f"[bold red]Could not read checkpoint:[/bold red] {exc}")
+                    raise SystemExit(1)
+                anchor = _net_db.verify_ledger_checkpoint(cp)
+                console.print(
+                    Panel(
+                        f"[bold {'green' if anchor.get('anchored') else 'red'}]"
+                        f"{'ANCHORED TO CHECKPOINT' if anchor.get('anchored') else 'NOT ANCHORED'}"
+                        f"[/bold {'green' if anchor.get('anchored') else 'red'}]\n"
+                        f"Signature valid: {'yes' if anchor.get('signature_valid') else 'NO'}\n"
+                        f"Checkpoint:  [white]{anchor.get('checkpoint_count')}[/white] entries\n"
+                        f"Local:      [white]{anchor.get('local_count')}[/white] entries\n"
+                        f"[dim]{anchor.get('detail', '')}[/dim]",
+                        title="Checkpoint Anchor",
+                        border_style="green" if anchor.get("anchored") else "red",
+                    )
+                )
+
     elif cmd == "authority":
         from netwide import license_authority
         act = getattr(args, "action", "show")
