@@ -69,7 +69,6 @@ def _entry(protocol: str, *, validation: Dict[str, Any], verdict: str, basis: st
 def assess_device(device: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Build the verification entries for one device from its captured evidence."""
     out: List[Dict[str, Any]] = []
-    ip = device.get("ip", "")
 
     # ---------------------------------------------------------------- SSH
     ssh = device.get("ssh_info") or {}
