@@ -107,7 +107,8 @@ class NetworkDatabase:
                     actor TEXT NOT NULL,
                     action TEXT NOT NULL,
                     target TEXT NOT NULL,
-                    details TEXT NOT NULL
+                    details TEXT NOT NULL,
+                    hash_version INTEGER NOT NULL DEFAULT 1
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_ledger_ts ON events_ledger(timestamp DESC);
@@ -212,6 +213,13 @@ class NetworkDatabase:
                 );
                 """
             )
+            # v2 ledger: canonical, length-prefixed serialization. Pre-existing rows
+            # keep hash_version=1 (legacy colon format) and remain verifiable.
+            try:
+                conn.execute("ALTER TABLE events_ledger ADD COLUMN hash_version INTEGER NOT NULL DEFAULT 1")
+                conn.commit()
+            except sqlite3.OperationalError:
+                pass  # column already present
 
     @staticmethod
     def _key_for(mac: str, ip: str) -> str:
@@ -219,6 +227,32 @@ class NetworkDatabase:
         if clean_mac and clean_mac != "00:00:00:00:00:00":
             return clean_mac
         return f"IP:{ip}"
+
+    @staticmethod
+    def _ledger_content_v1(prev_hash: str, ts: float, actor: str, action: str,
+                           target: str, details: str) -> str:
+        """Legacy (v1) ledger serialization: colon-joined, ambiguous across field boundaries."""
+        return f"{prev_hash}:{ts:.6f}:{actor}:{action}:{target}:{details}"
+
+    @staticmethod
+    def _ledger_content_v2(prev_hash: str, ts: float, actor: str, action: str,
+                           target: str, details: str) -> bytes:
+        """
+        Canonical (v2) ledger serialization: each field is length-prefixed, so no two
+        different field splits can ever serialize to the same bytes.
+        """
+        out = bytearray()
+        for field in (prev_hash, f"{ts:.6f}", actor, action, target, details):
+            raw = field.encode("utf-8")
+            out += len(raw).to_bytes(4, "big") + raw
+        return bytes(out)
+
+    @classmethod
+    def _ledger_hash(cls, version: int, prev_hash: str, ts: float, actor: str,
+                     action: str, target: str, details: str) -> str:
+        if int(version or 1) >= 2:
+            return hashlib.sha256(cls._ledger_content_v2(prev_hash, ts, actor, action, target, details)).hexdigest()
+        return hashlib.sha256(cls._ledger_content_v1(prev_hash, ts, actor, action, target, details).encode("utf-8")).hexdigest()
 
     def log_event(
         self,
@@ -261,12 +295,11 @@ class NetworkDatabase:
         def _do_insert(c: sqlite3.Connection) -> Dict[str, Any]:
             last_row = c.execute("SELECT hash FROM events_ledger ORDER BY id DESC LIMIT 1").fetchone()
             prev_hash = str(last_row["hash"]) if last_row else "0" * 64
-            content = f"{prev_hash}:{now:.6f}:{actor}:{action}:{target}:{details}"
-            entry_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+            entry_hash = self._ledger_hash(2, prev_hash, now, actor, action, target, details)
             cur = c.execute(
                 """
-                INSERT INTO events_ledger (prev_hash, hash, timestamp, time_str, actor, action, target, details)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO events_ledger (prev_hash, hash, timestamp, time_str, actor, action, target, details, hash_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 2)
                 """,
                 (prev_hash, entry_hash, now, t_str, actor, action, target, details),
             )
@@ -298,16 +331,40 @@ class NetworkDatabase:
 
     get_events_ledger = get_ledger_entries
 
-    def verify_ledger_chain(self, limit: int = 10000) -> Dict[str, Any]:
+    def verify_ledger_chain(self, limit: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Verify the whole hash chain by default.
+
+        `limit` is retained for backwards compatibility but now defaults to None
+        (meaning "verify everything"). A truncated verification can no longer be
+        mistaken for a full one: the result reports `complete`, the number of rows
+        verified, the total row count, and the true head hash read independently
+        from the ledger (not from the last row we happened to fetch).
+        """
         with self._lock, self._connect() as conn:
-            rows = conn.execute("SELECT * FROM events_ledger ORDER BY id ASC LIMIT ?", (max(1, int(limit)),)).fetchall()
+            total = conn.execute("SELECT COUNT(*) FROM events_ledger").fetchone()[0]
+            head_row = conn.execute("SELECT hash FROM events_ledger ORDER BY id DESC LIMIT 1").fetchone()
+            true_head = str(head_row["hash"]) if head_row else "0" * 64
+
+            if limit is None:
+                rows = conn.execute("SELECT * FROM events_ledger ORDER BY id ASC").fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM events_ledger ORDER BY id ASC LIMIT ?", (max(1, int(limit)),)
+                ).fetchall()
+
             if not rows:
                 return {
                     "valid": True,
                     "count": 0,
+                    "total_count": int(total),
+                    "complete": int(total) == 0,
                     "status": "GENESIS_EMPTY",
-                    "head_hash": "0" * 64,
+                    "genesis_hash": "0" * 64,
+                    "head_hash": true_head,
+                    "hash_version": 2,
                 }
+
             expected_prev = "0" * 64
             for r in rows:
                 if r["prev_hash"] != expected_prev:
@@ -316,23 +373,42 @@ class NetworkDatabase:
                         "broken_at_id": r["id"],
                         "expected_prev": expected_prev,
                         "actual_prev": r["prev_hash"],
+                        "count": len(rows),
+                        "total_count": int(total),
+                        "complete": False,
+                        "head_hash": true_head,
                     }
-                content = f"{r['prev_hash']}:{r['timestamp']:.6f}:{r['actor']}:{r['action']}:{r['target']}:{r['details']}"
-                expected_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+                version = int(r["hash_version"] if "hash_version" in r.keys() else 1)
+                expected_hash = self._ledger_hash(
+                    version, r["prev_hash"], r["timestamp"], r["actor"], r["action"], r["target"], r["details"]
+                )
                 if r["hash"] != expected_hash:
                     return {
                         "valid": False,
                         "broken_at_id": r["id"],
                         "expected_hash": expected_hash,
                         "actual_hash": r["hash"],
+                        "count": len(rows),
+                        "total_count": int(total),
+                        "complete": False,
+                        "head_hash": true_head,
                     }
                 expected_prev = r["hash"]
+
+            complete = len(rows) == int(total)
+            versions = sorted({int(r["hash_version"] if "hash_version" in r.keys() else 1) for r in rows})
             return {
                 "valid": True,
                 "count": len(rows),
-                "status": "CHAIN_INTEGRITY_VERIFIED",
+                "total_count": int(total),
+                "complete": complete,
+                "status": "CHAIN_INTEGRITY_VERIFIED" if complete else "CHAIN_PARTIAL_VERIFIED",
                 "genesis_hash": rows[0]["hash"],
-                "head_hash": rows[-1]["hash"],
+                "head_hash": true_head,
+                "verified_head_hash": rows[-1]["hash"],
+                "head_verified": rows[-1]["hash"] == true_head,
+                "hash_version": max(versions),
+                "hash_versions_present": versions,
             }
 
     def upsert_graph_node(self, node_id: str, kind: str, attrs: Dict[str, Any] | None = None) -> None:

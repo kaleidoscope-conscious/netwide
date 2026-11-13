@@ -1,6 +1,6 @@
 # Netwide Press Kit
 
-**v4.7.0** · live page: https://kaleidoscope-conscious.github.io/netwide/share.html
+**v4.8.0** · live page: https://kaleidoscope-conscious.github.io/netwide/share.html
 
 Everything below is copy-paste ready. Every number is measured from the live system.
 
@@ -54,7 +54,7 @@ Binary parsers, not banner scraping:
 - SSHv2 KEXINIT: all 10 algorithm lists, HASSH server fingerprint, post-quantum hybrid KEX detection, graded A+ to C posture
 - SMB2/3 NEGOTIATE: negotiated dialect, Server GUID, ENCRYPTION/MULTI_CHANNEL capabilities, SMB signing enforcement (NTLM-relay exposure)
 - DNSSEC + DoT: AD=1 verification, Chaos TXT version.bind leakage, RFC 7858 encryption
-- NTPv4: stratum, reference clock, Mode-6 amplification (CVE-2013-5211)
+- NTPv4: stratum, reference clock, Mode-6 control responsiveness, and Mode-7 MONLIST with the amplification ratio measured on the wire
 - TLS/X.509, DNS/SPF/DMARC, MQTT v3.1.1 anonymous brokers, SNMPv2c, UPnP IGD WAN port-forward enumeration
 Why: most scanners check the port. Netwide reads the handshake — so it catches a device running SSH with a weak cipher, SMB without signing, or DNS with DNSSEC disabled. Misconfiguration lives in the negotiation, not the port list.
 
@@ -118,7 +118,7 @@ Netwide — a local-first network intelligence suite (Linux / Docker / Android)
 What it actually does, beyond "ping sweep":
 
 - Hidden-SSID de-cloaking — correlates hidden 802.11 BSSIDs against visible parents using 64-bit microsecond TSF clocks (nl80211), silicon MAC masks, QBSS load, 802.11k RNR/MLO, and temporal multipath RSSI co-variance (Pearson r >= 0.85). Also unmasks randomized LAA MACs via SLAAC EUI-64 FF:FE bit-inversion and virtual mesh BSSIDs (first_octet & 0xFD).
-- Binary protocol auditing — RFC 4253 SSH KEXINIT parser (HASSH MD5 fingerprint, post-quantum hybrid KEX detection), SMB2/3 NEGOTIATE dialect + signing enforcement, DNSSEC/DoT resolver posture, NTPv4 Mode-6 amplification, X.509 chains.
+- Binary protocol auditing — RFC 4253 SSH KEXINIT parser (HASSH MD5 fingerprint, post-quantum hybrid KEX detection, both-direction grading), SMB2/3 NEGOTIATE with the 3.1.1 preauth-integrity context, DNSSEC/DoT resolver posture (validated responses, real RFC 7858 DoT exchange), NTP Mode-6/7 control exposure with measured amplification, and TLS certificate chain verification.
 - Wire DPI — per-host KB/s, DNS/TLS SNI, TLS JA3, p0f OS.
 - Enforcement — ARP quarantine via iptables/nft, OpenWrt ubus, DNS sinkhole, plus a control plane (Roku/Chromecast/Sonos/Kasa/Shelly/PS5) where every action is journalized with its inverse.
 - Provenance — every verdict links to the packets behind it; 5,168 hash-chained ledger events on my own LAN so tampering is detectable.
@@ -177,7 +177,7 @@ Happy to answer questions. The protocol parsers are the part I'm most proud of �
 - Storefront: https://kaleidoscope-conscious.github.io/netwide/
 - Press kit (live): https://kaleidoscope-conscious.github.io/netwide/share.html
 - Repo: https://github.com/kaleidoscope-conscious/netwide
-- Release: https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.7.0
+- Release: https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.8.0
 - Discussions: https://github.com/kaleidoscope-conscious/netwide/discussions
 - Install: `pip install netwide` · `docker compose up -d` · `./install.sh`
 

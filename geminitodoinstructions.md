@@ -24,7 +24,7 @@ If those four ship, no consumer competitor can copy it in 3 months.
 | Area | Status in Code |
 |------|----------------|
 | 47K OUI + LAA/EUI-64 de-masking | Done (`oui.py`) |
-| SSH HASSH, SMB2/3 NTLM-relay, DNSSEC/DoT, NTP CVE-2013-5211 | Done (`probers.py`) |
+| SSH HASSH, SMB2/3 NTLM-relay, DNSSEC/DoT, NTP Mode-6/7 control exposure | Done (`probers.py`) |
 | 10-Stage De-Cloaker, TSF, QBSS, WPS, MLO, RSSI covariance, channel optimizer | Done, but blind — see P0 (`wireless.py`) |
 | Mobile Geiger Finder + dual-node triangulation | Done (`wireless.py`, `server.py` `/api/mobile/telemetry`) |
 | DPI: JA3, DHCP PRL, p0f, DNS/mDNS/TLS, ARP anomalies | Done (`probers.py:PassiveWireSniffer`) |

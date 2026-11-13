@@ -32,7 +32,7 @@ EXT_IOT_KEYS = {
 # SMB security canonical keys
 SMB_SECURITY_KEYS = (
     "dialect", "dialect_name", "dialect_rev", "signing_enabled",
-    "signing_required", "security_mode", "ntlm_relay_vulnerable",
+    "signing_required", "security_mode", "ntlm_relay_risk", "ntlm_relay_risk_basis", "negotiate_contexts",
     "server_guid", "capabilities", "security_posture",
 )
 

@@ -116,7 +116,7 @@ FEATURE_REQUIREMENTS: Dict[str, Tuple[str, str]] = {
     "ssh_audit": ("enterprise", "SSHv2 Binary KEXINIT & HASSH Cryptographic Audit"),
     "smb_audit": ("enterprise", "SMB2/3 Dialect & NTLM-Relay Signing Audit"),
     "dns_audit": ("enterprise", "RFC 4035 DNSSEC & DoT (:853) Resolver Security Audit"),
-    "ntp_audit": ("enterprise", "RFC 5905 NTPv4 Stratum, Reference Clock & Mode-6 Audit"),
+    "ntp_audit": ("enterprise", "RFC 5905 NTPv4 Stratum, Reference Clock & Control-Message Audit"),
     "port_knock": ("enterprise", "Deterministic Multi-Port TCP/UDP Port-Knocking Engine"),
     "upnp_nat_audit": ("enterprise", "UPnP IGD External NAT Port-Forwarding Audit"),
     "deep_nmap": ("enterprise", "Deep Nmap Service & Version Probe (-sV)"),

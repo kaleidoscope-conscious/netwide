@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Google Play Console Graphical Asset Generator for Netwide v4.7.0.
+Google Play Console Graphical Asset Generator for Netwide v4.8.0.
 Generates exact-resolution 24-bit/32-bit opaque PNG assets required by Google Play Store:
   - icon_512x512.png (512x512 App Icon)
   - feature_graphic_1024x500.png (1024x500 Feature Graphic)
@@ -178,7 +178,7 @@ def _phone_frame(title: str, subtitle: str, active_tab: int) -> tuple[Image.Imag
     draw.rounded_rectangle([40, 40, 1040, 250], radius=24, fill=BG_PANEL, outline=CYAN, width=3)
     draw.text((76, 68), title, fill=CYAN, font=_font(40, bold=True))
     draw.text((76, 132), subtitle, fill=TEXT_MAIN, font=_font(24, bold=False))
-    draw.text((76, 184), "NETWIDE v4.7.0 • ANDROID NATIVE + LAN BRIDGE", fill=EMERALD, font=_font(20, bold=True, mono=True))
+    draw.text((76, 184), "NETWIDE v4.8.0 • ANDROID NATIVE + LAN BRIDGE", fill=EMERALD, font=_font(20, bold=True, mono=True))
 
     draw.rounded_rectangle([40, 280, 1040, 1860], radius=32, fill=(8, 13, 26), outline=BORDER, width=4)
     draw.rounded_rectangle([70, 310, 1010, 390], radius=14, fill=BG_CARD, outline=BORDER, width=2)
@@ -390,7 +390,7 @@ def generate_tablet_screenshot_1920x1080() -> Path:
     _draw_grid(draw, 1920, 1080, step=48)
 
     draw.rounded_rectangle([24, 20, 1896, 104], radius=16, fill=BG_PANEL, outline=CYAN, width=3)
-    draw.text((52, 42), "NETWIDE v4.7.0 — ENTERPRISE TACTICAL WORKBENCH", fill=CYAN, font=_font(28, bold=True, mono=True))
+    draw.text((52, 42), "NETWIDE v4.8.0 — ENTERPRISE TACTICAL WORKBENCH", fill=CYAN, font=_font(28, bold=True, mono=True))
     draw.rounded_rectangle([1490, 36, 1868, 88], radius=12, fill=TINT_PURPLE, outline=PURPLE, width=2)
     draw.text((1514, 50), "SOVEREIGN ENTERPRISE TIER", fill=PURPLE, font=_font(20, bold=True, mono=True))
 

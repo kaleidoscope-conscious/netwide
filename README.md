@@ -1,11 +1,11 @@
-# Netwide v4.7.0
+# Netwide v4.8.0
 
-[![Release v4.7.0](https://img.shields.io/badge/release-v4.7.0-10b981?style=for-the-badge)](https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.7.0)
+[![Release v4.8.0](https://img.shields.io/badge/release-v4.8.0-10b981?style=for-the-badge)](https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.8.0)
 [![Tests](https://img.shields.io/badge/pytest-139%2F139_passing-34d399?style=for-the-badge)](https://github.com/kaleidoscope-conscious/netwide/actions)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776ab?style=for-the-badge)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-source--available%20%2B%20commercial_tiers-crimson?style=for-the-badge)](LICENSE.md)
 [![Storefront](https://img.shields.io/badge/Storefront-Founder's_Lifetime_%24149-7c3aed?style=for-the-badge)](https://kaleidoscope-conscious.github.io/netwide/)
-[![Android APK](https://img.shields.io/badge/Android-15-APK-0284c7?style=for-the-badge&logo=android)](https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.7.0/Netwide-Mobile-v4.7.0.apk)
+[![Android APK](https://img.shields.io/badge/Android-15-APK-0284c7?style=for-the-badge&logo=android)](https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.8.0/Netwide-Mobile-v4.8.0.apk)
 [![PyPI](https://img.shields.io/badge/pypi-netPulse-4.6.0-3775ab?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/netwide/)
 [![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fkaleidoscope-conscious%2Fnetwide-2496ed?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/kaleidoscope-conscious/netwide/pkgs/container/netwide)
 [![Discussions](https://img.shields.io/badge/discussions-Q%26A%20%2B%20roadmap-6e40c9?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kaleidoscope-conscious/netwide/discussions)
@@ -45,8 +45,8 @@ python3 -m netwide serve --host 0.0.0.0 --port 8765
 docker compose up -d
 ```
 
-📱 **Android:** [Netwide-Mobile-v4.7.0.apk](https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.7.0/Netwide-Mobile-v4.7.0.apk) ·
-[Google Play .AAB](https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.7.0/Netwide-Mobile-PlayStore-v4.7.0.aab)
+📱 **Android:** [Netwide-Mobile-v4.8.0.apk](https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.8.0/Netwide-Mobile-v4.8.0.apk) ·
+[Google Play .AAB](https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.8.0/Netwide-Mobile-PlayStore-v4.8.0.aab)
 
 ---
 
@@ -58,8 +58,8 @@ docker compose up -d
 | 🐳 **Docker (GHCR)** | `docker pull ghcr.io/kaleidoscope-conscious/netwide:latest` |
 | 🐳 **Docker Compose** | `docker compose up -d` |
 | 🖥️ **Source** | `git clone https://github.com/kaleidoscope-conscious/netwide.git && cd netwide && ./install.sh` |
-| 📦 **Release bundle** | [tar.gz · APK · AAB · wheel](https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.7.0) |
-| 📱 **Android** | [signed APK](https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.7.0/Netwide-Mobile-v4.7.0.apk) · [Play .AAB](https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.7.0/Netwide-Mobile-PlayStore-v4.7.0.aab) |
+| 📦 **Release bundle** | [tar.gz · APK · AAB · wheel](https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.8.0) |
+| 📱 **Android** | [signed APK](https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.8.0/Netwide-Mobile-v4.8.0.apk) · [Play .AAB](https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.8.0/Netwide-Mobile-PlayStore-v4.8.0.aab) |
 | 🧾 **Verified checksums** | `SHA256SUMS.txt` on every release |
 
 > Publishing to Docker Hub, PyPI and Flathub is one secret away — see
@@ -91,8 +91,8 @@ Licenses are **Ed25519-signed** (public key ships with the app, private key neve
   - **SSHv2 Binary `KEXINIT` & HASSH Fingerprinting (`:22`)**: RFC 4253 binary parser extracting all 10 algorithm lists, computing the **Salesforce HASSH Server MD5 fingerprint**, detecting Post-Quantum Hybrid KEX (`sntrup761x25519-sha512`, `mlkem768x25519`), and grading cipher/KEX posture (`A+` to `C`).
   - **SMB2/SMB3 Binary `NEGOTIATE` Dialect & NTLM-Relay Auditor (`:445`)**: pure-binary NetBIOS + `\xfeSMB` handshake inspector extracting negotiated dialect (`SMB 2.0.2`–`3.1.1`), Server GUID, capabilities (`ENCRYPTION`, `MULTI_CHANNEL`), and SMB Packet Signing enforcement.
   - **RFC 4035 DNSSEC & DoT (`:853`) Resolver Security Auditor (`:53/:853`)**: audits recursive resolution (`RA`), DNSSEC `AD=1` verification, Chaos `TXT version.bind` leakage, and RFC 7858 DNS-over-TLS encryption.
-  - **RFC 5905 NTPv4 Stratum, Reference Clock & CVE-2013-5211 Mode-6 Auditor (`:123`)**: binary NTPv4 client + Mode-6 amplification inspector.
-  - **Domain, DNS, SPF/DMARC & Live TLS `:443` X.509 OSINT Engine**: `A`/`AAAA`/`MX`/`NS`/`TXT`/`SPF`/`_dmarc`, X.509 chains, HTTP/3 (`Alt-Svc: h3`) posture (`/api/action/domain-intel`).
+  - **RFC 5905 NTPv4 Stratum, Reference Clock & Control-Message Auditor (`:123`)**: binary NTPv4 client, Mode-6 control responsiveness, and Mode-7 MONLIST probed separately with the amplification ratio **measured** on the wire (the CVE-2013-5211 pattern is Mode 7, not Mode 6).
+  - **Domain, DNS, SPF/DMARC & Live TLS `:443` X.509 OSINT Engine**: `A`/`AAAA`/`MX`/`NS`/`TXT`/`SPF`/`_dmarc`, TLS certificate chain trust/expiry/identity verification, HTTP/3 (`Alt-Svc: h3`) posture (`/api/action/domain-intel`).
   - **Local Workstation Socket & Process Inspector (`ss -tulnp`)**: audits listening daemons, PIDs, LAN-exposed vs loopback bindings, and `/proc/net/dev` counters.
   - **UPnP IGD External NAT Port-Forwarding Auditor**: enumerates active WAN→LAN port forwards via `WANIPConnection:1`.
 - **Multi-Protocol Active Probers & Controllers**:
@@ -118,12 +118,12 @@ Licenses are **Ed25519-signed** (public key ships with the app, private key neve
 - **Observability**: Prometheus (`/api/metrics`), posture diffs, daily digest, detection-rule compiler with SHA-256 manifest.
 - **Simple / Expert UI**: a verdict bar answers "Am I safe?" with the single top fix; per-device `OK / Check / Fix now` badges; accordions instead of ten stacked panels.
 
-### 🗼 Operator Console (v4.7.0)
+### 🗼 Operator Console (v4.8.0)
 Two **private** operator surfaces ship with the daemon — token-gated, loopback-only by default, never published:
 - **Business Control Room** (`/admin`) — paying customers, active licenses, lifetime revenue vs. MRR/ARR, lead funnel, Stripe status, 30-day mint chart, per-customer table. Operator licenses are reported separately from real revenue.
 - **Watchtower** (`/watchtower`) — live request feed (method/path/status/latency/client), who is using the node right now, WebSocket session count, top endpoints, active alerts, and the license ledger — all in-memory, nothing leaves the machine.
 
-### 🔐 Cryptographic Licensing (v4.7.0)
+### 🔐 Cryptographic Licensing (v4.8.0)
 - Keys: `NP1-<TIER>-<payload>-<signature>` — **Ed25519** operator-signed, verifiable offline on any install.
 - Private key lives at `~/.config/netwide/authority_ed25519.key` (mode 600); the **public** key ships in the app and can only verify.
 - Stripe Checkout + hosted Payment Links + signed webhooks (fail-closed, replay-protected, idempotent).

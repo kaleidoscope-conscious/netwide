@@ -1,10 +1,53 @@
 ================================================================================
-NETPULSE // OMNISIGHT — SYSTEM FLAW FINDINGS DOCUMENT
-Generated: 2026-11-08
+NETWIDE // SYSTEM FLAW FINDINGS DOCUMENT
+Generated: 2026-11-08  ·  Rebranded: NetPulse -> Netwide (2026-11-12)
 Scope: Full codebase review (server/API, billing+licensing, probing engines,
        CLI, desktop, packaging, tests). Findings gathered from four parallel
        deep-dive code reviews plus manual spot-verification of cited lines.
+
+--------------------------------------------------------------------------------
+!! VERIFICATION STATUS — READ BEFORE ACTING ON ANY ITEM BELOW !!
+
+This document is a *historical snapshot* taken at commit 2026-11-08. It is NOT
+a source of truth. Line references have drifted and several findings were
+already fixed before it was written. **Every finding must be reproduced against
+the current commit before it is treated as a confirmed defect.**
+
+Items verified STALE (already correct in the current code — do not re-open):
+  - "Wi-Fi BSS parser cannot parse real output"  -> the parser does contain a
+    valid MAC-address regex.
+  - "nmcli signal is always misinterpreted"        -> parse_signal_value() now
+    handles both dBm and percentage formats.
+  - "MQTT reads incorrect CONNACK byte"          -> the implementation reads
+    resp[3] correctly.
+  - "SMB never advertises 3.1.1"                 -> the request does advertise
+    0x0311 (though it now also carries the required preauth-integrity context).
+
+Items VERIFIED FIXED in v4.8.0 (2026-11-12) after an independent protocol audit:
+  - SSH grading now incorporates weak host keys, weak MACs and BOTH directions;
+    all 10 RFC 4253 name-lists plus the trailing boolean/reserved are validated,
+    and packet framing is checked.
+  - SMB 3.1.1 negotiation now carries a PREAUTH_INTEGRITY_CAPABILITIES context
+    with a computed ContextLength; the response's negotiate contexts are parsed.
+  - "Signing not required" is reported as a relay RISK INDICATOR, not a verdict.
+  - DNS responses are validated (random transaction id, transaction id and
+    question-section match); AD is reported as resolver-reported, not verified.
+  - DNS-over-TLS now performs a real RFC 7858 exchange and measures whether the
+    certificate chain is trusted.
+  - NTP Mode 6 (control responsiveness) and Mode 7 (MONLIST, the real
+    CVE-2013-5211 amplification vector) are probed separately, and the
+    amplification ratio is measured on the wire.
+  - TLS grading now depends on chain trust, expiry and identity — an untrusted or
+    expired certificate can never receive a top grade. (Also fixed: the TLS
+    version/cipher were never detected on OpenSSL 3.x, so the grade silently
+    never fired.)
+  - The evidence ledger now uses canonical, length-prefixed serialization and
+    verifies the WHOLE chain by default, reporting a truthful head hash.
+  - New regression corpus: tests/test_protocol_validation.py (16 cases).
+
+Everything else below remains unverified and is triaged as "historical".
 ================================================================================
+
 
 --------------------------------------------------------------------------------
 1. SECURITY — CRITICAL / HIGH

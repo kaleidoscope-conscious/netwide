@@ -279,6 +279,41 @@ Behaviour:
   ```
   This verifies the payment with Stripe, mints the key, and emails it.
 
+## 4j. Protocol Verification hardening (v4.8.0, 2026-11-12)
+
+An independent source-level audit of the protocol engines was carried out and every
+claim was **reproduced against the running code** before acting. The fixes below
+landed in v4.8.0; the rule now enforced across the product is:
+
+> **A verdict must be supported by evidence. If the evidence is structurally
+> invalid, the parser refuses to grade rather than returning a confident answer.**
+
+### What changed
+
+| Subsystem | Before | Now |
+| :--- | :--- | :--- |
+| **SSH (RFC 4253)** | Only 8 of 10 name-lists accepted; host keys and MACs never graded; only `enc_s2c` graded; no trailing-field check | All 10 lists + `first_kex_packet_follows`/reserved validated; host keys, MACs and **both directions** graded; packet framing checked (§6) |
+| **SMB2 (MS-SMB2)** | Advertised 3.1.1 with **no** negotiate context (servers may reject); "NTLM Relay Vulnerable" asserted | Real `PREAUTH_INTEGRITY_CAPABILITIES` context with computed `ContextLength`; response contexts parsed; relay reported as a **risk indicator** |
+| **DNSSEC (RFC 4035)** | Fixed transaction id, response never matched to the query; AD treated as proof | Random transaction id; transaction id **and** question section validated; AD reported as *resolver-reported*, not independently verified |
+| **DNS-over-TLS (RFC 7858)** | Only a TLS handshake — never a DNS query | Real length-prefixed DoT exchange, response validated, **certificate chain trust measured** |
+| **NTP (RFC 5905)** | Mode 6 responsiveness labelled as CVE-2013-5211 amplification | Mode 6 (control responsiveness) and Mode 7 (MONLIST — the real amplification vector) probed **separately**, amplification ratio **measured on the wire** |
+| **TLS / X.509** | TLS 1.3 with an untrusted cert graded **A+**; expiry/hostname ignored; version detection broken on OpenSSL 3.x | Grade depends on chain trust, expiry and identity; expired/untrusted can never score highly; **OpenSSL 3.x parsing fixed** (the TLS audit had been silently inert on modern systems) |
+| **Evidence ledger** | Ambiguous colon serialization; verification limited to the first 10,000 rows; head hash from the fetched prefix | Canonical **length-prefixed** serialization (v2) with legacy v1 rows still verifiable; **whole chain verified by default** with `complete` / `head_verified` reported |
+
+### Regression corpus
+
+`tests/test_protocol_validation.py` — 16 cases covering well-formed **and
+malformed** input for every parser above, including the canonical-serialization
+ambiguity case and a tamper test that drops the ledger's immutability trigger
+before modifying a row (the chain is still detected as broken).
+
+### Honest-wording rules now enforced
+
+- "AD=1" is always described as **resolver-reported**, never as independent validation.
+- "Signing not required" is a **hardening gap / relay risk indicator**, never a verdict.
+- Mode 6 exposure is **not** called amplification; only a measured Mode 7 ratio is.
+- A certificate finding states whether the chain was trusted, expired, or mismatched.
+
 ## 5. Prettier org handle (optional polish)
 
 `netwide` is globally taken (EGYM, 2011). **`netwide-hq`** is verified

@@ -126,7 +126,7 @@ def test_health_pricing_and_admin_security():
     assert resp_health.headers.get("X-Content-Type-Options") == "nosniff"
     hdata = resp_health.json()
     assert hdata["status"] == "healthy"
-    assert hdata["version"] == "4.7.0"
+    assert hdata["version"] == "4.8.0"
 
     resp_pricing = client.get("/pricing")
     assert resp_pricing.status_code == 200

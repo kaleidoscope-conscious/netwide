@@ -3,5 +3,5 @@ Netwide — Sovereign Network Intelligence, Deep Fingerprinting & RF Reconnaissa
 A complete, zero-cloud, multi-protocol alternative to Fing.
 """
 
-__version__ = "4.7.0"
+__version__ = "4.8.0"
 __author__ = "Antigravity Sovereign Systems"

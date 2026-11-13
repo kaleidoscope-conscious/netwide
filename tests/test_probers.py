@@ -135,7 +135,8 @@ def test_smb2_negotiate_packet_and_response_parser():
     assert parsed["dialect_name"] == "SMB 3.1.1"
     assert parsed["signing_enabled"] is True
     assert parsed["signing_required"] is False
-    assert parsed["ntlm_relay_vulnerable"] is True
+    assert parsed["ntlm_relay_risk"] is True
+    assert "exploitability depends" in parsed["ntlm_relay_risk_basis"]
     assert "ENCRYPTION" in parsed["capabilities"]
     assert parsed["server_guid"] == "12345678-1234-5678-1234-567812345678"
 

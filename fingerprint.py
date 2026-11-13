@@ -844,15 +844,17 @@ def synthesize_device_profile(
         )
         risk += 20
 
-    if smb_info and smb_info.get("ntlm_relay_vulnerable"):
+    if smb_info and (smb_info.get("ntlm_relay_risk") or smb_info.get("ntlm_relay_vulnerable")):
         findings.append(
             SecurityFinding(
                 severity="HIGH",
                 title=f"SMB Packet Signing Not Required ({smb_info.get('dialect', 'SMB2/3')})",
                 description=(
                     f"Host {ip}:445 negotiated {smb_info.get('dialect')} with Packet Signing "
-                    f"{'Enabled' if smb_info.get('signing_enabled') else 'Disabled'} but Not Required, "
-                    "making it vulnerable to Responder / NTLM Relay MITM attacks."
+                    f"{'Enabled' if smb_info.get('signing_enabled') else 'Disabled'} but Not Required. "
+                    "This is a hardening gap and an NTLM-relay risk indicator: exploitability "
+                    "depends on the configured authentication mechanism and channel-binding "
+                    "protections, so it is not by itself proof of a relay vulnerability."
                 ),
                 remediation="Enable 'Microsoft network server: Digitally sign communications (always)' via GPO or set 'server signing = mandatory' in smb.conf.",
             )
@@ -1343,7 +1345,7 @@ def compute_network_security_posture(
     # Pillar 2: Cryptographic Hygiene (0-25 pts)
     crypto_deduction = 0
     for d in online_devs:
-        if d.get("smb_info", {}).get("ntlm_relay_vulnerable"):
+        if d.get("smb_info", {}).get("ntlm_relay_risk") or d.get("smb_info", {}).get("ntlm_relay_vulnerable"):
             crypto_deduction += 8
         if d.get("ssh_info", {}).get("weak_kex") or d.get("ssh_info", {}).get("weak_ciphers"):
             crypto_deduction += 5

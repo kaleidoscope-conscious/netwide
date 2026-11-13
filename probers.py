@@ -904,6 +904,35 @@ STANDARD_SCAN_PORTS: Dict[int, str] = {
 }
 
 
+def _tls_grade(tls_version: str, chain_trusted: bool, expired: Optional[bool],
+                hostname_match: Optional[bool]) -> str:
+    """
+    Grade a TLS endpoint from measured facts only.
+
+    Certificate trust, validity and identity are separate security properties from
+    the protocol version, so an untrusted or expired certificate can never receive a
+    top grade regardless of how modern the TLS version is.
+    """
+    tls_v = (tls_version or "").strip()
+    if "1.3" in tls_v:
+        label, modern = "TLS 1.3", True
+    elif "1.2" in tls_v:
+        label, modern = "TLS 1.2", False
+    elif tls_v:
+        return "F (Deprecated TLS)"
+    else:
+        return "Unrated (TLS version unknown)"
+
+    if expired:
+        return f"D (Expired Certificate on {label})"
+    if not chain_trusted:
+        return f"C (Untrusted Certificate — {label})"
+    if hostname_match is False:
+        return f"B (Trusted Chain but Hostname/IP Mismatch — {label})"
+    return ("A+ (Trusted Chain, Valid, Identity Match — TLS 1.3)" if modern
+            else "A (Trusted Chain, Valid, Identity Match — TLS 1.2)")
+
+
 def inspect_http_or_tls_port(ip: str, port: int) -> Dict[str, Any]:
     """Grab HTTP Server header, HTML <title>, RP headers, or TLS X.509 certificate metadata on an open port."""
     meta: Dict[str, Any] = {}
@@ -918,14 +947,29 @@ def inspect_http_or_tls_port(ip: str, port: int) -> Dict[str, Any]:
                 text=True,
                 timeout=1.4,
             )
-            if "Protocol  :" in p.stdout:
-                m_pr = re.search(r"Protocol\s*:\s*(\S+)", p.stdout)
-                if m_pr:
-                    meta["tls_version"] = m_pr.group(1)
-            if "Cipher    :" in p.stdout:
-                m_ci = re.search(r"Cipher\s*:\s*(\S+)", p.stdout)
-                if m_ci:
-                    meta["tls_cipher"] = m_ci.group(1)
+            # OpenSSL 1.1 prints "Protocol  : TLSv1.3" / "Cipher    : TLS_AES_...";
+            # OpenSSL 3.x prints a single "New, TLSv1.3, Cipher is TLS_AES_..." line.
+            # Both formats must be handled or the TLS grade silently never fires.
+            m_pr = re.search(r"Protocol\s*:\s*(\S+)", p.stdout)
+            if m_pr:
+                meta["tls_version"] = m_pr.group(1)
+            else:
+                m_new = re.search(r"New,\s*(TLSv[\d.]+)", p.stdout)
+                if m_new:
+                    meta["tls_version"] = m_new.group(1)
+            m_ci = re.search(r"Cipher\s*:\s*(\S+)", p.stdout)
+            if m_ci:
+                meta["tls_cipher"] = m_ci.group(1)
+            else:
+                m_cipher = re.search(r"Cipher is ([\w-]+)", p.stdout)
+                if m_cipher:
+                    meta["tls_cipher"] = m_cipher.group(1)
+            # Chain verification result from openssl ("Verify return code: 0 (ok)" = trusted).
+            m_vrf = re.search(r"Verify return code:\s*(\d+)", p.stdout)
+            if m_vrf:
+                meta["cert_chain_verify_code"] = int(m_vrf.group(1))
+                meta["cert_chain_trusted"] = int(m_vrf.group(1)) == 0
+
             if "BEGIN CERTIFICATE" in p.stdout:
                 x = subprocess.run(
                     ["openssl", "x509", "-noout", "-subject", "-issuer", "-dates", "-serial", "-fingerprint", "-sha256"],
@@ -948,17 +992,43 @@ def inspect_http_or_tls_port(ip: str, port: int) -> Dict[str, Any]:
                         meta["cert_serial"] = ln.split("=", 1)[1].strip()
                     elif "Fingerprint=" in ln:
                         meta["cert_sha256"] = ln.split("=", 1)[1].strip()
+
+                # Expiry (notAfter) — an expired certificate is a hard failure.
+                not_after = meta.get("cert_not_after", "")
+                if not_after:
+                    try:
+                        exp_ts = time.mktime(time.strptime(not_after, "%b %d %H:%M:%S %Y %Z"))
+                        meta["cert_expired"] = exp_ts < time.time()
+                        meta["cert_expires_in_days"] = int((exp_ts - time.time()) / 86400)
+                    except Exception:
+                        meta["cert_expired"] = None
+
+                # Hostname / IP identity check against the SAN list.
+                san = subprocess.run(
+                    ["openssl", "x509", "-noout", "-ext", "subjectAltName"],
+                    input=p.stdout, capture_output=True, text=True, timeout=1.0,
+                )
+                names: List[str] = []
+                # OpenSSL 3.x: "X509v3 Subject Alternative Name: \n    DNS:a, IP Address:1.1.1.1"
+                # OpenSSL 1.1: "X509v3 Subject Alternative Name: DNS:a, IP Address:1.1.1.1"
+                m_san = re.search(r"Subject Alternative Name:\s*(.*?)(?:\n\s*\n|$)", san.stdout, re.S)
+                if m_san:
+                    names = [x.strip() for x in m_san.group(1).replace("\n", ",").split(",")]
+                    names = [x.replace("IP Address:", "").replace("DNS:", "").strip() for x in names if x]
+                meta["cert_san"] = names[:8]
+                meta["cert_hostname_match"] = (ip in names) if names else None
+
                 subj = meta.get("cert_subject", "")
                 iss = meta.get("cert_issuer", "")
                 if subj and iss:
                     meta["cert_self_signed"] = subj == iss
-            tls_v = meta.get("tls_version", "")
-            if "1.3" in tls_v:
-                meta["tls_grade"] = "B (Self-Signed TLS 1.3)" if meta.get("cert_self_signed") else "A+"
-            elif "1.2" in tls_v:
-                meta["tls_grade"] = "B (Self-Signed TLS 1.2)" if meta.get("cert_self_signed") else "A"
-            elif tls_v:
-                meta["tls_grade"] = "F (Deprecated TLS)"
+
+            meta["tls_grade"] = _tls_grade(
+                meta.get("tls_version", ""),
+                bool(meta.get("cert_chain_trusted")),
+                meta.get("cert_expired"),
+                meta.get("cert_hostname_match"),
+            )
         except Exception:
             pass
 
@@ -1986,29 +2056,112 @@ def control_smart_home_device(ip: str, protocol: str, action: str = "status") ->
         return {"ok": False, "ip": ip, "protocol": proto, "action": act, "error": str(e)}
 
 
+# Weak-algorithm registries used for grading (advertised algorithms, not negotiated ones).
+SSH_WEAK_HOSTKEYS = ("ssh-dss", "ssh-rsa")
+SSH_WEAK_MACS = (
+    "hmac-md5", "hmac-md5-96", "hmac-sha1", "hmac-sha1-96",
+    "hmac-sha1-etm@openssh.com", "umac-64@openssh.com", "umac-128@openssh.com",
+)
+SSH_WEAK_CIPHER_TOKENS = ("cbc", "arcfour", "rc4", "3des", "des", "none")
+
+
+def _ssh_grade(kex_algs: List[str], host_key_algs: List[str], enc_c2s: List[str], enc_s2c: List[str],
+               mac_c2s: List[str], mac_s2c: List[str]) -> Dict[str, Any]:
+    """
+    Grade an SSH server from the algorithms it ADVERTISES in SSH_MSG_KEXINIT.
+
+    Both directions are graded (c2s and s2c), weak host keys and weak MACs are
+    incorporated, and availability is never confused with negotiation.
+    """
+    weak_kex = [k for k in kex_algs if "group1-" in k or "sha1" in k or k.endswith("-sha1")]
+    weak_hostkeys = [h for h in host_key_algs if h in SSH_WEAK_HOSTKEYS]
+    weak_ciphers = sorted({c for c in (enc_c2s + enc_s2c)
+                            if any(tok in c.lower() for tok in SSH_WEAK_CIPHER_TOKENS)})
+    weak_macs = sorted({m for m in (mac_c2s + mac_s2c) if m.lower() in SSH_WEAK_MACS})
+    has_pqc = any("sntrup761" in k or "mlkem" in k for k in kex_algs)
+
+    # Severity ordering: broken/legacy host key and null ciphers outrank MAC/KEX weakness.
+    if "none" in {c.lower() for c in (enc_c2s + enc_s2c)} or weak_hostkeys:
+        grade = "D (Insecure Host Key or NULL Cipher Advertised)"
+    elif weak_ciphers or weak_macs:
+        grade = "C (Legacy CBC / RC4 / SHA-1 MAC Advertised)"
+    elif weak_kex:
+        grade = "B (Transitional SHA-1 KEX Present)"
+    elif has_pqc:
+        grade = "A+ (Post-Quantum Hybrid KEX)"
+    else:
+        grade = "A (Modern AEAD / Elliptic Curve)"
+
+    return {
+        "crypto_grade": grade,
+        "post_quantum_kex": has_pqc,
+        "weak_kex": weak_kex,
+        "weak_ciphers": weak_ciphers,
+        "weak_hostkeys": weak_hostkeys,
+        "weak_macs": weak_macs,
+        "grade_inputs": {
+            "kex": "both directions",
+            "host_key": "graded",
+            "mac": "graded (c2s + s2c)",
+            "encryption": "graded (c2s + s2c)",
+        },
+    }
+
+
 def _parse_ssh_kexinit_payload(payload: bytes) -> Optional[Dict[str, Any]]:
     """
     Parse an RFC 4253 binary SSH_MSG_KEXINIT (0x14 = 20) payload into its 10 algorithm
     name-lists, compute the Salesforce HASSH Server MD5 fingerprint, and grade crypto posture.
+
+    Structural validation (RFC 4253 §7.1): all ten name-lists must be present, followed
+    by a boolean first_kex_packet_follows and a 32-bit reserved field that must be zero.
+    A packet that does not satisfy this is reported as structurally invalid instead of
+    being silently accepted as a partial parse.
     """
+    validation: Dict[str, Any] = {"rfc": "RFC 4253 §7.1", "complete": False, "failed": []}
+
     if len(payload) < 22 or payload[0] != 20:
-        return None
+        validation["failed"].append("not an SSH_MSG_KEXINIT payload")
+        return {"validation": validation, "parse_error": "not an SSH_MSG_KEXINIT payload"}
+
     # Byte 0 is SSH_MSG_KEXINIT (20), bytes 1..17 are the 16-byte random cookie
     offset = 17
     lists: List[List[str]] = []
-    for _ in range(10):
+    for idx in range(10):
         if offset + 4 > len(payload):
+            validation["failed"].append(f"name-list {idx} truncated")
             break
         nlen = struct.unpack(">I", payload[offset : offset + 4])[0]
         offset += 4
         if offset + nlen > len(payload):
+            validation["failed"].append(f"name-list {idx} truncated")
             break
         raw_str = payload[offset : offset + nlen].decode("ascii", errors="ignore")
         offset += nlen
         lists.append([x for x in raw_str.split(",") if x])
 
-    if len(lists) < 8:
-        return None
+    if len(lists) != 10:
+        validation["failed"].append(f"expected 10 name-lists, got {len(lists)}")
+        return {
+            "validation": validation,
+            "parse_error": f"incomplete KEXINIT: {len(lists)}/10 name-lists",
+            "crypto_grade": "Unrated (Incomplete KEXINIT)",
+        }
+
+    # Trailing boolean first_kex_packet_follows + uint32 reserved (must be 0)
+    if offset + 5 > len(payload):
+        validation["failed"].append("missing first_kex_packet_follows/reserved")
+    else:
+        follows = payload[offset]
+        reserved = struct.unpack(">I", payload[offset + 1 : offset + 5])[0]
+        if reserved != 0:
+            validation["failed"].append("reserved field is not zero")
+        validation["first_kex_packet_follows"] = bool(follows)
+        validation["reserved_zero"] = reserved == 0
+        offset += 5
+
+    validation["complete"] = not validation["failed"]
+    validation["name_lists"] = 10
 
     kex_algs = lists[0]
     host_key_algs = lists[1]
@@ -2023,24 +2176,16 @@ def _parse_ssh_kexinit_payload(payload: bytes) -> Optional[Dict[str, Any]]:
     hassh_raw = f"{','.join(kex_algs)};{','.join(enc_s2c)};{','.join(mac_s2c)};{','.join(cmp_s2c)}"
     hassh_server = hashlib.md5(hassh_raw.encode("utf-8")).hexdigest()
 
-    weak_kex = [k for k in kex_algs if "group1-" in k or "sha1" in k]
-    weak_ciphers = [c for c in enc_s2c if "cbc" in c or "arcfour" in c or "3des" in c or "des" in c]
-    weak_hostkeys = [h for h in host_key_algs if h in ("ssh-dss", "ssh-rsa")]
-    has_pqc = any("sntrup761" in k or "mlkem" in k for k in kex_algs)
-
-    if not weak_kex and not weak_ciphers and has_pqc:
-        grade = "A+ (Post-Quantum Hybrid KEX)"
-    elif not weak_kex and not weak_ciphers:
-        grade = "A (Modern AEAD / Elliptic Curve)"
-    elif weak_ciphers or "diffie-hellman-group1-sha1" in weak_kex:
-        grade = "C (Legacy CBC / SHA-1 KEX Enabled)"
-    else:
-        grade = "B (Transitional SHA-1 KEX Present)"
+    graded = _ssh_grade(kex_algs, host_key_algs, enc_c2s, enc_s2c, mac_c2s, mac_s2c)
 
     return {
         "hassh_server": hassh_server,
-        "crypto_grade": grade,
-        "post_quantum_kex": has_pqc,
+        "hassh_raw": hassh_raw,
+        "validation": validation,
+        "negotiation_note": (
+            "Algorithms above are ADVERTISED availability in SSH_MSG_KEXINIT; the negotiated "
+            "set is only fixed when the key exchange completes."
+        ),
         "kex_algorithms": kex_algs[:12],
         "host_key_algorithms": host_key_algs[:10],
         "encryption_c2s": enc_c2s[:10],
@@ -2049,9 +2194,7 @@ def _parse_ssh_kexinit_payload(payload: bytes) -> Optional[Dict[str, Any]]:
         "mac_s2c": mac_s2c[:10],
         "compression_c2s": cmp_c2s[:6],
         "compression_s2c": cmp_s2c[:6],
-        "weak_kex": weak_kex,
-        "weak_ciphers": weak_ciphers,
-        "weak_hostkeys": weak_hostkeys,
+        **graded,
     }
 
 
@@ -2084,19 +2227,43 @@ def probe_ssh_kex_and_hostkeys(ip: str, port: int = 22, timeout: float = 1.4) ->
         if len(buf) >= 6:
             pkt_len = struct.unpack(">I", buf[:4])[0]
             pad_len = buf[4]
-            while len(buf) < 4 + pkt_len and len(buf) < 16384:
+            while len(buf) < 4 + pkt_len and len(buf) < 65536:
                 chunk = s.recv(4096)
                 if not chunk:
                     break
                 buf += chunk
+            # RFC 4253 §6: packet_length = 1 (padding_length byte) + payload + padding,
+            # and the whole packet must be a multiple of the cipher block size (>= 8).
             payload_len = pkt_len - pad_len - 1
-            if payload_len > 0 and 5 + payload_len <= len(buf):
+            framing_ok = (
+                pkt_len >= 6
+                and payload_len > 0
+                and 1 + payload_len + pad_len == pkt_len
+                and (1 + payload_len + pad_len) % 8 == 0
+                and 5 + payload_len <= len(buf)
+            )
+            if framing_ok:
                 payload = buf[5 : 5 + payload_len]
                 parsed = _parse_ssh_kexinit_payload(payload)
                 if parsed:
                     parsed["banner"] = banner_line
                     parsed["port"] = port
+                    parsed.setdefault("validation", {})["packet_framing_valid"] = True
                     return parsed
+                return {
+                    "banner": banner_line,
+                    "port": port,
+                    "crypto_grade": "Unrated (Invalid KEXINIT)",
+                    "parse_error": "KEXINIT payload failed RFC 4253 structural validation",
+                }
+            return {
+                "banner": banner_line,
+                "port": port,
+                "crypto_grade": "Unrated (Invalid SSH Packet Framing)",
+                "parse_error": (
+                    f"RFC 4253 §6 framing invalid (packet_length={pkt_len}, padding_length={pad_len})"
+                ),
+            }
 
         return {"banner": banner_line, "port": port, "crypto_grade": "Banner Only"}
     except Exception:
@@ -2127,15 +2294,41 @@ def _build_smb2_negotiate_packet() -> bytes:
     )
     dialects = [0x0202, 0x0210, 0x0300, 0x0302, 0x0311]
     client_guid = uuid.uuid4().bytes
+
+    # MS-SMB2 3.2.3.1: when 3.1.1 is offered, the request MUST carry a
+    # PREAUTH_INTEGRITY_CAPABILITIES negotiate context — servers are entitled to
+    # reject a 3.1.1 negotiation that omits it.
+    # ContextLength must equal the real payload size (4 + 2*count + salt_length),
+    # which is what Samba/Windows validate against.
+    preauth_body = (
+        struct.pack("<H", 1)       # HashAlgorithmCount = 1
+        + struct.pack("<H", 32)    # SaltLength = 32
+        + struct.pack("<H", 0x0001)  # HashAlgorithm = SHA-512
+        + os.urandom(32)            # Salt (random 32 bytes)
+    )
+    preauth_ctx = (
+        struct.pack("<H", 0x0001)                       # ContextType = PREAUTH_INTEGRITY_CAPABILITIES
+        + struct.pack("<H", len(preauth_body))           # ContextLength (computed)
+        + preauth_body
+    )
+
+    dialect_bytes = b"".join(struct.pack("<H", d) for d in dialects)
+    # The negotiate body is 36 bytes; dialects follow, then 1 pad byte when the
+    # dialect count is odd, then the contexts.
+    context_offset = 64 + 36 + len(dialect_bytes) + (1 if len(dialects) % 2 else 0)
     neg_body = (
-        struct.pack("<H", 36)                   # StructureSize = 36
-        + struct.pack("<H", len(dialects))      # DialectCount = 4
-        + struct.pack("<H", 1)                  # SecurityMode = Signing Enabled (1)
-        + struct.pack("<H", 0)                  # Reserved
-        + struct.pack("<I", 0x7F)               # Capabilities
-        + client_guid                           # ClientGuid (16 bytes)
-        + struct.pack("<Q", 0)                  # NegotiateContextOffset/Count/Reserved
-        + b"".join(struct.pack("<H", d) for d in dialects)
+        struct.pack("<H", 36)                    # StructureSize = 36
+        + struct.pack("<H", len(dialects))       # DialectCount
+        + struct.pack("<H", 1)                   # SecurityMode = Signing Enabled (1)
+        + struct.pack("<H", 0)                   # Reserved
+        + struct.pack("<I", 0x7F)                # Capabilities
+        + client_guid                            # ClientGuid (16 bytes)
+        + struct.pack("<I", context_offset)      # NegotiateContextOffset (from SMB2 header)
+        + struct.pack("<H", 1)                   # NegotiateContextCount = 1
+        + struct.pack("<H", 0)                   # Reserved2
+        + dialect_bytes
+        + (b"\x00" if len(dialects) % 2 else b"")  # 1-byte alignment padding
+        + preauth_ctx
     )
     smb_payload = smb2_header + neg_body
     netbios_hdr = b"\x00" + struct.pack(">I", len(smb_payload))[1:]
@@ -2194,6 +2387,30 @@ def _parse_smb2_negotiate_response(data: bytes) -> Optional[Dict[str, Any]]:
         if caps & bit:
             cap_flags.append(name)
 
+    # Parse the response's negotiate contexts (MS-SMB2 3.2.3.2) so 3.1.1 support is
+    # evidenced rather than assumed from the dialect revision.
+    contexts: List[str] = []
+    ctx_offset = struct.unpack("<I", body[28:32])[0]
+    ctx_count = struct.unpack("<H", body[32:34])[0]
+    # NegotiateContextOffset is relative to the start of the SMB2 header, while
+    # `body` starts 64 bytes later (immediately after the header).
+    cursor = ctx_offset - 64
+    if ctx_count and ctx_offset >= 64 and 0 <= cursor < len(body):
+        for _ in range(min(int(ctx_count), 8)):
+            if cursor + 4 > len(body):
+                break
+            ctype = struct.unpack("<H", body[cursor : cursor + 2])[0]
+            clen = struct.unpack("<H", body[cursor + 2 : cursor + 4])[0]
+            if cursor + 4 + clen > len(body):
+                break
+            if ctype == 0x0001:
+                contexts.append("PREAUTH_INTEGRITY")
+            elif ctype == 0x0002:
+                contexts.append("ENCRYPTION")
+            else:
+                contexts.append(f"0x{ctype:04X}")
+            cursor += 4 + clen
+
     return {
         "dialect": SMB2_DIALECT_NAMES.get(dialect_rev, f"SMB (0x{dialect_rev:04X})"),
         "dialect_code": f"0x{dialect_rev:04X}",
@@ -2201,10 +2418,36 @@ def _parse_smb2_negotiate_response(data: bytes) -> Optional[Dict[str, Any]]:
         "security_mode": sec_mode,
         "signing_enabled": signing_enabled,
         "signing_required": signing_required,
-        "ntlm_relay_vulnerable": not signing_required,
-        "security_posture": "HARDENED (Signing Required)" if signing_required else "VULNERABLE (Signing Not Required — NTLM Relay Risk)",
+        # Signing not being *required* is a weakness worth flagging, but on its own it
+        # does not establish that NTLM relay is exploitable — that also depends on the
+        # authentication configuration and other channel-binding protections.
+        # Signing not being REQUIRED is the hardening gap. Encryption merely being
+        # *supported* does not remove the risk (a client may negotiate without it),
+        # so it is reported as a separate mitigating control rather than a waiver.
+        "ntlm_relay_risk": not signing_required,
+        "encryption_supported": "ENCRYPTION" in cap_flags,
+        "ntlm_relay_risk_basis": (
+            "Signing is not required by the server. This is a hardening gap and a relay "
+            "risk indicator; exploitability depends on the configured authentication "
+            "mechanism and channel-binding protections."
+        ),
+        "security_posture": (
+            "HARDENED (Signing Required)"
+            if signing_required
+            else ("MODERATE (Signing Enabled, Not Required — Hardening Gap)" if signing_enabled
+                  else "WEAK (Signing Not Enabled)")
+        ),
         "server_guid": srv_uuid,
         "capabilities": cap_flags,
+        "negotiate_contexts": contexts,
+        "preauth_integrity_supported": "PREAUTH_INTEGRITY" in contexts,
+        "smb31_encryption_supported": "ENCRYPTION" in contexts,
+        "validation": {
+            "rfc": "MS-SMB2 3.2.3.1 / 3.2.3.2",
+            "request_includes_preauth_context": True,
+            "response_status": struct.unpack("<I", hdr[8:12])[0],
+            "complete": True,
+        },
     }
 
 
@@ -2662,6 +2905,7 @@ def _parse_dns_response_header(data: bytes) -> Optional[Dict[str, Any]]:
     rcode_names = {0: "NOERROR", 1: "FORMERR", 2: "SERVFAIL", 3: "NXDOMAIN", 4: "NOTIMP", 5: "REFUSED"}
     return {
         "txid": f"0x{txid:04X}",
+        "txid_int": txid,
         "rcode": rcode,
         "rcode_name": rcode_names.get(rcode, f"RCODE_{rcode}"),
         "recursion_available": ra,
@@ -2675,6 +2919,37 @@ def _parse_dns_response_header(data: bytes) -> Optional[Dict[str, Any]]:
         "authority_count": nscount,
         "additional_count": arcount,
     }
+
+
+def _dns_response_question_matches(data: bytes, qname: str, qtype: int = 1, qclass: int = 1) -> bool:
+    """
+    Validate that the DNS response echoes the question we asked (RFC 1035 §4.1.2).
+    Returns False when the question section is absent or does not match.
+    """
+    try:
+        if len(data) < 12:
+            return False
+        qdcount = struct.unpack(">H", data[4:6])[0]
+        if qdcount < 1:
+            return False
+        offset = 12
+        labels = []
+        while offset < len(data):
+            length = data[offset]
+            offset += 1
+            if length == 0:
+                break
+            if length & 0xC0:  # compression pointer in a question section is invalid
+                return False
+            labels.append(data[offset : offset + length].decode("ascii", errors="ignore").lower())
+            offset += length
+        if offset + 4 > len(data):
+            return False
+        rtype, rclass = struct.unpack(">HH", data[offset : offset + 4])
+        expected = [x.lower() for x in qname.strip(".").split(".") if x]
+        return labels == expected and rtype == qtype and rclass == qclass
+    except Exception:
+        return False
 
 
 def probe_dns_security_posture(ip: str, timeout: float = 1.2) -> Dict[str, Any]:
@@ -2691,6 +2966,9 @@ def probe_dns_security_posture(ip: str, timeout: float = 1.2) -> Dict[str, Any]:
         "recursion_available": False,
         "dnssec_validated": False,
         "dot_port_853_open": False,
+        "dot_protocol_works": False,
+        "dot_response_validated": False,
+        "dot_tls_chain_trusted": False,
         "dot_tls_cipher": "",
         "version_bind_leak": "",
         "query_rtt_ms": None,
@@ -2698,7 +2976,10 @@ def probe_dns_security_posture(ip: str, timeout: float = 1.2) -> Dict[str, Any]:
         "security_grade": "N/A",
     }
 
-    pkt = _build_dnssec_query_packet("cloudflare.com", qtype=1, qclass=1, enable_do=True, txid=0x4E51)
+    # RFC 1035 §4.1.1: the transaction id is chosen by the client and echoed by the
+    # server; a fixed id invites off-path answer injection.
+    txid = int.from_bytes(os.urandom(2), "big")
+    pkt = _build_dnssec_query_packet("cloudflare.com", qtype=1, qclass=1, enable_do=True, txid=txid)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(timeout)
     try:
@@ -2708,10 +2989,23 @@ def probe_dns_security_posture(ip: str, timeout: float = 1.2) -> Dict[str, Any]:
         rtt = round((time.perf_counter() - t0) * 1000.0, 2)
         parsed = _parse_dns_response_header(data)
         if parsed:
+            # The response must belong to our query.
+            if parsed.get("txid_int") != txid:
+                res["response_validation"] = "REJECTED (transaction id mismatch — possible off-path injection)"
+                parsed = None
+            elif not _dns_response_question_matches(data, "cloudflare.com", qtype=1, qclass=1):
+                res["response_validation"] = "REJECTED (question section mismatch)"
+                parsed = None
+            else:
+                res["response_validation"] = "VALIDATED (transaction id + question section matched)"
+        if parsed:
             res["dns_active"] = True
             res["query_rtt_ms"] = rtt
             res["recursion_available"] = parsed["recursion_available"]
+            # AD is the RESOLVER'S assertion that the data is authenticated (RFC 4035 §3.2.3).
+            # It is not an independent validation performed by Netwide.
             res["dnssec_validated"] = parsed["dnssec_ad_verified"]
+            res["dnssec_validation_source"] = "resolver-reported (AD bit, RFC 4035) — not independently validated by Netwide"
             res["rcode_name"] = parsed["rcode_name"]
             res["answer_count"] = parsed["answer_count"]
     except Exception:
@@ -2720,14 +3014,16 @@ def probe_dns_security_posture(ip: str, timeout: float = 1.2) -> Dict[str, Any]:
         sock.close()
 
     if res["dns_active"]:
-        ch_pkt = _build_dnssec_query_packet("version.bind", qtype=16, qclass=3, enable_do=False, txid=0x4E52)
+        ch_txid = int.from_bytes(os.urandom(2), "big")
+        ch_pkt = _build_dnssec_query_packet("version.bind", qtype=16, qclass=3, enable_do=False, txid=ch_txid)
         csock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         csock.settimeout(0.7)
         try:
             csock.sendto(ch_pkt, (ip, 53))
             cdata, _ = csock.recvfrom(1024)
             cparsed = _parse_dns_response_header(cdata)
-            if cparsed and cparsed["rcode"] == 0 and cparsed["answer_count"] > 0 and len(cdata) > 30:
+            if (cparsed and cparsed["rcode"] == 0 and cparsed["answer_count"] > 0 and len(cdata) > 30
+                    and cparsed.get("txid_int") == ch_txid):
                 tail_ascii = "".join(chr(b) if 32 <= b <= 126 else " " for b in cdata[28:]).strip()
                 parts = [p.strip() for p in tail_ascii.split("  ") if len(p.strip()) >= 3]
                 if parts:
@@ -2737,18 +3033,76 @@ def probe_dns_security_posture(ip: str, timeout: float = 1.2) -> Dict[str, Any]:
         finally:
             csock.close()
 
+    # RFC 7858 DNS-over-TLS: prove a *resolver* answers over TLS, not merely that a
+    # TLS service is listening on 853. The query is length-prefixed (2-byte) and the
+    # response must match our transaction id.
     tsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tsock.settimeout(0.9)
+    tsock.settimeout(1.6)
     try:
         if tsock.connect_ex((ip, 853)) == 0:
             res["dot_port_853_open"] = True
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            with ctx.wrap_socket(tsock, server_hostname=ip) as ssock:
-                cipher = ssock.cipher()
-                if cipher:
-                    res["dot_tls_cipher"] = f"{cipher[0]} ({cipher[1]})"
+            dot_txid = int.from_bytes(os.urandom(2), "big")
+            dot_query = _build_dnssec_query_packet("cloudflare.com", qtype=1, qclass=1,
+                                                    enable_do=True, txid=dot_txid)
+
+            # 1) Try a *verifying* TLS connection first so certificate trust is measured.
+            verify_ctx = ssl.create_default_context()
+            verify_ctx.check_hostname = True
+            verify_ctx.verify_mode = ssl.CERT_REQUIRED
+            verified = False
+            verify_error = ""
+            try:
+                with verify_ctx.wrap_socket(tsock, server_hostname=ip) as ssock:
+                    verified = True
+                    tsock = ssock
+            except Exception as exc:
+                verify_error = f"{type(exc).__name__}: {exc}"[:160]
+                try:
+                    tsock.close()
+                except Exception:
+                    pass
+                tsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                tsock.settimeout(1.6)
+                if tsock.connect_ex((ip, 853)) != 0:
+                    raise ConnectionError("reconnect failed")
+
+            # 2) Unverified fallback so the protocol check can still complete.
+            if not verified:
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                tsock = ctx.wrap_socket(tsock, server_hostname=ip)
+
+            cipher = tsock.getpeercert(True) is not None and tsock.cipher()
+            if cipher:
+                res["dot_tls_cipher"] = f"{cipher[0]} ({cipher[1]})"
+            res["dot_tls_chain_trusted"] = verified
+            if verify_error:
+                res["dot_tls_verify_error"] = verify_error
+
+            # 3) Actually speak DNS over the TLS channel (RFC 7858 framing).
+            try:
+                tsock.sendall(struct.pack(">H", len(dot_query)) + dot_query)
+                prefix = tsock.recv(2)
+                if len(prefix) == 2:
+                    msg_len = struct.unpack(">H", prefix)[0]
+                    body = b""
+                    while len(body) < msg_len:
+                        chunk = tsock.recv(msg_len - len(body))
+                        if not chunk:
+                            break
+                        body += chunk
+                    parsed_dot = _parse_dns_response_header(body) if body else None
+                    if parsed_dot and parsed_dot.get("txid_int") == dot_txid:
+                        res["dot_protocol_works"] = True
+                        res["dot_response_rcode"] = parsed_dot.get("rcode_name")
+                        res["dot_response_validated"] = True
+                    else:
+                        res["dot_protocol_works"] = False
+                        res["dot_response_validated"] = False
+            except Exception as exc:
+                res["dot_protocol_works"] = False
+                res["dot_error"] = f"{type(exc).__name__}: {exc}"[:120]
     except Exception:
         pass
     finally:
@@ -2757,16 +3111,21 @@ def probe_dns_security_posture(ip: str, timeout: float = 1.2) -> Dict[str, Any]:
         except Exception:
             pass
 
+    # Grading is based on what was actually measured:
+    #  - DNSSEC: the resolver REPORTED AD=1 (we did not validate the chain ourselves)
+    #  - DoT: a real DNS exchange completed over TLS, and whether the chain was trusted
     if not res["dns_active"] and not res["dot_port_853_open"]:
         res["security_grade"] = "Inactive (Port 53/853 Closed)"
-    elif res["dnssec_validated"] and res["dot_port_853_open"]:
-        res["security_grade"] = "A+ (DNSSEC Validating + DoT 853 Encrypted)"
+    elif res["dnssec_validated"] and res["dot_protocol_works"] and res["dot_tls_chain_trusted"]:
+        res["security_grade"] = "A+ (Resolver-Reported DNSSEC AD=1 + Verified DoT Resolver)"
+    elif res["dnssec_validated"] and res["dot_protocol_works"]:
+        res["security_grade"] = "A (Resolver-Reported DNSSEC AD=1 + DoT Transport, Untrusted Chain)"
     elif res["dnssec_validated"] and not res["version_bind_leak"]:
-        res["security_grade"] = "A (DNSSEC Validating Resolver)"
+        res["security_grade"] = "B (Resolver-Reported DNSSEC AD=1, Plaintext Transport)"
     elif res["dns_active"] and not res["version_bind_leak"]:
-        res["security_grade"] = "B (Recursive Resolver — DNSSEC AD=0)"
+        res["security_grade"] = "C (Recursive Resolver — DNSSEC Not Reported, Plaintext)"
     else:
-        res["security_grade"] = "C (Resolver Version Leakage / Unvalidated)"
+        res["security_grade"] = "D (Resolver Version Leakage / DNSSEC Not Reported)"
 
     return res
 
@@ -2824,7 +3183,8 @@ def _parse_ntp_packet(data: bytes, client_tx_ts: float = 0.0, client_rx_ts: floa
 def probe_ntp_server(ip: str, timeout: float = 1.1) -> Dict[str, Any]:
     """
     Send a 48-byte binary RFC 5905 NTPv4 Client request (`0x23` + 47 zero bytes) to UDP 123
-    and test for NTP Mode 6 Control/Amplification exposure.
+    and test NTP control-message exposure (Mode 6 responsiveness and Mode 7 MONLIST,
+    with the amplification ratio measured rather than assumed).
     """
     res: Dict[str, Any] = {
         "ip": ip,
@@ -2836,6 +3196,13 @@ def probe_ntp_server(ip: str, timeout: float = 1.1) -> Dict[str, Any]:
         "clock_offset_ms": None,
         "rtt_ms": None,
         "mode6_control_exposed": False,
+        "ntp_control_responsive": "",
+        "mode7_monlist_responsive": False,
+        "mode7_request_bytes": 0,
+        "mode7_response_bytes": 0,
+        "mode7_amplification_ratio": 0.0,
+        "legacy_monlist_amplification": False,
+        "legacy_monlist_amplification_detail": "",
     }
     pkt = b"\x23" + (b"\x00" * 47)
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -2857,8 +3224,15 @@ def probe_ntp_server(ip: str, timeout: float = 1.1) -> Dict[str, Any]:
     finally:
         s.close()
 
-    # Check NTP Mode 6 Read Status / Read Variables exposure (0x16 = VN 2, Mode 6 Control; Op 2 = Read Variables)
+    # NTP control-message probes.
+    #
+    # Mode 6 (private control / read-variables) being *responsive* is a management
+    # exposure in its own right, but it is NOT the amplification vector: the classic
+    # CVE-2013-5211 amplification abuse is Mode 7 MONLIST. Mode 6 and Mode 7 are
+    # different control operations, so they are reported separately and the
+    # amplification claim is only made when the response is actually larger.
     if res["ntp_active"]:
+        # --- Mode 6: control message responsiveness ---
         m6_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         m6_sock.settimeout(0.6)
         try:
@@ -2867,10 +3241,51 @@ def probe_ntp_server(ip: str, timeout: float = 1.1) -> Dict[str, Any]:
             m6_resp, _ = m6_sock.recvfrom(1024)
             if len(m6_resp) >= 12 and (m6_resp[0] & 0x07) == 6:
                 res["mode6_control_exposed"] = True
+                res["ntp_control_responsive"] = "MODE6_CONTROL_RESPONSIVE"
+                res["ntp_control_note"] = (
+                    "The server answers NTP Mode 6 control messages. This is a management "
+                    "exposure, not an amplification finding."
+                )
         except Exception:
             pass
         finally:
             m6_sock.close()
+
+        # --- Mode 7 MONLIST: the actual historical amplification vector ---
+        m7_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        m7_sock.settimeout(0.8)
+        try:
+            # LI=0, VN=2, Mode=7 | Op=2 (MONLIST) | reserved | err_nitems | MBZ | padding
+            m7_pkt = (b"\x17\x02" + b"\x00\x00" + b"\x00\x00" + b"\x00\x00\x00\x00")
+            m7_pkt += b"\x00" * (48 - len(m7_pkt))
+            m7_sock.sendto(m7_pkt, (ip, 123))
+            m7_resp, _ = m7_sock.recvfrom(4096)
+            if len(m7_resp) >= 12:
+                resp_mode = m7_resp[0] & 0x07
+                req_len = len(m7_pkt)
+                ratio = round(len(m7_resp) / req_len, 2) if req_len else 0.0
+                res["mode7_monlist_responsive"] = resp_mode in (6, 7)
+                res["mode7_request_bytes"] = req_len
+                res["mode7_response_bytes"] = len(m7_resp)
+                res["mode7_amplification_ratio"] = ratio
+                # Only claim amplification when the response is materially larger.
+                if resp_mode in (6, 7) and len(m7_resp) > req_len * 4 and len(m7_resp) > 100:
+                    res["legacy_monlist_amplification"] = True
+                    res["legacy_monlist_amplification_detail"] = (
+                        f"Mode 7 MONLIST returned {len(m7_resp)} bytes for a {req_len}-byte request "
+                        f"({ratio}x) — the historical CVE-2013-5211 amplification pattern."
+                    )
+                else:
+                    res["legacy_monlist_amplification"] = False
+                    res["legacy_monlist_amplification_detail"] = (
+                        f"Mode 7 probe returned {len(m7_resp)} bytes for a {req_len}-byte request "
+                        f"({ratio}x) — no measured amplification."
+                    )
+        except Exception:
+            res["mode7_monlist_responsive"] = False
+            res["legacy_monlist_amplification"] = False
+        finally:
+            m7_sock.close()
 
     return res
 

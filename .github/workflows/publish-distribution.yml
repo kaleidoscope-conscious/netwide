@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version tag to publish (e.g. v4.7.0)"
+        description: "Version tag to publish (e.g. v4.8.0)"
         required: false
         default: ""
 

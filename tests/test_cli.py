@@ -11,7 +11,7 @@ def test_cli_version(capsys):
         main(["--version"])
     assert exc.value.code == 0
     captured = capsys.readouterr()
-    assert "4.7.0" in captured.out or "4.7.0" in captured.err
+    assert "4.8.0" in captured.out or "4.8.0" in captured.err
 
 
 def test_cli_cidr_valid(capsys):

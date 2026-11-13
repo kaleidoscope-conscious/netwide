@@ -1,6 +1,6 @@
 # Netwide License
 
-**Netwide v4.7.0 — source-available, with a free Community Edition and paid
+**Netwide v4.8.0 — source-available, with a free Community Edition and paid
 Pro Guardian / Sovereign Enterprise tiers.**
 
 > This file states the licensing position of the code in this repository so that
@@ -90,4 +90,4 @@ exploitable findings publicly until a fix has shipped.
 
 The Operator may update these terms in a new release. Terms are pinned to the
 release tag you obtained the Software from; the version in this file applies
-to v4.7.0.
+to v4.8.0.
