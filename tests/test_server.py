@@ -186,7 +186,8 @@ def test_storefront_never_publishes_internal_docs():
     assert not os.path.exists(os.path.join(root_dir, "docs", "VALUATION.md"))
     # The published docs/ tree must contain only public storefront files.
     published = sorted(os.listdir(os.path.join(root_dir, "docs")))
-    assert published == [".nojekyll", "assets", "index.html", "privacy.html", "robots.txt", "sitemap.xml"], (
+    assert published == [".nojekyll", "assets", "index.html", "privacy.html", "robots.txt",
+                         "share.html", "sitemap.xml"], (
         f"docs/ is published to the storefront and must stay public-only, found: {published}"
     )
     # Internal runbooks live outside the published tree.

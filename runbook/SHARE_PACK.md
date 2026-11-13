@@ -1,0 +1,203 @@
+# Netwide Press Kit
+
+**v4.7.0** · live page: https://kaleidoscope-conscious.github.io/netwide/share.html
+
+Everything below is copy-paste ready. Every number is measured from the live system.
+
+---
+
+## Facts you can quote
+
+| Number | What |
+| :--- | :--- |
+| 31 | python modules |
+| 118 | API endpoints |
+| 74 | active protocol probers |
+| 47,035 | IEEE OUI vendors |
+| 142 | tests, all green |
+| 20,688 | lines of Python |
+| 67 | devices on my LAN |
+| 5,168 | hash-chained ledger events |
+| 0 | bytes sent off-device |
+
+---
+
+## The post — long form (Facebook · LinkedIn · Discord)
+
+```
+My own router was broadcasting Telnet on port 23.
+
+Cleartext. Anyone on the Wi-Fi could have sniffed my credentials.
+
+That's not a hypothetical — it's the one CRITICAL finding Netwide flagged on my own LAN, naming the exact device (a ZyXEL gateway on 192.168.1.1), the exact port, the exact risk. Not "your network may have issues."
+
+So I built Netwide to answer the question every router admin page dodges: what is actually on my network, and is any of it lying to me?
+
+31 modules. 118 API endpoints. 74 active protocol probers. 142 tests. 100% on-device — no cloud, no account, no telemetry.
+
+WHAT IT DOES
+
+1. Discovery — what's actually here
+ARP, IPv6 SLAAC/EUI-64 neighbor discovery, mDNS, SSDP, UPnP, BLE, and a passive census that sees devices without touching them.
+Why: most device lists only show what's currently talking. Netwide also watches passively — dwell cycles, Apple Continuity beacons, Bluetooth rate profiles — so a device that transmits every few minutes still gets caught. On my LAN: 67 devices, 12 online, 213 scans deep.
+
+2. Identification — who's lying about who they are
+47,035 IEEE OUI vendors with HQ and registry data, plus un-masking of randomized MACs (SLAAC EUI-64 FF:FE bit-inversion, virtual mesh BSSIDs, privacy-MAC detection).
+Why: every phone you own lies — randomizing its MAC to dodge tracking. Netwide reverses that to tell you which physical device is which, and whether an unknown box is a printer, a camera, or something pretending to be a printer.
+
+3. The RF layer — the hidden network
+A 10-stage de-cloaker correlating hidden 802.11 BSSIDs against visible parents using 64-bit microsecond hardware TSF clocks, silicon MAC masks, QBSS load, 802.11k RNR/MLO, and Stage-10 temporal multipath RSSI co-variance (Pearson r >= 0.85). Plus a 2.4/5 GHz channel-overlap optimizer, an RF geiger counter, magnetometer fusion and AR room estimation.
+Why: a hidden SSID is how rogue APs, evil-twin hotspots and unauthorised access points hide in plain sight. Netwide resolves them to their parent hardware — which is how you find out the "guest network" someone bolted on isn't yours.
+
+4. Cryptographic & protocol auditing — how your devices actually talk
+Binary parsers, not banner scraping:
+- SSHv2 KEXINIT: all 10 algorithm lists, HASSH server fingerprint, post-quantum hybrid KEX detection, graded A+ to C posture
+- SMB2/3 NEGOTIATE: negotiated dialect, Server GUID, ENCRYPTION/MULTI_CHANNEL capabilities, SMB signing enforcement (NTLM-relay exposure)
+- DNSSEC + DoT: AD=1 verification, Chaos TXT version.bind leakage, RFC 7858 encryption
+- NTPv4: stratum, reference clock, Mode-6 amplification (CVE-2013-5211)
+- TLS/X.509, DNS/SPF/DMARC, MQTT v3.1.1 anonymous brokers, SNMPv2c, UPnP IGD WAN port-forward enumeration
+Why: most scanners check the port. Netwide reads the handshake — so it catches a device running SSH with a weak cipher, SMB without signing, or DNS with DNSSEC disabled. Misconfiguration lives in the negotiation, not the port list.
+
+5. Wire visibility
+Per-host bandwidth, DNS/TLS SNI, TLS JA3 fingerprints, p0f OS detection, protocol mix, raw capture, and a 24-hour presence heatmap.
+Why: JA3 is a device's fingerprint across every site it visits. Two "different" devices with the same JA3 are the same device — correlate that with local identity and you can spot the laptop phoning home.
+
+6. Active defense — actually doing something
+ARP quarantine (iptables/nft L3 DROP with RST fallback), OpenWrt ubus firewall control, DNS sinkholing with a dnsmasq drop-in preview, and a universal control plane (Roku, Chromecast, Sonos, Kasa, Shelly, Hue, PS4/5, Spotify) where every action is journalized with its inverse and an UNDO.
+Why: detection without response is a report nobody reads. Netwide quarantines the freeloader in one click — and every action is reversible and provable.
+
+7. Counter-surveillance
+ONVIF/RTSP camera sweeps, rogue-AP classification, mesh status, UPnP IGD NAT auditing, and consent-gated firmware exposure analysis (binwalk signatures, entropy, version, CVE hints — RFC1918-only, SSRF-safe).
+Why: "is there a camera in my house that isn't mine" is a real question with a real answer, and firmware is where the next vulnerability usually lives.
+
+8. Evidence & forensics
+Per-device forensic dossiers (MD/JSON/CSV), a CASE/UCO-compatible evidence bundle with a standalone FOSS verifier, posture snapshots and diffs, and a hash-chained tamper-evident ledger — 5,168 events on my LAN, every scan, verdict and action hashed and linked.
+Why: a finding you can't evidence is an opinion. Every verdict links to the packets behind it, and the ledger proves nothing was quietly edited afterwards.
+
+9. Intelligence layer
+A device identity graph (same_radio / talks_to / controls / observed_by), a Boltzmann threat-field that continuously collapses hypotheses (EV = probability x impact), a plain-English "why this verdict?" copilot, an adaptive-scan bandit that learns which probes matter on your network, and a detection-rule compiler with a SHA-256 manifest.
+Why: a list of 67 devices is noise. "These three are one person roaming, and this one is new since Tuesday" is intelligence. The bandit also means a Raspberry Pi isn't hammering your network with 74 probes it doesn't need.
+
+10. Operations
+Prometheus metrics, a live WebSocket state stream, the Watchtower (live request feed, who's using the node, WebSocket sessions, top endpoints), the Business Control Room (customers, revenue, leads, mints chart), a mobile PWA and Android APK, a native desktop app, Docker, and pip install netwide.
+Why: it's usable as a product, not just a script. The operator console is token-gated and never published.
+
+11. Licensing that holds up
+Ed25519-signed licences: the private key never leaves the issuing machine, the public key ships with the app, and any install verifies offline. Stripe checkout, hosted payment links, signed webhooks that are fail-closed, replay-protected and idempotent.
+Why: a licence you can't verify on the buyer's machine isn't a licence. And a webhook that accepts unsigned payloads isn't a security control — Netwide's rejects them, and says so.
+
+THE SHORT VERSION OF WHY THIS MATTERS
+Your network has more devices than you think, and each one can lie about what it is. Netwide finds what's there, proves who's who, shows what they're really saying on the wire, and gives you one-click ways to make it stop — without a single byte leaving your machine.
+
+Free tier forever. Pro $9.99/mo, Sovereign Enterprise $29.99/mo, lifetime licences available.
+Linux - macOS (Docker) - Android 15 - pip install netwide
+
+https://kaleidoscope-conscious.github.io/netwide/
+Repo: https://github.com/kaleidoscope-conscious/netwide
+```
+
+---
+
+## The post — short (X · Bluesky · Mastodon)
+
+```
+My own router was broadcasting Telnet. Cleartext. Anyone on the Wi-Fi could have read my credentials.
+
+Netwide found it — and 66 other devices on my LAN. No cloud, no account, no telemetry. Free tier forever.
+
+https://kaleidoscope-conscious.github.io/netwide/
+```
+
+---
+
+## The post — technical (Reddit · Hacker News)
+
+```
+Netwide — a local-first network intelligence suite (Linux / Docker / Android)
+
+What it actually does, beyond "ping sweep":
+
+- Hidden-SSID de-cloaking — correlates hidden 802.11 BSSIDs against visible parents using 64-bit microsecond TSF clocks (nl80211), silicon MAC masks, QBSS load, 802.11k RNR/MLO, and temporal multipath RSSI co-variance (Pearson r >= 0.85). Also unmasks randomized LAA MACs via SLAAC EUI-64 FF:FE bit-inversion and virtual mesh BSSIDs (first_octet & 0xFD).
+- Binary protocol auditing — RFC 4253 SSH KEXINIT parser (HASSH MD5 fingerprint, post-quantum hybrid KEX detection), SMB2/3 NEGOTIATE dialect + signing enforcement, DNSSEC/DoT resolver posture, NTPv4 Mode-6 amplification, X.509 chains.
+- Wire DPI — per-host KB/s, DNS/TLS SNI, TLS JA3, p0f OS.
+- Enforcement — ARP quarantine via iptables/nft, OpenWrt ubus, DNS sinkhole, plus a control plane (Roku/Chromecast/Sonos/Kasa/Shelly/PS5) where every action is journalized with its inverse.
+- Provenance — every verdict links to the packets behind it; 5,168 hash-chained ledger events on my own LAN so tampering is detectable.
+
+No cloud, no account, no telemetry. Runs entirely on your machine.
+Free tier forever, paid Pro/Enterprise tiers.
+
+https://kaleidoscope-conscious.github.io/netwide/  |  pip install netwide
+
+Happy to answer questions. The protocol parsers are the part I'm most proud of — and the part most likely to be wrong on hardware I don't own.
+```
+
+---
+
+## One-click share links
+
+| Platform | Link |
+| :--- | :--- |
+| X / Twitter | https://twitter.com/intent/tweet?text=Your%20Wi-Fi%20has%20a%20guest%20list.%20Netwide%20shows%20it%20-%20every%20device%2C%20who%20made%20it%2C%20and%20whether%20anything%27s%20hiding.%20100%25%20on-device%2C%20free%20tier%20forever.%20%F0%9F%9B%A1%20https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F |
+| Reddit | https://www.reddit.com/submit?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F&title=Netwide%20-%20see%20every%20device%20on%20your%20Wi-Fi |
+| LinkedIn | https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F |
+| Facebook | https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F |
+| Telegram | https://t.me/share/url?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F |
+| WhatsApp | https://wa.me/?text=Your%20Wi-Fi%20has%20a%20guest%20list.%20Netwide%20shows%20it%20-%20every%20device%2C%20who%20made%20it%2C%20and%20whether%20anything%27s%20hiding.%20https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F |
+| Hacker News | https://news.ycombinator.com/submitlink?u=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F&t=Netwide%20-%20see%20every%20device%20on%20your%20Wi-Fi |
+
+---
+
+## Images to attach
+
+| Image | URL |
+| :--- | :--- |
+| Social preview (1200x630) | https://raw.githubusercontent.com/kaleidoscope-conscious/netwide/main/docs/assets/og_image_1200x630.png |
+| Feature banner (1024x500) | https://raw.githubusercontent.com/kaleidoscope-conscious/netwide/main/play_store_assets/feature_graphic_1024x500.png |
+| Workbench screenshot | https://raw.githubusercontent.com/kaleidoscope-conscious/netwide/main/play_store_assets/tablet_screenshot_1_workbench_1920x1080.png |
+| De-cloaker (phone) | https://raw.githubusercontent.com/kaleidoscope-conscious/netwide/main/play_store_assets/phone_screenshot_1_decloaker_1080x1920.png |
+| App icon (512x512) | https://raw.githubusercontent.com/kaleidoscope-conscious/netwide/main/play_store_assets/icon_512x512.png |
+
+---
+
+## Buy links (live Stripe checkout)
+
+| Plan | Link |
+| :--- | :--- |
+| Pro Guardian — $9.99/mo | https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b |
+| Pro Guardian — $99/yr | https://buy.stripe.com/28E8wP248g0Q38oaCdcbC1a |
+| Pro Guardian — $69 lifetime | https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19 |
+| Sovereign Enterprise — $29.99/mo | https://buy.stripe.com/4gM7sLbEIaGw6kA5hTcbC1e |
+| Sovereign Enterprise — $299/yr | https://buy.stripe.com/28EeVd2485mcaAQaCdcbC1d |
+| Sovereign Enterprise — $149 lifetime | https://buy.stripe.com/14A8wPaAE5mc7oEaCdcbC1c |
+
+---
+
+## Product links
+
+- Storefront: https://kaleidoscope-conscious.github.io/netwide/
+- Press kit (live): https://kaleidoscope-conscious.github.io/netwide/share.html
+- Repo: https://github.com/kaleidoscope-conscious/netwide
+- Release: https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.7.0
+- Discussions: https://github.com/kaleidoscope-conscious/netwide/discussions
+- Install: `pip install netwide` · `docker compose up -d` · `./install.sh`
+
+---
+
+## Where to post
+
+| Place | Angle |
+| :--- | :--- |
+| r/selfhosted | self-hosted + privacy angle; mention the Dockerfile and the free tier |
+| r/homelab | hardware angle — RF geiger, magnetometer, Pi-friendly |
+| r/opensource | the ledger, the evidence bundle, the FOSS verifier |
+| r/privacy | "no cloud, no account, no telemetry" is the whole pitch |
+| r/HomeNetworking | lead with the Telnet finding — it happens to everyone |
+| r/networking | the protocol auditors (SSH HASSH, SMB2, DNSSEC) — engineers answer specifics |
+| r/cybersecurity | post as "I built this", include a real finding not a feature list |
+| Hacker News | Show HN — the technical variant, and answer every comment |
+| Product Hunt | tagline: "On-device network intelligence and LAN guardian" |
+| Bluesky / Mastodon / dev.to | the short variant; dev.to accepts a full article via the share engine |
+
+**Tip:** post with a screenshot of your own dashboard rather than the mockup — "I built this"
+posts with real evidence land far better than link drops. Check each subreddit's self-promo
+rules first.

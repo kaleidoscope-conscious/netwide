@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Netwide Press Kit — copy, share, ship</title>
+  <meta name="description" content="Ready-to-share posts, share links, images and facts for Netwide — the 100% on-device network intelligence suite." />
+  <link rel="canonical" href="https://kaleidoscope-conscious.github.io/netwide/share.html" />
+  <style>
+    :root {
+      --bg: #060911; --surface: #0d1322; --card: #121a2d; --border: #1f2b3e;
+      --text: #f8fafc; --muted: #94a3b8; --sky: #38bdf8; --emerald: #10b981;
+      --purple: #a78bfa; --amber: #f59e0b; --red: #ef4444;
+      --mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); padding: 0 0 70px; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 22px; }
+    header {
+      border-bottom: 1px solid var(--border); padding: 34px 0 26px; margin-bottom: 30px;
+      background: radial-gradient(1000px 260px at 12% -10%, rgba(56,189,248,.14), transparent 60%);
+    }
+    .brand { display: flex; align-items: center; gap: 13px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--emerald);
+      box-shadow: 0 0 0 0 rgba(16,185,129,.55); animation: p 2s infinite; }
+    @keyframes p { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,.5) } 70% { box-shadow: 0 0 0 11px rgba(16,185,129,0) } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0) } }
+    h1 { font-size: 1.7rem; font-weight: 750; letter-spacing: -.02em; }
+    h1 span { color: var(--sky); }
+    .sub { color: var(--muted); font-size: .88rem; font-family: var(--mono); margin-top: 4px; }
+    .quick { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    .quick a, .btn {
+      display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 9px;
+      border: 1px solid rgba(56,189,248,.3); background: rgba(56,189,248,.08); color: #e2e8f0;
+      font-size: 13.5px; font-family: var(--mono); text-decoration: none; cursor: pointer;
+      transition: all .14s ease;
+    }
+    .quick a:hover, .btn:hover { background: rgba(56,189,248,.18); border-color: var(--sky); color: #fff; }
+    .btn.green { border-color: rgba(16,185,129,.35); background: rgba(16,185,129,.1); color: #6ee7b7; }
+    .btn.green:hover { background: rgba(16,185,129,.2); }
+    h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted);
+      margin: 34px 0 12px; display: flex; align-items: center; gap: 10px; }
+    h2::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .block {
+      background: var(--card); border: 1px solid var(--border); border-radius: 13px;
+      padding: 20px 22px; margin-bottom: 14px; position: relative;
+    }
+    .block h3 { font-size: .95rem; color: #fff; margin-bottom: 4px; }
+    .block .note { color: var(--muted); font-size: .78rem; font-family: var(--mono); margin-bottom: 12px; }
+    .copy { position: absolute; top: 14px; right: 16px; }
+    pre {
+      white-space: pre-wrap; word-break: break-word; font-family: var(--mono); font-size: 13px;
+      line-height: 1.62; color: #cbd5e1; margin: 0; padding-right: 90px;
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+    .fact { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 15px 17px; }
+    .fact .n { font-size: 1.6rem; font-weight: 750; color: var(--sky); letter-spacing: -.02em; }
+    .fact .l { color: var(--muted); font-size: .75rem; font-family: var(--mono); margin-top: 3px; }
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    td { padding: 7px 8px; border-bottom: 1px solid rgba(31,43,62,.55); font-family: var(--mono); vertical-align: top; }
+    td:first-child { color: var(--sky); white-space: nowrap; }
+    td a { color: var(--sky); text-decoration: none; }
+    td a:hover { text-decoration: underline; }
+    .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: .7rem;
+      font-family: var(--mono); border: 1px solid var(--border); color: var(--muted); }
+    .pill.ok { color: var(--emerald); border-color: rgba(16,185,129,.4); }
+    footer { margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--border);
+      color: var(--muted); font-size: .76rem; font-family: var(--mono); text-align: center; }
+    a { color: var(--sky); }
+    #toast { position: fixed; bottom: 26px; right: 26px; background: #059669; color: #fff;
+      padding: 12px 20px; border-radius: 10px; font-family: var(--mono); font-size: 13px;
+      font-weight: 700; opacity: 0; transform: translateY(12px); transition: all .2s ease; pointer-events: none; }
+    #toast.on { opacity: 1; transform: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="brand">
+        <div class="dot"></div>
+        <div>
+          <h1>Netwide <span>Press Kit</span></h1>
+          <div class="sub">copy · share · ship — every link verified live</div>
+        </div>
+      </div>
+      <div class="quick">
+        <a href="https://kaleidoscope-conscious.github.io/netwide/">🌐 Storefront</a>
+        <a href="https://github.com/kaleidoscope-conscious/netwide">📦 Repo</a>
+        <a href="https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.7.0">🏷️ Release v4.7.0</a>
+        <a href="https://github.com/kaleidoscope-conscious/netwide/discussions">💬 Discussions</a>
+        <a href="https://gist.github.com/kaleidoscopeAI/8d5adee1d7fb31ef81522dca0f7506e9">📋 Promo kit</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+
+    <h2>Facts you can quote</h2>
+    <div class="grid">
+      <div class="fact"><div class="n">31</div><div class="l">python modules</div></div>
+      <div class="fact"><div class="n">118</div><div class="l">API endpoints</div></div>
+      <div class="fact"><div class="n">74</div><div class="l">active protocol probers</div></div>
+      <div class="fact"><div class="n">47,035</div><div class="l">IEEE OUI vendors</div></div>
+      <div class="fact"><div class="n">142</div><div class="l">tests, all green</div></div>
+      <div class="fact"><div class="n">20,688</div><div class="l">lines of Python</div></div>
+      <div class="fact"><div class="n">67</div><div class="l">devices on my LAN</div></div>
+      <div class="fact"><div class="n">5,168</div><div class="l">hash-chained ledger events</div></div>
+      <div class="fact"><div class="n">0</div><div class="l">bytes sent off-device</div></div>
+    </div>
+
+    <h2>The post — long form (Facebook · LinkedIn · Discord)</h2>
+    <div class="block">
+      <button class="btn green copy" onclick="cp('postLong', this)">📋 Copy</button>
+      <h3>Lead with a real finding, not a feature list</h3>
+      <div class="note">Opens with the verified CRITICAL alert, then proves the tool with live numbers.</div>
+      <pre id="postLong">My own router was broadcasting Telnet on port 23.
+
+Cleartext. Anyone on the Wi-Fi could have sniffed my credentials.
+
+That's not a hypothetical — it's the one CRITICAL finding Netwide flagged on my own LAN, naming the exact device (a ZyXEL gateway on 192.168.1.1), the exact port, the exact risk. Not "your network may have issues."
+
+So I built Netwide to answer the question every router admin page dodges: what is actually on my network, and is any of it lying to me?
+
+31 modules. 118 API endpoints. 74 active protocol probers. 142 tests. 100% on-device — no cloud, no account, no telemetry.
+
+WHAT IT DOES
+
+1. Discovery — what's actually here
+ARP, IPv6 SLAAC/EUI-64 neighbor discovery, mDNS, SSDP, UPnP, BLE, and a passive census that sees devices without touching them.
+Why: most device lists only show what's currently talking. Netwide also watches passively — dwell cycles, Apple Continuity beacons, Bluetooth rate profiles — so a device that transmits every few minutes still gets caught. On my LAN: 67 devices, 12 online, 213 scans deep.
+
+2. Identification — who's lying about who they are
+47,035 IEEE OUI vendors with HQ and registry data, plus un-masking of randomized MACs (SLAAC EUI-64 FF:FE bit-inversion, virtual mesh BSSIDs, privacy-MAC detection).
+Why: every phone you own lies — randomizing its MAC to dodge tracking. Netwide reverses that to tell you which physical device is which, and whether an unknown box is a printer, a camera, or something pretending to be a printer.
+
+3. The RF layer — the hidden network
+A 10-stage de-cloaker correlating hidden 802.11 BSSIDs against visible parents using 64-bit microsecond hardware TSF clocks, silicon MAC masks, QBSS load, 802.11k RNR/MLO, and Stage-10 temporal multipath RSSI co-variance (Pearson r >= 0.85). Plus a 2.4/5 GHz channel-overlap optimizer, an RF geiger counter, magnetometer fusion and AR room estimation.
+Why: a hidden SSID is how rogue APs, evil-twin hotspots and unauthorised access points hide in plain sight. Netwide resolves them to their parent hardware — which is how you find out the "guest network" someone bolted on isn't yours.
+
+4. Cryptographic & protocol auditing — how your devices actually talk
+Binary parsers, not banner scraping:
+- SSHv2 KEXINIT: all 10 algorithm lists, HASSH server fingerprint, post-quantum hybrid KEX detection, graded A+ to C posture
+- SMB2/3 NEGOTIATE: negotiated dialect, Server GUID, ENCRYPTION/MULTI_CHANNEL capabilities, SMB signing enforcement (NTLM-relay exposure)
+- DNSSEC + DoT: AD=1 verification, Chaos TXT version.bind leakage, RFC 7858 encryption
+- NTPv4: stratum, reference clock, Mode-6 amplification (CVE-2013-5211)
+- TLS/X.509, DNS/SPF/DMARC, MQTT v3.1.1 anonymous brokers, SNMPv2c, UPnP IGD WAN port-forward enumeration
+Why: most scanners check the port. Netwide reads the handshake — so it catches a device running SSH with a weak cipher, SMB without signing, or DNS with DNSSEC disabled. Misconfiguration lives in the negotiation, not the port list.
+
+5. Wire visibility
+Per-host bandwidth, DNS/TLS SNI, TLS JA3 fingerprints, p0f OS detection, protocol mix, raw capture, and a 24-hour presence heatmap.
+Why: JA3 is a device's fingerprint across every site it visits. Two "different" devices with the same JA3 are the same device — correlate that with local identity and you can spot the laptop phoning home.
+
+6. Active defense — actually doing something
+ARP quarantine (iptables/nft L3 DROP with RST fallback), OpenWrt ubus firewall control, DNS sinkholing with a dnsmasq drop-in preview, and a universal control plane (Roku, Chromecast, Sonos, Kasa, Shelly, Hue, PS4/5, Spotify) where every action is journalized with its inverse and an UNDO.
+Why: detection without response is a report nobody reads. Netwide quarantines the freeloader in one click — and every action is reversible and provable.
+
+7. Counter-surveillance
+ONVIF/RTSP camera sweeps, rogue-AP classification, mesh status, UPnP IGD NAT auditing, and consent-gated firmware exposure analysis (binwalk signatures, entropy, version, CVE hints — RFC1918-only, SSRF-safe).
+Why: "is there a camera in my house that isn't mine" is a real question with a real answer, and firmware is where the next vulnerability usually lives.
+
+8. Evidence & forensics
+Per-device forensic dossiers (MD/JSON/CSV), a CASE/UCO-compatible evidence bundle with a standalone FOSS verifier, posture snapshots and diffs, and a hash-chained tamper-evident ledger — 5,168 events on my LAN, every scan, verdict and action hashed and linked.
+Why: a finding you can't evidence is an opinion. Every verdict links to the packets behind it, and the ledger proves nothing was quietly edited afterwards.
+
+9. Intelligence layer
+A device identity graph (same_radio / talks_to / controls / observed_by), a Boltzmann threat-field that continuously collapses hypotheses (EV = probability x impact), a plain-English "why this verdict?" copilot, an adaptive-scan bandit that learns which probes matter on your network, and a detection-rule compiler with a SHA-256 manifest.
+Why: a list of 67 devices is noise. "These three are one person roaming, and this one is new since Tuesday" is intelligence. The bandit also means a Raspberry Pi isn't hammering your network with 74 probes it doesn't need.
+
+10. Operations
+Prometheus metrics, a live WebSocket state stream, the Watchtower (live request feed, who's using the node, WebSocket sessions, top endpoints), the Business Control Room (customers, revenue, leads, mints chart), a mobile PWA and Android APK, a native desktop app, Docker, and pip install netwide.
+Why: it's usable as a product, not just a script. The operator console is token-gated and never published.
+
+11. Licensing that holds up
+Ed25519-signed licences: the private key never leaves the issuing machine, the public key ships with the app, and any install verifies offline. Stripe checkout, hosted payment links, signed webhooks that are fail-closed, replay-protected and idempotent.
+Why: a licence you can't verify on the buyer's machine isn't a licence. And a webhook that accepts unsigned payloads isn't a security control — Netwide's rejects them, and says so.
+
+THE SHORT VERSION OF WHY THIS MATTERS
+Your network has more devices than you think, and each one can lie about what it is. Netwide finds what's there, proves who's who, shows what they're really saying on the wire, and gives you one-click ways to make it stop — without a single byte leaving your machine.
+
+Free tier forever. Pro $9.99/mo, Sovereign Enterprise $29.99/mo, lifetime licences available.
+Linux - macOS (Docker) - Android 15 - pip install netwide
+
+https://kaleidoscope-conscious.github.io/netwide/
+Repo: https://github.com/kaleidoscope-conscious/netwide</pre>
+    </div>
+
+    <h2>The post — short (X · Bluesky · Mastodon)</h2>
+    <div class="block">
+      <button class="btn green copy" onclick="cp('postShort', this)">📋 Copy</button>
+      <h3>280 characters</h3>
+      <div class="note">Keeps the hook, drops the list.</div>
+      <pre id="postShort">My own router was broadcasting Telnet. Cleartext. Anyone on the Wi-Fi could have read my credentials.
+
+Netwide found it — and 66 other devices on my LAN. No cloud, no account, no telemetry. Free tier forever.
+
+https://kaleidoscope-conscious.github.io/netwide/</pre>
+    </div>
+
+    <h2>The post — technical (Reddit · Hacker News)</h2>
+    <div class="block">
+      <button class="btn green copy" onclick="cp('postTech', this)">📋 Copy</button>
+      <h3>No marketing tone, real detail, an open question</h3>
+      <div class="note">Post as "I built this". Check each subreddit's self-promo rules first.</div>
+      <pre id="postTech">Netwide — a local-first network intelligence suite (Linux / Docker / Android)
+
+What it actually does, beyond "ping sweep":
+
+- Hidden-SSID de-cloaking — correlates hidden 802.11 BSSIDs against visible parents using 64-bit microsecond TSF clocks (nl80211), silicon MAC masks, QBSS load, 802.11k RNR/MLO, and temporal multipath RSSI co-variance (Pearson r >= 0.85). Also unmasks randomized LAA MACs via SLAAC EUI-64 FF:FE bit-inversion and virtual mesh BSSIDs (first_octet & 0xFD).
+- Binary protocol auditing — RFC 4253 SSH KEXINIT parser (HASSH MD5 fingerprint, post-quantum hybrid KEX detection), SMB2/3 NEGOTIATE dialect + signing enforcement, DNSSEC/DoT resolver posture, NTPv4 Mode-6 amplification, X.509 chains.
+- Wire DPI — per-host KB/s, DNS/TLS SNI, TLS JA3, p0f OS.
+- Enforcement — ARP quarantine via iptables/nft, OpenWrt ubus, DNS sinkhole, plus a control plane (Roku/Chromecast/Sonos/Kasa/Shelly/PS5) where every action is journalized with its inverse.
+- Provenance — every verdict links to the packets behind it; 5,168 hash-chained ledger events on my own LAN so tampering is detectable.
+
+No cloud, no account, no telemetry. Runs entirely on your machine.
+Free tier forever, paid Pro/Enterprise tiers.
+
+https://kaleidoscope-conscious.github.io/netwide/  |  pip install netwide
+
+Happy to answer questions. The protocol parsers are the part I'm most proud of — and the part most likely to be wrong on hardware I don't own.</pre>
+    </div>
+
+    <h2>One-click share links</h2>
+    <div class="block">
+      <h3>Opens the platform with the text pre-filled</h3>
+      <div class="note">Click, then post. Nothing to copy-paste.</div>
+      <div class="quick" style="margin-top:4px">
+        <a href="https://twitter.com/intent/tweet?text=Your%20Wi-Fi%20has%20a%20guest%20list.%20Netwide%20shows%20it%20-%20every%20device%2C%20who%20made%20it%2C%20and%20whether%20anything%27s%20hiding.%20100%25%20on-device%2C%20free%20tier%20forever.%20%F0%9F%9B%A1%20https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F" target="_blank" rel="noopener">🐦 X / Twitter</a>
+        <a href="https://www.reddit.com/submit?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F&title=Netwide%20-%20see%20every%20device%20on%20your%20Wi-Fi" target="_blank" rel="noopener">🔴 Reddit</a>
+        <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F" target="_blank" rel="noopener">💼 LinkedIn</a>
+        <a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F" target="_blank" rel="noopener">📘 Facebook</a>
+        <a href="https://t.me/share/url?url=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F&text=Your%20Wi-Fi%20has%20a%20guest%20list.%20Netwide%20shows%20it%20-%20every%20device%2C%20who%20made%20it%2C%20and%20whether%20anything%27s%20hiding." target="_blank" rel="noopener">✈️ Telegram</a>
+        <a href="https://wa.me/?text=Your%20Wi-Fi%20has%20a%20guest%20list.%20Netwide%20shows%20it%20-%20every%20device%2C%20who%20made%20it%2C%20and%20whether%20anything%27s%20hiding.%20https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F" target="_blank" rel="noopener">💬 WhatsApp</a>
+        <a href="https://news.ycombinator.com/submitlink?u=https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F&t=Netwide%20-%20see%20every%20device%20on%20your%20Wi-Fi" target="_blank" rel="noopener">🟧 Hacker News</a>
+        <a href="mailto:?subject=Netwide%20-%20see%20every%20device%20on%20your%20Wi-Fi&body=Your%20Wi-Fi%20has%20a%20guest%20list.%20Netwide%20shows%20it%20-%20every%20device%2C%20who%20made%20it%2C%20and%20whether%20anything%27s%20hiding.%20100%25%20on-device%2C%20free%20tier%20forever.%20https%3A%2F%2Fkaleidoscope-conscious.github.io%2Fnetwide%2F" target="_blank" rel="noopener">📧 Email</a>
+      </div>
+    </div>
+
+    <h2>Images to attach</h2>
+    <div class="block">
+      <h3>Attach an image — links with a preview get far more clicks</h3>
+      <div class="note">Click any URL to copy it.</div>
+      <table>
+        <tr><td>Social preview (1200x630)</td><td><a href="https://raw.githubusercontent.com/kaleidoscope-conscious/netwide/main/docs/assets/og_image_1200x630.png" onclick="cpText(this);return false;">copy URL</a></td><td>use this on every post</td></tr>
+        <tr><td>Feature banner (1024x500)</td><td><a href="https://raw.githubusercontent.com/kaleidoscope-conscious/netwide/main/play_store_assets/feature_graphic_1024x500.png" onclick="cpText(this);return false;">copy URL</a></td><td>wide format for X / LinkedIn</td></tr>
+        <tr><td>Workbench screenshot</td><td><a href="https://raw.githubusercontent.com/kaleidoscope-conscious/netwide/main/play_store_assets/tablet_screenshot_1_workbench_1920x1080.png" onclick="cpText(this);return false;">copy URL</a></td><td>proof it runs</td></tr>
+        <tr><td>De-cloaker (phone)</td><td><a href="https://raw.githubusercontent.com/kaleidoscope-conscious/netwide/main/play_store_assets/phone_screenshot_1_decloaker_1080x1920.png" onclick="cpText(this);return false;">copy URL</a></td><td>the 10-stage RF story</td></tr>
+        <tr><td>App icon (512x512)</td><td><a href="https://raw.githubusercontent.com/kaleidoscope-conscious/netwide/main/play_store_assets/icon_512x512.png" onclick="cpText(this);return false;">copy URL</a></td><td>avatar / listing</td></tr>
+      </table>
+    </div>
+
+    <h2>Buy links (live Stripe checkout)</h2>
+    <div class="block">
+      <table>
+        <tr><td>Pro Guardian — $9.99/mo</td><td><a href="https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b" target="_blank" rel="noopener">buy.stripe.com</a></td><td><span class="pill ok">live</span></td></tr>
+        <tr><td>Pro Guardian — $99/yr</td><td><a href="https://buy.stripe.com/28E8wP248g0Q38oaCdcbC1a" target="_blank" rel="noopener">buy.stripe.com</a></td><td><span class="pill ok">live</span></td></tr>
+        <tr><td>Pro Guardian — $69 lifetime</td><td><a href="https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19" target="_blank" rel="noopener">buy.stripe.com</a></td><td><span class="pill ok">live</span></td></tr>
+        <tr><td>Sovereign Enterprise — $29.99/mo</td><td><a href="https://buy.stripe.com/4gM7sLbEIaGw6kA5hTcbC1e" target="_blank" rel="noopener">buy.stripe.com</a></td><td><span class="pill ok">live</span></td></tr>
+        <tr><td>Sovereign Enterprise — $299/yr</td><td><a href="https://buy.stripe.com/28EeVd2485mcaAQaCdcbC1d" target="_blank" rel="noopener">buy.stripe.com</a></td><td><span class="pill ok">live</span></td></tr>
+        <tr><td>Sovereign Enterprise — $149 lifetime</td><td><a href="https://buy.stripe.com/14A8wPaAE5mc7oEaCdcbC1c" target="_blank" rel="noopener">buy.stripe.com</a></td><td><span class="pill ok">live</span></td></tr>
+      </table>
+    </div>
+
+    <h2>Where to post</h2>
+    <div class="block">
+      <table>
+        <tr><td>r/selfhosted</td><td>self-hosted + privacy angle; mention the Dockerfile and the free tier</td></tr>
+        <tr><td>r/homelab</td><td>hardware angle — the RF geiger, magnetometer, Pi-friendly</td></tr>
+        <tr><td>r/opensource</td><td>the ledger, the evidence bundle, the FOSS verifier</td></tr>
+        <tr><td>r/privacy</td><td>"no cloud, no account, no telemetry" is the whole pitch</td></tr>
+        <tr><td>r/HomeNetworking</td><td>lead with the Telnet finding — it happens to everyone</td></tr>
+        <tr><td>r/networking</td><td>the protocol auditors (SSH HASSH, SMB2, DNSSEC) — engineers respond to specifics</td></tr>
+        <tr><td>r/cybersecurity</td><td>post as "I built this"; include a real finding, not a feature list</td></tr>
+        <tr><td>Hacker News</td><td>Show HN — the technical variant, and answer every comment</td></tr>
+        <tr><td>Product Hunt</td><td>tagline: "On-device network intelligence and LAN guardian"</td></tr>
+        <tr><td>Bluesky / Mastodon / dev.to</td><td>the short variant; dev.to accepts a full article via the share engine</td></tr>
+      </table>
+      <div class="note" style="margin-top:12px">Tip: post with a screenshot of your own dashboard rather than the mockup — "I built this" posts with real evidence land far better than link drops. Always check a subreddit's self-promo rules first.</div>
+    </div>
+
+    <footer>
+      Netwide press kit · v4.7.0 · <a href="https://github.com/kaleidoscope-conscious/netwide">github</a> ·
+      <a href="https://kaleidoscope-conscious.github.io/netwide/">storefront</a> ·
+      <a href="https://github.com/kaleidoscope-conscious/netwide/discussions">discussions</a> ·
+      every number on this page is measured from the live system
+    </footer>
+  </div>
+
+  <div id="toast">Copied</div>
+
+  <script>
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('on');
+      clearTimeout(window._t);
+      window._t = setTimeout(() => t.classList.remove('on'), 1800);
+    }
+    function cp(id, btn) {
+      const text = document.getElementById(id).innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const old = btn.textContent;
+        btn.textContent = '✓ Copied';
+        setTimeout(() => (btn.textContent = old), 1600);
+        toast('Copied to clipboard');
+      }).catch(() => toast('Press Ctrl+C to copy'));
+    }
+    function cpText(el) {
+      const url = el.getAttribute('href');
+      navigator.clipboard.writeText(url).then(() => toast('URL copied'));
+      return false;
+    }
+  </script>
+</body>
+</html>
