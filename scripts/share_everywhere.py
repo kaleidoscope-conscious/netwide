@@ -48,10 +48,10 @@ KIT = {
     "demo": "https://kaleidoscope-conscious.github.io/netwide/",
     "sponsor": "https://github.com/sponsors/kaleidoscopeAI",
     "paypal": "https://paypal.me/jgraham1000",
-    "buy_pro_lifetime": "https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19",
-    "buy_ent_lifetime": "https://buy.stripe.com/14A8wPaAE5mc7oEaCdcbC1c",
-    "buy_pro_monthly": "https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b",
-    "buy_ent_monthly": "https://buy.stripe.com/4gM7sLbEIaGw6kA5hTcbC1e",
+    "buy_pro_lifetime": "https://buy.stripe.com/cNicN55gk15W24kbGhcbC1f",
+    "buy_ent_lifetime": "https://buy.stripe.com/00weVdgZ23e49wMcKlcbC1i",
+    "buy_pro_monthly": "https://buy.stripe.com/00w3cveQU01SfVa11DcbC1h",
+    "buy_ent_monthly": "https://buy.stripe.com/9B628reQU3e438o7q1cbC1k",
 }
 
 TITLE = "Netwide — see every device on your Wi-Fi, unmask hidden gadgets, quarantine freeloaders"

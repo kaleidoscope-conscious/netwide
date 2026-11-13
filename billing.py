@@ -64,7 +64,9 @@ TIER_CATALOG: Dict[str, Dict[str, Any]] = {
         "badge": "PRO GUARDIAN",
         "price_monthly_usd": 9.99,
         "price_annual_usd": 99.00,
-        "price_lifetime_usd": 69.00,
+        # Lifetime is priced at ~2x the annual price, matching the market
+        # convention for lifetime access (2-3x annual) rather than undercutting it.
+        "price_lifetime_usd": 199.00,
         "tagline": "Full 10-stage Hidden Entity De-Cloaker, Walk-Around RF Geiger Counter & Smart Home/TV Control.",
         "max_nodes": 3,
         "features": [
@@ -82,7 +84,7 @@ TIER_CATALOG: Dict[str, Dict[str, Any]] = {
         "badge": "SOVEREIGN ENTERPRISE",
         "price_monthly_usd": 29.99,
         "price_annual_usd": 299.00,
-        "price_lifetime_usd": 149.00,
+        "price_lifetime_usd": 449.00,
         "tagline": "Autonomous Host Quarantine, Wire DPI/JA3, SSH HASSH / SMB2 Audit, Counter-Surveillance & Exports.",
         "max_nodes": 25,
         "features": [
@@ -224,7 +226,7 @@ class SubscriptionManager:
                 pass
 
     def _get_config(self, key: str, default: str = "") -> str:
-        with closing(self._connect()) as conn:
+        with self._lock, closing(self._connect()) as conn:
             row = conn.execute(
                 "SELECT value FROM subscription_config WHERE key = ?", (key,)
             ).fetchone()
@@ -440,11 +442,9 @@ class SubscriptionManager:
             # Accept both the current full 256-bit tag and the legacy 144-bit truncated tag
             # so pre-upgrade minted keys remain valid.
             expected_sig_full = _b64url_encode(expected_sig)
-            expected_sig_trunc = _b64url_encode(expected_sig[:18])
-            signature_ok = (
-                hmac.compare_digest(sig_b64, expected_sig_full)
-                or hmac.compare_digest(sig_b64, expected_sig_trunc)
-            )
+            # Legacy 18-byte truncated tag removed: accepting it was a
+            # downgrade-attack vector that bypassed the full 256-bit check.
+            signature_ok = hmac.compare_digest(sig_b64, expected_sig_full)
             if not signature_ok:
                 return {"valid": False, "error": "Cryptographic signature verification failed (invalid HMAC-SHA256 tag)."}
 
@@ -541,7 +541,7 @@ class SubscriptionManager:
         return {"ok": True, "jti": jti, "revoked": True}
 
     def list_minted_licenses(self) -> List[Dict[str, Any]]:
-        with closing(self._connect()) as conn:
+        with self._lock, closing(self._connect()) as conn:
             rows = conn.execute(
                 "SELECT * FROM minted_licenses ORDER BY issued_at DESC LIMIT 100"
             ).fetchall()
@@ -855,7 +855,7 @@ class SubscriptionManager:
 
         cat = TIER_CATALOG[tier_clean]
         if plan_clean == "lifetime":
-            amount_usd = cat.get("price_lifetime_usd", 149.00 if tier_clean == "enterprise" else 69.00)
+            amount_usd = cat.get("price_lifetime_usd", 449.00 if tier_clean == "enterprise" else 199.00)
         elif plan_clean == "annual":
             amount_usd = cat["price_annual_usd"]
         else:

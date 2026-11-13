@@ -2151,6 +2151,30 @@ def _ssh_grade(kex_algs: List[str], host_key_algs: List[str], enc_c2s: List[str]
     }
 
 
+def _ssh_framing_ok(pkt_len: int, pad_len: int, available: int = 0) -> Tuple[bool, str]:
+    """
+    Validate RFC 4253 §6 binary packet framing.
+
+    packet_length covers the padding_length byte, the payload and the padding;
+    the packet on the wire (4-byte length + packet_length) must be a multiple of
+    the cipher block size, or 8 when the block size is smaller. Real servers
+    (OpenSSH, Dropbear) send the *whole* packet as a multiple of 8, so the
+    multiple-of-8 test applies to 4 + packet_length.
+    """
+    if pkt_len < 6:
+        return False, f"packet_length too small ({pkt_len})"
+    if pad_len < 4:
+        return False, f"padding_length below the RFC minimum of 4 ({pad_len})"
+    payload_len = pkt_len - pad_len - 1
+    if payload_len <= 0:
+        return False, f"empty payload (packet_length={pkt_len}, padding_length={pad_len})"
+    if (4 + pkt_len) % 8 != 0:
+        return False, f"packet is not a multiple of 8 bytes ({4 + pkt_len} total)"
+    if available and 5 + payload_len > available:
+        return False, "truncated packet"
+    return True, "ok"
+
+
 def _parse_ssh_kexinit_payload(payload: bytes) -> Optional[Dict[str, Any]]:
     """
     Parse an RFC 4253 binary SSH_MSG_KEXINIT (0x14 = 20) payload into its 10 algorithm
@@ -2275,16 +2299,9 @@ def probe_ssh_kex_and_hostkeys(ip: str, port: int = 22, timeout: float = 1.4) ->
                 if not chunk:
                     break
                 buf += chunk
-            # RFC 4253 §6: packet_length = 1 (padding_length byte) + payload + padding,
-            # and the whole packet must be a multiple of the cipher block size (>= 8).
+            # RFC 4253 §6 framing check (see _ssh_framing_ok for the rule).
             payload_len = pkt_len - pad_len - 1
-            framing_ok = (
-                pkt_len >= 6
-                and payload_len > 0
-                and 1 + payload_len + pad_len == pkt_len
-                and (1 + payload_len + pad_len) % 8 == 0
-                and 5 + payload_len <= len(buf)
-            )
+            framing_ok, framing_reason = _ssh_framing_ok(pkt_len, pad_len, len(buf))
             if framing_ok:
                 payload = buf[5 : 5 + payload_len]
                 parsed = _parse_ssh_kexinit_payload(payload)
@@ -2303,9 +2320,7 @@ def probe_ssh_kex_and_hostkeys(ip: str, port: int = 22, timeout: float = 1.4) ->
                 "banner": banner_line,
                 "port": port,
                 "crypto_grade": "Unrated (Invalid SSH Packet Framing)",
-                "parse_error": (
-                    f"RFC 4253 §6 framing invalid (packet_length={pkt_len}, padding_length={pad_len})"
-                ),
+                "parse_error": f"RFC 4253 §6 framing invalid: {framing_reason}",
             }
 
         return {"banner": banner_line, "port": port, "crypto_grade": "Banner Only"}

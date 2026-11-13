@@ -1961,6 +1961,21 @@ async def verify_ledger_anchor_endpoint(request: Request, req: LedgerAnchorReque
     return JSONResponse(res)
 
 
+@app.get("/api/protocol/verification")
+async def protocol_verification_endpoint(request: Request) -> JSONResponse:
+    """
+    Protocol Verification Engine report: for every assessed protocol, what the
+    evidence was, which specification requirements were met or failed, and how
+    confident the verdict is.
+    """
+    adm_err = _require_admin(request)
+    if adm_err:
+        return adm_err
+    from netwide.protocol_verification import build_report
+    report = await asyncio.to_thread(build_report, state.devices)
+    return JSONResponse(report)
+
+
 @app.get("/api/ipv6/audit")
 async def get_ipv6_audit_endpoint() -> JSONResponse:
     res = await asyncio.to_thread(audit_ipv6_posture, state.net_info.interface)

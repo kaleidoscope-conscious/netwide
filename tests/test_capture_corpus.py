@@ -67,6 +67,24 @@ def test_ssh_corpus(key):
             f"{key}: expected weak algorithms to be detected"
 
 
+def test_ssh_framing_rule_accepts_the_real_capture():
+    """
+    The framing rule must accept what real servers send.
+
+    The captured OpenSSH KEXINIT arrived as packet_length=1116, padding_length=7,
+    i.e. a 1120-byte packet on the wire (a multiple of 8). A rule that tested
+    packet_length alone would reject every real server — this pins it.
+    """
+    from netwide.probers import _ssh_framing_ok
+    ok, reason = _ssh_framing_ok(1116, 7, 1120)
+    assert ok, reason
+    # Malformed frames must still be refused.
+    assert _ssh_framing_ok(1116, 7, 100)[0] is False, "truncated packet must fail"
+    assert _ssh_framing_ok(1117, 7, 1121)[0] is False, "non-multiple-of-8 packet must fail"
+    assert _ssh_framing_ok(10, 1, 20)[0] is False, "padding below 4 must fail"
+    assert _ssh_framing_ok(10, 9, 20)[0] is False, "empty payload must fail"
+
+
 # ------------------------------------------------------------------ SMB2 corpus
 def test_smb_corpus_windows_311():
     key = "smb2_negotiate_response_synthetic_win311"

@@ -139,7 +139,7 @@ def step_github_release() -> None:
         "- **Signed Android 15 (API 35) Field App (`Netwide-Mobile-v4.9.0.apk`)**: Walk-Around RF Geiger Counter, 3-axis Magnetometer (`µT`), Dual-Node Triangulation, 28-port banner scanner, and SSDP discovery.\n"
         "- **Cryptographic & Protocol Auditors**: SSHv2 Binary `KEXINIT` HASSH MD5 & Post-Quantum KEX auditor, SMB2/3 NTLM-Relay signing inspector, RFC 4035 DNSSEC/DoT (`:853`), NTPv4 Stratum/Mode-6, and UPnP IGD NAT hole auditor.\n"
         "- **All-Around Network Toolkit**: Domain/DNS/SPF/DMARC + TLS `:443` X.509 OSINT, Local Workstation Socket Inspector (`ss -tulnp`), IPv4/IPv6 CIDR Calculator, and 1-Click Fleet Wake-on-LAN.\n"
-        f"- **Commercial Storefront & Founder's Lifetime License ($149)**: {pages_url}\n"
+        f"- **Commercial Storefront & Founder's Lifetime License ($449)**: {pages_url}\n"
     )
     rel_rc = _run(["gh", "release", "view", f"v{VERSION}", "--repo", repo_slug], check=False)
     if rel_rc != 0:

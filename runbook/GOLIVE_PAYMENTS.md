@@ -45,8 +45,8 @@ setup is required**. Tiers ship pre-configured in `billing.py`:
 
 | Tier | Monthly | Annual | Lifetime |
 |---|---|---|---|
-| Pro Guardian | $9.99 | $99.00 | $69.00 |
-| Sovereign Enterprise | $29.99 | $299.00 | $149.00 |
+| Pro Guardian | $9.99 | $99.00 | $199.00 |
+| Sovereign Enterprise | $29.99 | $299.00 | $449.00 |
 
 ### Steps (≈30 min)
 
@@ -60,7 +60,7 @@ setup is required**. Tiers ship pre-configured in `billing.py`:
    (`~/.config/netwide/admin.token`) → Save.
    Keys are stored in the local DB config; env vars (`STRIPE_SECRET_KEY`,
    `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`) override if present.
-4. **First sale**: buy your own Founder's Lifetime ($149) — you receive a
+4. **First sale**: buy your own Founder's Lifetime ($449) — you receive a
    real NP1-ENTERPRISE key; refund yourself from Stripe afterwards.
 5. **(Optional) Webhook** for asynchronous reliability:
    - Expose the daemon publicly (see §3), then in Stripe →

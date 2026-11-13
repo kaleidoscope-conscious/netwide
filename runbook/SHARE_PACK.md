@@ -163,12 +163,12 @@ Happy to answer questions. The protocol parsers are the part I'm most proud of �
 
 | Plan | Link |
 | :--- | :--- |
-| Pro Guardian — $9.99/mo | https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b |
-| Pro Guardian — $99/yr | https://buy.stripe.com/28E8wP248g0Q38oaCdcbC1a |
-| Pro Guardian — $69 lifetime | https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19 |
-| Sovereign Enterprise — $29.99/mo | https://buy.stripe.com/4gM7sLbEIaGw6kA5hTcbC1e |
-| Sovereign Enterprise — $299/yr | https://buy.stripe.com/28EeVd2485mcaAQaCdcbC1d |
-| Sovereign Enterprise — $149 lifetime | https://buy.stripe.com/14A8wPaAE5mc7oEaCdcbC1c |
+| Pro Guardian — $9.99/mo | https://buy.stripe.com/00w3cveQU01SfVa11DcbC1h |
+| Pro Guardian — $99/yr | https://buy.stripe.com/9B6cN55gkaGwdN2aCdcbC1g |
+| Pro Guardian — $199 lifetime | https://buy.stripe.com/cNicN55gk15W24kbGhcbC1f |
+| Sovereign Enterprise — $29.99/mo | https://buy.stripe.com/9B628reQU3e438o7q1cbC1k |
+| Sovereign Enterprise — $299/yr | https://buy.stripe.com/14A8wP4cg15WgZeaCdcbC1j |
+| Sovereign Enterprise — $449 lifetime | https://buy.stripe.com/00weVdgZ23e49wMcKlcbC1i |
 
 ---
 

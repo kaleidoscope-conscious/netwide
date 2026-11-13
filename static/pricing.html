@@ -329,9 +329,9 @@
       const btnLife = document.getElementById('btnLifetime');
       if (btnLife) btnLife.className = c === 'lifetime' ? 'btn btn-primary' : 'btn';
       if (c === 'lifetime') {
-        document.getElementById('proPrice').innerHTML = '$69 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ one-time lifetime</span>';
-        document.getElementById('entPrice').innerHTML = '$149 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ one-time lifetime</span>';
-        showPricingToast('Selected: Founder\'s Lifetime License ($69 Pro / $149 Enterprise)', '#a855f7');
+        document.getElementById('proPrice').innerHTML = '$199 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ one-time lifetime</span>';
+        document.getElementById('entPrice').innerHTML = '$449 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ one-time lifetime</span>';
+        showPricingToast('Selected: Founder\'s Lifetime License ($199 Pro / $449 Enterprise)', '#a855f7');
       } else if (c === 'annual') {
         document.getElementById('proPrice').innerHTML = '$99 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ year</span>';
         document.getElementById('entPrice').innerHTML = '$299 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ year</span>';
@@ -352,12 +352,12 @@
     }
 
     const NETWIDE_PAYMENT_LINKS = {
-      'pro_lifetime': 'https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19',
-      'pro_annual': 'https://buy.stripe.com/28E8wP248g0Q38oaCdcbC1a',
-      'pro_monthly': 'https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b',
-      'enterprise_lifetime': 'https://buy.stripe.com/14A8wPaAE5mc7oEaCdcbC1c',
-      'enterprise_annual': 'https://buy.stripe.com/28EeVd2485mcaAQaCdcbC1d',
-      'enterprise_monthly': 'https://buy.stripe.com/4gM7sLbEIaGw6kA5hTcbC1e'
+      'pro_lifetime': 'https://buy.stripe.com/cNicN55gk15W24kbGhcbC1f',
+      'pro_annual': 'https://buy.stripe.com/9B6cN55gkaGwdN2aCdcbC1g',
+      'pro_monthly': 'https://buy.stripe.com/00w3cveQU01SfVa11DcbC1h',
+      'enterprise_lifetime': 'https://buy.stripe.com/00weVdgZ23e49wMcKlcbC1i',
+      'enterprise_annual': 'https://buy.stripe.com/14A8wP4cg15WgZeaCdcbC1j',
+      'enterprise_monthly': 'https://buy.stripe.com/9B628reQU3e438o7q1cbC1k'
     };
 
     async function buyLicense(tier, plan) {

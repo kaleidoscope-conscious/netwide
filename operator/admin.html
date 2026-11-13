@@ -181,6 +181,21 @@
       <input id="anchorFile" type="file" accept=".json" style="display:none" onchange="importAnchor(this)">
     </div>
 
+    <div class="panel" style="margin-bottom:16px">
+      <h2>Protocol Verification Engine <span class="n" id="npveCount">—</span></h2>
+      <p style="color:var(--muted);font-size:12.5px;font-family:var(--mono);margin-bottom:10px;">
+        A verdict must be supported by evidence. Where the evidence is structurally invalid,
+        the engine reports the failure instead of a conclusion.
+      </p>
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="btn" onclick="loadNpve()">🔬 Load verification report</button>
+      </div>
+      <div id="npveOut" style="font-family:var(--mono);font-size:12px;line-height:1.6;color:#94a3b8">
+        Shows, per device and protocol: specification, evidence validity, verdict, confidence and the
+        evidence the verdict rests on.
+      </div>
+    </div>
+
   <footer>Netwide Business Control Room · <a href="/">Workbench</a> · <a href="/pricing">Pricing</a> · auto-syncs every 15s</footer>
 
     <script>
@@ -228,6 +243,28 @@
           + '<td><span class="tag ' + (r.source === 'stripe' ? 'stripe' : 'manual') + '">' + r.source + '</span></td>'
           + '<td><span class="tag ' + (r.revoked ? 'revoked' : 'active') + '">' + (r.revoked ? 'revoked' : 'active') + '</span></td></tr>'
         ).join('');
+      }
+
+      // ---- Protocol Verification Engine ----
+      async function loadNpve() {
+        const out = document.getElementById('npveOut');
+        out.textContent = 'Assembling verification report…';
+        try {
+          const r = await fetch('/api/protocol/verification', { cache: 'no-store' }).then(x => x.json());
+          if (!r.ok) { out.innerHTML = '<span style="color:#f87171">' + (r.error || 'failed') + '</span>'; return; }
+          document.getElementById('npveCount').textContent = (r.counts.entries ?? 0) + ' entries';
+          const badge = c => c === 'definitive' ? 'ok' : (c === 'weak' ? 'bad' : 'warn');
+          out.innerHTML = (r.entries || []).map(e =>
+            '<div style="border-left:2px solid #1f2b3e;padding-left:10px;margin-bottom:9px">' +
+            '<span class="chip ' + badge(e.confidence) + '">' + e.protocol.toUpperCase() + ' · ' + e.confidence + '</span> ' +
+            '<span style="color:#e2e8f0">' + (e.device || e.ip) + '</span>' +
+            '<div style="color:#cbd5e1;margin-top:3px">' + (e.verdict || '') + '</div>' +
+            '<div style="color:#64748b;margin-top:2px">' + (e.specification ? '[' + e.specification + '] ' : '') + (e.evidence || '') + '</div>' +
+            (e.requirements_failed && e.requirements_failed.length
+              ? '<div style="color:#f87171;margin-top:2px">requirements failed: ' + e.requirements_failed.join(', ') + '</div>'
+              : '') +
+            '</div>').join('') || '<div class="empty">no protocol evidence captured yet</div>';
+        } catch (e) { out.textContent = '✕ ' + e.message; }
       }
 
       // ---- Ledger integrity & external anchor ----

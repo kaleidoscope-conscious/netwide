@@ -41,10 +41,10 @@
     "installUrl": "https://github.com/kaleidoscope-conscious/netwide/releases/tag/v4.9.0",
     "offers": [
       { "@type": "Offer", "name": "Community Edition", "price": "0", "priceCurrency": "USD" },
-      { "@type": "Offer", "name": "Pro Guardian (monthly)", "price": "9.99", "priceCurrency": "USD", "url": "https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b" },
-      { "@type": "Offer", "name": "Pro Guardian (lifetime)", "price": "69.00", "priceCurrency": "USD", "url": "https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19" },
-      { "@type": "Offer", "name": "Sovereign Enterprise (monthly)", "price": "29.99", "priceCurrency": "USD", "url": "https://buy.stripe.com/4gM7sLbEIaGw6kA5hTcbC1e" },
-      { "@type": "Offer", "name": "Sovereign Enterprise (lifetime)", "price": "149.00", "priceCurrency": "USD", "url": "https://buy.stripe.com/14A8wPaAE5mc7oEaCdcbC1c" }
+      { "@type": "Offer", "name": "Pro Guardian (monthly)", "price": "9.99", "priceCurrency": "USD", "url": "https://buy.stripe.com/00w3cveQU01SfVa11DcbC1h" },
+      { "@type": "Offer", "name": "Pro Guardian (lifetime)", "price": "69.00", "priceCurrency": "USD", "url": "https://buy.stripe.com/cNicN55gk15W24kbGhcbC1f" },
+      { "@type": "Offer", "name": "Sovereign Enterprise (monthly)", "price": "29.99", "priceCurrency": "USD", "url": "https://buy.stripe.com/9B628reQU3e438o7q1cbC1k" },
+      { "@type": "Offer", "name": "Sovereign Enterprise (lifetime)", "price": "149.00", "priceCurrency": "USD", "url": "https://buy.stripe.com/00weVdgZ23e49wMcKlcbC1i" }
     ],
     "aggregateRating": { "@type": "AggregateRating", "ratingValue": "5", "ratingCount": "1" }
   }
@@ -276,7 +276,7 @@
 
     <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:20px;">
       <a href="https://github.com/kaleidoscope-conscious/netwide/releases/download/v4.9.0/Netwide-Mobile-v4.9.0.apk" class="btn btn-emerald" style="font-size:15px;padding:13px 24px;">📱 Download Signed Android 15 APK</a>
-      <a href="#pricing" class="btn btn-purple" style="font-size:15px;padding:13px 24px;">👑 Claim Founder's Lifetime License ($149)</a>
+      <a href="#pricing" class="btn btn-purple" style="font-size:15px;padding:13px 24px;">👑 Claim Founder's Lifetime License ($449)</a>
       <a href="https://github.com/kaleidoscope-conscious/netwide" class="btn btn-primary" style="font-size:15px;padding:13px 24px;">⚡ View Source on GitHub</a>
     </div>
 
@@ -359,7 +359,7 @@
         <div>
           <span class="pill">MOST POPULAR</span>
           <h3 style="font-size:22px;margin:8px 0;color:var(--sky);">Pro Guardian</h3>
-          <div class="price-big" id="proPrice">$69 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ one-time lifetime</span></div>
+          <div class="price-big" id="proPrice">$199 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ one-time lifetime</span></div>
           <ul class="feat-list">
             <li><strong>10-Stage Universal Hidden BSSID &amp; Privacy MAC De-Cloaker</strong></li>
             <li><strong>Walk-Around RF Geiger Counter &amp; Dual-Node Triangulation</strong></li>
@@ -375,7 +375,7 @@
         <div>
           <span class="pill" style="color:#34d399;border-color:#10b981;background:rgba(16,185,129,0.15);">SOVEREIGN ENTERPRISE</span>
           <h3 style="font-size:22px;margin:8px 0;color:#34d399;">Sovereign Enterprise</h3>
-          <div class="price-big" id="entPrice">$149 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ one-time lifetime</span></div>
+          <div class="price-big" id="entPrice">$449 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ one-time lifetime</span></div>
           <ul class="feat-list">
             <li><strong>Guardian Shield Active Host Quarantine &amp; Gateway Anti-ARP-Spoofing</strong></li>
             <li><strong>SSHv2 HASSH, SMB2/3 NTLM-Relay, DNSSEC/DoT &amp; NTP Stratum Auditors</strong></li>
@@ -487,8 +487,8 @@
       document.getElementById('btnAnnual').className = c === 'annual' ? 'btn btn-primary' : 'btn';
       document.getElementById('btnLifetime').className = c === 'lifetime' ? 'btn btn-purple' : 'btn';
       if (c === 'lifetime') {
-        document.getElementById('proPrice').innerHTML = '$69 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ one-time lifetime</span>';
-        document.getElementById('entPrice').innerHTML = '$149 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ one-time lifetime</span>';
+        document.getElementById('proPrice').innerHTML = '$199 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ one-time lifetime</span>';
+        document.getElementById('entPrice').innerHTML = '$449 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ one-time lifetime</span>';
       } else if (c === 'annual') {
         document.getElementById('proPrice').innerHTML = '$99 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ year</span>';
         document.getElementById('entPrice').innerHTML = '$299 <span style="font-size:14px;color:var(--muted);font-weight:500;">/ year</span>';
@@ -502,12 +502,12 @@
     // Stripe Payment Links (hosted checkout) — used when the buyer has no local
     // Netwide daemon running (i.e. web-first purchase before installation).
     const STRIPE_PAYMENT_LINKS = {
-      'pro_lifetime': 'https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19',
-      'pro_annual': 'https://buy.stripe.com/28E8wP248g0Q38oaCdcbC1a',
-      'pro_monthly': 'https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b',
-      'enterprise_lifetime': 'https://buy.stripe.com/14A8wPaAE5mc7oEaCdcbC1c',
-      'enterprise_annual': 'https://buy.stripe.com/28EeVd2485mcaAQaCdcbC1d',
-      'enterprise_monthly': 'https://buy.stripe.com/4gM7sLbEIaGw6kA5hTcbC1e'
+      'pro_lifetime': 'https://buy.stripe.com/cNicN55gk15W24kbGhcbC1f',
+      'pro_annual': 'https://buy.stripe.com/9B6cN55gkaGwdN2aCdcbC1g',
+      'pro_monthly': 'https://buy.stripe.com/00w3cveQU01SfVa11DcbC1h',
+      'enterprise_lifetime': 'https://buy.stripe.com/00weVdgZ23e49wMcKlcbC1i',
+      'enterprise_annual': 'https://buy.stripe.com/14A8wP4cg15WgZeaCdcbC1j',
+      'enterprise_monthly': 'https://buy.stripe.com/9B628reQU3e438o7q1cbC1k'
     };
     const LOCAL_DAEMON = 'http://127.0.0.1:8765';
 

@@ -20,6 +20,7 @@ Safe to re-run: it detects an already-renamed repo and skips that step.
 
 from __future__ import annotations
 
+import os
 import pathlib
 import subprocess
 import sys
@@ -58,6 +59,20 @@ def main() -> int:
 
     print(f"\nNetwide repo flip: {old_repo} -> {new_repo}\n")
 
+    # 0. Optionally rename the organisation as well (browser-only in the UI, but
+    #    attempted here first — GitHub sometimes accepts it for org owners).
+    new_org = os.environ.get("NETWIDE_NEW_ORG", "").strip()
+    if new_org:
+        res = run(["gh", "api", "-X", "PATCH", f"orgs/{owner}", "-f", f"login={new_org}"])
+        probe = subprocess.run(["gh", "api", f"orgs/{new_org}", "--jq", ".login"],
+                               cwd=str(ROOT), capture_output=True, text=True)
+        if probe.returncode == 0 and probe.stdout.strip() == new_org:
+            print(f"  -> organisation renamed to {new_org}")
+            owner = new_org
+        else:
+            print(f"  ! organisation rename to {new_org} was refused by the API — "
+                  "rename it in the UI (Settings -> Profile) and re-run this script.")
+
     # 1. Rename the repository (needs admin:org for org-owned repos)
     check = subprocess.run(["gh", "api", f"repos/{old_repo}", "--jq", ".name"],
                            cwd=str(ROOT), capture_output=True, text=True)
@@ -91,6 +106,8 @@ def main() -> int:
             continue
         out = src.replace(f"{owner}/{OLD_NAME}", f"{owner}/{NEW_NAME}")
         out = out.replace(f"github.io/{OLD_NAME}", f"github.io/{NEW_NAME}")
+        if new_org:
+            out = out.replace(f"{owner}", new_org)
         if out != src:
             path.write_text(out, encoding="utf-8")
             changed += 1

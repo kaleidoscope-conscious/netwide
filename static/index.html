@@ -3549,8 +3549,8 @@
       const lifeBtn = document.getElementById('cycleLifetimeBtn');
       if (lifeBtn) lifeBtn.className = cycle === 'lifetime' ? 'btn btn-primary btn-sm' : 'btn btn-sm';
       if (cycle === 'lifetime') {
-        document.getElementById('priceProLabel').textContent = '$69 / one-time';
-        document.getElementById('priceEntLabel').textContent = '$149 / one-time';
+        document.getElementById('priceProLabel').textContent = '$199 / one-time';
+        document.getElementById('priceEntLabel').textContent = '$449 / one-time';
       } else if (cycle === 'annual') {
         document.getElementById('priceProLabel').textContent = '$99 / yr';
         document.getElementById('priceEntLabel').textContent = '$299 / yr';
@@ -3701,12 +3701,12 @@
     }
 
     const NETWIDE_PAYMENT_LINKS = {
-      'pro_lifetime': 'https://buy.stripe.com/3cI7sL6ko4i89wM9y9cbC19',
-      'pro_annual': 'https://buy.stripe.com/28E8wP248g0Q38oaCdcbC1a',
-      'pro_monthly': 'https://buy.stripe.com/dRm7sLaAE8yo9wMbGhcbC1b',
-      'enterprise_lifetime': 'https://buy.stripe.com/14A8wPaAE5mc7oEaCdcbC1c',
-      'enterprise_annual': 'https://buy.stripe.com/28EeVd2485mcaAQaCdcbC1d',
-      'enterprise_monthly': 'https://buy.stripe.com/4gM7sLbEIaGw6kA5hTcbC1e'
+      'pro_lifetime': 'https://buy.stripe.com/cNicN55gk15W24kbGhcbC1f',
+      'pro_annual': 'https://buy.stripe.com/9B6cN55gkaGwdN2aCdcbC1g',
+      'pro_monthly': 'https://buy.stripe.com/00w3cveQU01SfVa11DcbC1h',
+      'enterprise_lifetime': 'https://buy.stripe.com/00weVdgZ23e49wMcKlcbC1i',
+      'enterprise_annual': 'https://buy.stripe.com/14A8wP4cg15WgZeaCdcbC1j',
+      'enterprise_monthly': 'https://buy.stripe.com/9B628reQU3e438o7q1cbC1k'
     };
 
     async function buyLicense(tier, plan) {
@@ -4145,7 +4145,7 @@
           <span style="font-size:12px;color:#94a3b8;font-weight:600;">Billing Cycle:</span>
           <button id="cycleMonthlyBtn" class="btn btn-primary btn-sm" onclick="setBillingCycle('monthly')">Monthly</button>
           <button id="cycleAnnualBtn" class="btn btn-sm" onclick="setBillingCycle('annual')">Annual (Save 17%)</button>
-          <button id="cycleLifetimeBtn" class="btn btn-sm" style="border-color:#a855f7;color:#e9d5ff;" onclick="setBillingCycle('lifetime')">👑 Founder's Lifetime ($69 / $149)</button>
+          <button id="cycleLifetimeBtn" class="btn btn-sm" style="border-color:#a855f7;color:#e9d5ff;" onclick="setBillingCycle('lifetime')">👑 Founder's Lifetime ($199 / $449)</button>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="font-size:12px;color:#94a3b8;">Subscriber Email:</span>
